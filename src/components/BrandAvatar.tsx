@@ -26,7 +26,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.ring,
     borderRadius: 999,
-    borderWidth: 1.25,
+    borderWidth: 1,
     justifyContent: "center",
   },
   large: {

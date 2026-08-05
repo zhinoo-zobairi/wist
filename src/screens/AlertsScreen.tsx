@@ -33,7 +33,7 @@ export function AlertsScreen({ onViewItem }: Props) {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No drops yet</Text>
             <Text style={styles.emptyBody}>
-              Star a piece, then use the seed drop action to test the signal.
+              Star a piece, then use the price drop action to test the signal.
             </Text>
           </View>
         }

@@ -25,14 +25,14 @@ export function SavedScreen({ onTriggerDrop }: Props) {
           <Text style={styles.subtitle}>Your watched pieces.</Text>
         </View>
         <Pressable
-          accessibilityLabel="Trigger a seed price drop"
+          accessibilityLabel="Trigger a price drop"
           accessibilityRole="button"
           accessibilityState={{ disabled: items.length === 0 }}
           disabled={items.length === 0}
           onPress={onTriggerDrop}
           style={[styles.dropButton, items.length === 0 && styles.dropButtonDisabled]}
         >
-          <Text style={styles.dropButtonText}>Trigger seed drop</Text>
+          <Text style={styles.dropButtonText}>Trigger price drop</Text>
         </Pressable>
       </View>
       <FlatList

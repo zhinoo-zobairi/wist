@@ -94,7 +94,7 @@ function FeedCard({ item }: { item: Item }) {
         </View>
         <Text style={styles.caption}>
           {latestDrop
-            ? "A piece you were watching just reached its lowest seeded price yet."
+            ? "A piece you were watching just reached its lowest price yet."
             : "Star this piece and Covet will tell you the moment its price drops."}
         </Text>
       </View>
