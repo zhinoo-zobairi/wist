@@ -107,7 +107,7 @@ export default function App() {
   };
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={styles.root}>
       <SafeAreaView edges={["top"]} style={styles.container}>
         <StatusBar style="dark" />
         <View style={styles.content}>{renderScreen()}</View>
@@ -131,13 +131,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   container: {
+    alignSelf: "center",
     backgroundColor: colors.paper,
     flex: 1,
+    maxWidth: 480,
+    width: "100%",
   },
   content: {
     flex: 1,
   },
   navSafeArea: {
     backgroundColor: colors.card,
+  },
+  root: {
+    backgroundColor: colors.line,
+    flex: 1,
   },
 });
