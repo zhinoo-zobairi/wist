@@ -1,6 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, View } from "react-native";
 
+import { Icon, type IconName } from "./Icon";
 import { colors } from "../theme";
 
 export type TabId = "feed" | "browse" | "alerts" | "saved" | "profile";
@@ -13,35 +13,14 @@ type Props = {
 
 const tabs: Array<{
   id: TabId;
-  icon: keyof typeof Ionicons.glyphMap;
-  activeIcon: keyof typeof Ionicons.glyphMap;
+  icon: IconName;
   label: string;
 }> = [
-  { id: "feed", icon: "home-outline", activeIcon: "home", label: "Home" },
-  {
-    id: "browse",
-    icon: "search-outline",
-    activeIcon: "search",
-    label: "Browse",
-  },
-  {
-    id: "alerts",
-    icon: "notifications-outline",
-    activeIcon: "notifications",
-    label: "Alerts",
-  },
-  {
-    id: "saved",
-    icon: "bookmark-outline",
-    activeIcon: "bookmark",
-    label: "Saved",
-  },
-  {
-    id: "profile",
-    icon: "person-outline",
-    activeIcon: "person",
-    label: "Profile",
-  },
+  { id: "feed", icon: "home", label: "Home" },
+  { id: "browse", icon: "search", label: "Browse" },
+  { id: "alerts", icon: "bell", label: "Alerts" },
+  { id: "saved", icon: "bookmark", label: "Saved" },
+  { id: "profile", icon: "user", label: "Profile" },
 ];
 
 export function BottomTabBar({ activeTab, hasUnreadAlerts, onChange }: Props) {
@@ -61,9 +40,9 @@ export function BottomTabBar({ activeTab, hasUnreadAlerts, onChange }: Props) {
             style={styles.tab}
           >
             <View>
-              <Ionicons
+              <Icon
                 color={active ? colors.ink : colors.muted}
-                name={active ? tab.activeIcon : tab.icon}
+                name={tab.icon}
                 size={24}
               />
               {tab.id === "alerts" && hasUnreadAlerts ? (

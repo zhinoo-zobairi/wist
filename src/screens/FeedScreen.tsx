@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import {
   FlatList,
   Image,
@@ -10,6 +9,7 @@ import {
 } from "react-native";
 
 import { BrandAvatar } from "../components/BrandAvatar";
+import { Icon } from "../components/Icon";
 import { brandsById, seedBrands } from "../data/seed";
 import { seedPriceSource } from "../services/SeedPriceSource";
 import { useCovetStore } from "../store/useCovetStore";
@@ -70,15 +70,16 @@ function FeedCard({ item }: { item: Item }) {
           hitSlop={10}
           onPress={() => toggleStar(item.id)}
         >
-          <Ionicons
-            color={starredItemIds.includes(item.id) ? colors.wine : colors.ink}
-            name={starredItemIds.includes(item.id) ? "star" : "star-outline"}
+          <Icon
+            color={colors.ink}
+            filled={starredItemIds.includes(item.id)}
+            name="star"
             size={25}
           />
         </Pressable>
-        <Ionicons color={colors.ink} name="share-outline" size={24} />
+        <Icon color={colors.ink} name="share" size={24} />
         <View style={styles.actionSpacer} />
-        <Ionicons color={colors.ink} name="bookmark-outline" size={24} />
+        <Icon color={colors.ink} name="bookmark" size={24} />
       </View>
 
       <View style={styles.meta}>
@@ -143,7 +144,7 @@ export function FeedScreen({
                 hitSlop={10}
                 onPress={onOpenBrowse}
               >
-                <Ionicons color={colors.ink} name="search-outline" size={23} />
+                <Icon color={colors.ink} name="search" size={23} />
               </Pressable>
               <Pressable
                 accessibilityLabel="Open price-drop alerts"
@@ -152,11 +153,7 @@ export function FeedScreen({
                 onPress={onOpenAlerts}
               >
                 <View>
-                  <Ionicons
-                    color={colors.ink}
-                    name="notifications-outline"
-                    size={23}
-                  />
+                  <Icon color={colors.ink} name="bell" size={23} />
                   {hasUnreadAlerts ? <View style={styles.alertBadge} /> : null}
                 </View>
               </Pressable>

@@ -1,6 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { Icon } from "../components/Icon";
 import { brandsById } from "../data/seed";
 import { seedPriceSource } from "../services/SeedPriceSource";
 import { useCovetStore } from "../store/useCovetStore";
@@ -32,14 +32,13 @@ export function SavedScreen({ onTriggerDrop }: Props) {
           onPress={onTriggerDrop}
           style={[styles.dropButton, items.length === 0 && styles.dropButtonDisabled]}
         >
-          <Ionicons color={colors.card} name="trending-down" size={15} />
           <Text style={styles.dropButtonText}>Trigger seed drop</Text>
         </Pressable>
       </View>
       <FlatList
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons color={colors.ring} name="star-outline" size={28} />
+            <Icon color={colors.ring} name="star" size={28} />
             <Text style={styles.emptyTitle}>Your watchlist is quiet</Text>
             <Text style={styles.emptyBody}>
               Star a piece in Feed or Browse to watch its price.
@@ -68,7 +67,7 @@ export function SavedScreen({ onTriggerDrop }: Props) {
                   onPress={() => toggleStar(item.id)}
                   style={styles.starButton}
                 >
-                  <Ionicons color={colors.wine} name="star" size={20} />
+                  <Icon color={colors.ink} filled name="star" size={20} />
                 </Pressable>
               </View>
               <Text style={styles.brand}>{brandsById[item.brandId]?.name}</Text>

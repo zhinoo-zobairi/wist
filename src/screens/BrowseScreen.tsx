@@ -7,8 +7,8 @@ import {
   Text,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
+import { Icon } from "../components/Icon";
 import { seedBrands } from "../data/seed";
 import { seedPriceSource } from "../services/SeedPriceSource";
 import { useCovetStore } from "../store/useCovetStore";
@@ -107,9 +107,10 @@ export function BrowseScreen({ selectedBrandId, onSelectBrand }: Props) {
                 onPress={() => toggleStar(item.id)}
                 style={styles.starButton}
               >
-                <Ionicons
-                  color={starredItemIds.includes(item.id) ? colors.wine : colors.ink}
-                  name={starredItemIds.includes(item.id) ? "star" : "star-outline"}
+                <Icon
+                  color={colors.ink}
+                  filled={starredItemIds.includes(item.id)}
+                  name="star"
                   size={20}
                 />
               </Pressable>
