@@ -19,7 +19,7 @@ import { AlertsScreen } from "./src/screens/AlertsScreen";
 import { BrowseScreen } from "./src/screens/BrowseScreen";
 import { FeedScreen } from "./src/screens/FeedScreen";
 import { SavedScreen } from "./src/screens/SavedScreen";
-import { StubScreen } from "./src/screens/StubScreen";
+import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { colors } from "./src/theme";
 import { useCovetStore } from "./src/store/useCovetStore";
 
@@ -88,12 +88,7 @@ export default function App() {
       case "saved":
         return <SavedScreen onTriggerDrop={() => void handleSeedDrop()} />;
       case "profile":
-        return (
-          <StubScreen
-            body="Covet v1 is intentionally local and single-user."
-            title="Profile"
-          />
-        );
+        return <ProfileScreen />;
       case "feed":
       default:
         return (
