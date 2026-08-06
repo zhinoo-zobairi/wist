@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Icon, type IconName } from "./Icon";
 import { colors } from "../theme";
@@ -17,9 +17,9 @@ const tabs: Array<{
   label: string;
 }> = [
   { id: "feed", icon: "home", label: "Home" },
-  { id: "browse", icon: "search", label: "Browse" },
+  { id: "browse", icon: "search", label: "Discover" },
+  { id: "saved", icon: "heart", label: "Coveted" },
   { id: "alerts", icon: "bell", label: "Alerts" },
-  { id: "saved", icon: "bookmark", label: "Saved" },
   { id: "profile", icon: "user", label: "Profile" },
 ];
 
@@ -43,12 +43,15 @@ export function BottomTabBar({ activeTab, hasUnreadAlerts, onChange }: Props) {
               <Icon
                 color={active ? colors.ink : colors.muted}
                 name={tab.icon}
-                size={24}
+                size={21}
               />
               {tab.id === "alerts" && hasUnreadAlerts ? (
                 <View style={styles.badge} />
               ) : null}
             </View>
+            <Text style={[styles.label, active && styles.activeLabel]}>
+              {tab.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -63,10 +66,10 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
     borderTopWidth: 1,
     flexDirection: "row",
-    minHeight: 62,
-    paddingBottom: 4,
-    paddingHorizontal: 14,
-    paddingTop: 8,
+    minHeight: 68,
+    paddingBottom: 5,
+    paddingHorizontal: 8,
+    paddingTop: 7,
   },
   tab: {
     alignItems: "center",
@@ -74,6 +77,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 44,
   },
+  label: {
+    color: colors.muted,
+    fontFamily: "Inter_500Medium",
+    fontSize: 9,
+    marginTop: 3,
+  },
+  activeLabel: { color: colors.ink },
   badge: {
     backgroundColor: colors.wine,
     borderColor: colors.card,

@@ -8,6 +8,8 @@ export type IconName =
   | "star"
   | "share"
   | "bookmark"
+  | "heart"
+  | "arrow"
   | "home"
   | "user";
 
@@ -19,8 +21,8 @@ type Props = {
 };
 
 export function Icon({ color, filled = false, name, size = 22 }: Props) {
-  const isFilledStar = name === "star" && filled;
-  const iconColor = isFilledStar ? colors.wine : color;
+  const isFilledSave = (name === "star" || name === "heart") && filled;
+  const iconColor = isFilledSave ? colors.wine : color;
   const strokeWidth = ["search", "bell", "home", "user"].includes(name)
     ? 1.6
     : 1.5;
@@ -49,6 +51,13 @@ export function Icon({ color, filled = false, name, size = 22 }: Props) {
       </>
     ),
     bookmark: <Path d="M6 4h12v16l-6-4-6 4z" />,
+    heart: <Path d="M20.8 5.8c-1.8-1.8-4.8-1.8-6.6 0L12 8l-2.2-2.2a4.7 4.7 0 0 0-6.6 6.6L12 21l8.8-8.6a4.7 4.7 0 0 0 0-6.6z" />,
+    arrow: (
+      <>
+        <Path d="M5 12h14" />
+        <Path d="M14 7l5 5-5 5" />
+      </>
+    ),
     home: <Path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z" />,
     user: (
       <>
@@ -61,7 +70,7 @@ export function Icon({ color, filled = false, name, size = 22 }: Props) {
   return (
     <Svg
       color={iconColor}
-      fill={isFilledStar ? "currentColor" : "none"}
+      fill={isFilledSave ? "currentColor" : "none"}
       height={size}
       stroke="currentColor"
       strokeLinecap="round"

@@ -1,126 +1,89 @@
-import {
-  FlatList,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Icon } from "../components/Icon";
 import { seedBrands } from "../data/seed";
 import { seedPriceSource } from "../services/SeedPriceSource";
 import { useCovetStore } from "../store/useCovetStore";
-import { colors, fonts, radii } from "../theme";
+import { colors, fonts } from "../theme";
 
-type Props = {
-  selectedBrandId: string;
-  onSelectBrand: (brandId: string) => void;
-};
+type Props = { selectedBrandId: string; onSelectBrand: (brandId: string) => void };
 
 export function BrowseScreen({ selectedBrandId, onSelectBrand }: Props) {
-  const followedBrandIds = useCovetStore((state) => state.followedBrandIds);
-  useCovetStore((state) => state.priceRevision);
-  const starredItemIds = useCovetStore((state) => state.starredItemIds);
+  const followed = useCovetStore((state) => state.followedBrandIds);
+  const coveted = useCovetStore((state) => state.starredItemIds);
   const toggleFollow = useCovetStore((state) => state.toggleFollow);
-  const toggleStar = useCovetStore((state) => state.toggleStar);
-  const selectedBrand =
-    seedBrands.find((brand) => brand.id === selectedBrandId) ?? seedBrands[0];
-  const items = selectedBrand ? seedPriceSource.getItems(selectedBrand.id) : [];
+  const toggleCovet = useCovetStore((state) => state.toggleStar);
+  useCovetStore((state) => state.priceRevision);
+  const brand = seedBrands.find((candidate) => candidate.id === selectedBrandId) ?? seedBrands[0];
+  const items = brand ? seedPriceSource.getItems(brand.id) : [];
 
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>CURATED BRANDS</Text>
-        <Text style={styles.title}>Browse</Text>
+        <Text style={styles.kicker}>THE COVET INDEX</Text>
+        <Text style={styles.title}>Discover</Text>
+        <Pressable accessibilityLabel="Search pieces" style={styles.search}>
+          <Icon color={colors.muted} name="search" size={19} />
+          <Text style={styles.searchText}>Search across your brands</Text>
+        </Pressable>
       </View>
-      <ScrollView
-        contentContainerStyle={styles.brandTabs}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-      >
-        {seedBrands.map((brand) => {
-          const selected = brand.id === selectedBrand?.id;
+      <ScrollView contentContainerStyle={styles.tabs} horizontal showsHorizontalScrollIndicator={false}>
+        {seedBrands.map((item) => {
+          const selected = item.id === brand?.id;
           return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              key={brand.id}
-              onPress={() => onSelectBrand(brand.id)}
-              style={[styles.brandTab, selected && styles.brandTabSelected]}
-            >
-              <Text
-                style={[styles.brandTabText, selected && styles.brandTabTextSelected]}
-              >
-                {brand.name}
-              </Text>
+            <Pressable key={item.id} onPress={() => onSelectBrand(item.id)} style={styles.tab}>
+              <Text style={[styles.tabText, selected && styles.tabSelected]}>{item.name}</Text>
+              {selected ? <View style={styles.tabLine} /> : null}
             </Pressable>
           );
         })}
       </ScrollView>
-      <View style={styles.brandHeading}>
+      <View style={styles.brandHead}>
         <View>
-          <Text style={styles.brandTitle}>{selectedBrand?.name}</Text>
-          <Text style={styles.itemCount}>{items.length} pieces</Text>
+          <Text style={styles.brandLabel}>CURATED HOUSE</Text>
+          <Text style={styles.brandName}>{brand?.name}</Text>
+          <Text style={styles.count}>{items.length} pieces selected</Text>
         </View>
-        {selectedBrand ? (
+        {brand ? (
           <Pressable
-            accessibilityLabel={`${followedBrandIds.includes(selectedBrand.id) ? "Unfollow" : "Follow"} ${selectedBrand.name}`}
-            accessibilityRole="button"
-            accessibilityState={{ selected: followedBrandIds.includes(selectedBrand.id) }}
-            onPress={() => toggleFollow(selectedBrand.id)}
-            style={[
-              styles.followButton,
-              followedBrandIds.includes(selectedBrand.id) && styles.followingButton,
-            ]}
+            accessibilityState={{ selected: followed.includes(brand.id) }}
+            onPress={() => toggleFollow(brand.id)}
+            style={[styles.follow, followed.includes(brand.id) && styles.following]}
           >
-            <Text
-              style={[
-                styles.followButtonText,
-                followedBrandIds.includes(selectedBrand.id) && styles.followingButtonText,
-              ]}
-            >
-              {followedBrandIds.includes(selectedBrand.id) ? "Following" : "Follow"}
+            <Text style={[styles.followText, followed.includes(brand.id) && styles.followingText]}>
+              {followed.includes(brand.id) ? "FOLLOWING" : "FOLLOW"}
             </Text>
           </Pressable>
         ) : null}
       </View>
       <FlatList
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.grid}
+        contentContainerStyle={styles.list}
         data={items}
         keyExtractor={(item) => item.id}
-        numColumns={2}
-        renderItem={({ item }) => (
-          <View style={styles.gridItem}>
-            <View>
-              <Image
-                accessibilityLabel={item.name}
-                source={{ uri: item.imageUrl }}
-                style={styles.image}
-              />
-              <Pressable
-                accessibilityLabel={`${starredItemIds.includes(item.id) ? "Unstar" : "Star"} ${item.name}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: starredItemIds.includes(item.id) }}
-                onPress={() => toggleStar(item.id)}
-                style={styles.starButton}
-              >
-                <Icon
-                  color={colors.ink}
-                  filled={starredItemIds.includes(item.id)}
-                  name="star"
-                  size={20}
-                />
-              </Pressable>
+        renderItem={({ item, index }) => {
+          const selected = coveted.includes(item.id);
+          return (
+            <View style={[styles.product, index % 2 === 1 && styles.reverse]}>
+              <Image source={{ uri: item.imageUrl }} style={styles.image} />
+              <View style={styles.productBody}>
+                <Text style={styles.number}>0{index + 1}</Text>
+                <View>
+                  <Text style={styles.productName}>{item.name}</Text>
+                  <Text style={styles.price}>€ {item.currentPrice.toFixed(0)}</Text>
+                  <Pressable
+                    accessibilityLabel={`${selected ? "Remove" : "Covet"} ${item.name}`}
+                    accessibilityState={{ selected }}
+                    onPress={() => toggleCovet(item.id)}
+                    style={styles.covet}
+                  >
+                    <Icon color={colors.ink} filled={selected} name="heart" size={17} />
+                    <Text style={[styles.covetText, selected && styles.covetedText]}>{selected ? "COVETED" : "COVET"}</Text>
+                  </Pressable>
+                </View>
+              </View>
             </View>
-            <Text numberOfLines={1} style={styles.itemName}>
-              {item.name}
-            </Text>
-            <Text style={styles.price}>€ {item.currentPrice.toFixed(0)}</Text>
-          </View>
-        )}
+          );
+        }}
         showsVerticalScrollIndicator={false}
       />
     </View>
@@ -128,128 +91,34 @@ export function BrowseScreen({ selectedBrandId, onSelectBrand }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: colors.paper,
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  eyebrow: {
-    color: colors.muted,
-    fontFamily: fonts.textSemibold,
-    fontSize: 10,
-    letterSpacing: 1.5,
-  },
-  title: {
-    color: colors.ink,
-    fontFamily: fonts.display,
-    fontSize: 34,
-  },
-  brandTabs: {
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  brandTab: {
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  brandTabSelected: {
-    backgroundColor: colors.ink,
-    borderColor: colors.ink,
-  },
-  brandTabText: {
-    color: colors.ink,
-    fontFamily: fonts.textMedium,
-    fontSize: 12,
-  },
-  brandTabTextSelected: {
-    color: colors.card,
-  },
-  brandHeading: {
-    alignItems: "center",
-    borderTopColor: colors.line,
-    borderTopWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 13,
-  },
-  brandTitle: {
-    color: colors.ink,
-    fontFamily: fonts.display,
-    fontSize: 24,
-  },
-  itemCount: {
-    color: colors.muted,
-    fontFamily: fonts.text,
-    fontSize: 11,
-  },
-  followButton: {
-    backgroundColor: colors.ink,
-    borderColor: colors.ink,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  followingButton: {
-    backgroundColor: "transparent",
-    borderColor: colors.wine,
-  },
-  followButtonText: {
-    color: colors.card,
-    fontFamily: fonts.textSemibold,
-    fontSize: 12,
-  },
-  followingButtonText: {
-    color: colors.wine,
-  },
-  grid: {
-    paddingBottom: 24,
-    paddingHorizontal: 14,
-  },
-  row: {
-    gap: 10,
-  },
-  gridItem: {
-    flex: 1,
-    marginBottom: 18,
-    maxWidth: "50%",
-  },
-  image: {
-    aspectRatio: 4 / 5,
-    backgroundColor: colors.line,
-    borderRadius: radii.card,
-    width: "100%",
-  },
-  starButton: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: radii.pill,
-    height: 36,
-    justifyContent: "center",
-    position: "absolute",
-    right: 9,
-    top: 9,
-    width: 36,
-  },
-  itemName: {
-    color: colors.ink,
-    fontFamily: fonts.display,
-    fontSize: 17,
-    marginTop: 8,
-  },
-  price: {
-    color: colors.ink,
-    fontFamily: fonts.textMedium,
-    fontSize: 12,
-    marginTop: 2,
-  },
+  screen: { backgroundColor: colors.paper, flex: 1 },
+  header: { paddingHorizontal: 22, paddingTop: 11 },
+  kicker: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.8 },
+  title: { color: colors.ink, fontFamily: fonts.display, fontSize: 43, lineHeight: 48, marginTop: 2 },
+  search: { alignItems: "center", borderBottomColor: colors.ink, borderBottomWidth: 1, flexDirection: "row", gap: 10, marginTop: 16, paddingBottom: 11 },
+  searchText: { color: colors.muted, fontFamily: fonts.text, fontSize: 13 },
+  tabs: { gap: 22, paddingHorizontal: 22, paddingVertical: 20 },
+  tab: { paddingBottom: 7 },
+  tabText: { color: colors.muted, fontFamily: fonts.textMedium, fontSize: 11 },
+  tabSelected: { color: colors.ink },
+  tabLine: { backgroundColor: colors.ink, bottom: 0, height: 1, left: 0, position: "absolute", right: 0 },
+  brandHead: { alignItems: "flex-end", borderTopColor: colors.line, borderTopWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 22, paddingVertical: 19 },
+  brandLabel: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.4 },
+  brandName: { color: colors.ink, fontFamily: fonts.display, fontSize: 28, marginTop: 3 },
+  count: { color: colors.muted, fontFamily: fonts.text, fontSize: 10 },
+  follow: { backgroundColor: colors.ink, minWidth: 92, paddingHorizontal: 14, paddingVertical: 11 },
+  following: { backgroundColor: "transparent", borderColor: colors.ink, borderWidth: 1 },
+  followText: { color: colors.card, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2, textAlign: "center" },
+  followingText: { color: colors.ink },
+  list: { paddingBottom: 30, paddingHorizontal: 14 },
+  product: { flexDirection: "row", marginBottom: 14, minHeight: 226 },
+  reverse: { flexDirection: "row-reverse" },
+  image: { backgroundColor: colors.line, width: "61%" },
+  productBody: { justifyContent: "space-between", padding: 14, width: "39%" },
+  number: { color: colors.muted, fontFamily: fonts.text, fontSize: 9 },
+  productName: { color: colors.ink, fontFamily: fonts.display, fontSize: 20, lineHeight: 21 },
+  price: { color: colors.ink, fontFamily: fonts.textMedium, fontSize: 11, marginTop: 7 },
+  covet: { alignItems: "center", borderTopColor: colors.line, borderTopWidth: 1, flexDirection: "row", gap: 6, marginTop: 17, paddingTop: 9 },
+  covetText: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2 },
+  covetedText: { color: colors.wine },
 });

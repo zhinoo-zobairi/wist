@@ -1,11 +1,13 @@
 export const colors = {
-  paper: "#FAF7F2",
+  paper: "#F4F1EB",
   card: "#FFFFFF",
-  ink: "#211E1B",
-  muted: "#9A9088",
-  line: "#ECE6DC",
-  wine: "#7A2E3B",
-  ring: "#C9A96A",
+  ink: "#181715",
+  muted: "#77736C",
+  line: "#DCD7CE",
+  wine: "#A52A37",
+  ring: "#B6A88C",
+  moss: "#4E5748",
+  wash: "#E9E4DC",
 } as const;
 
 export const fonts = {
@@ -16,7 +18,7 @@ export const fonts = {
 } as const;
 
 export const radii = {
-  card: 20,
+  card: 3,
   pill: 999,
 } as const;
 
