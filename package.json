@@ -9,6 +9,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "catalogue:build": "tsc -p catalogue-service/tsconfig.json",
+    "catalogue:probe:awin": "npm run catalogue:build && node catalogue-service/dist/probeAwin.js",
     "catalogue:start": "npm run catalogue:build && node catalogue-service/dist/server.js",
     "typecheck": "tsc --noEmit && tsc -p catalogue-service/tsconfig.json --noEmit",
     "test": "vitest run"
