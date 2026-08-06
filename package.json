@@ -8,7 +8,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit",
+    "catalogue:build": "tsc -p catalogue-service/tsconfig.json",
+    "catalogue:start": "npm run catalogue:build && node catalogue-service/dist/server.js",
+    "typecheck": "tsc --noEmit && tsc -p catalogue-service/tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
@@ -30,6 +32,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@types/node": "^26.1.2",
     "@types/react": "~19.2.0",
     "typescript": "~6.0.3",
     "vitest": "^3.2.4"
