@@ -13,6 +13,39 @@ npm run ios
 
 Use `npm run android` for Android or `npm run web` for the browser preview. The in-app drop flow works on web, but browser previews intentionally skip native local notifications.
 
+## Catalogue backend
+
+The first backend slice is a separate TypeScript catalogue service. It owns the
+normalized brand/product API contract while the mobile app remains on its
+existing local seed source.
+
+```bash
+npm run catalogue:start
+```
+
+The service listens on `http://127.0.0.1:4000` by default. Set `PORT` to change
+it. Available read endpoints are:
+
+- `GET /health`
+- `GET /v1/brands`
+- `GET /v1/brands/:brandId/items`
+- `GET /v1/items/:itemId`
+
+The service currently uses an in-memory seed repository. It has no database,
+scheduler, scraper, authentication, or long-running ingestion yet.
+
+### Prove Awin feed access
+
+After obtaining an Awin publisher product-feed API key, run:
+
+```bash
+AWIN_PRODUCT_FEED_API_KEY=<your-key> npm run catalogue:probe:awin
+```
+
+The probe downloads Awin's feed list, reports whether the verified Sézane and
+Sandro advertiser IDs are accessible, and omits credential-bearing download
+URLs from its output. Never commit the key.
+
 ## Prove the price-drop loop
 
 1. Open **Home** or **Discover** and covet a piece.
@@ -29,10 +62,18 @@ The trigger lowers the first coveted item's current seed price by 30%. Coveting 
 ```bash
 npm run typecheck
 npm test
+npm run catalogue:build
 ```
 
 ## Architecture boundary
 
-`PriceSource` is the only catalogue-price boundary. `SeedPriceSource` is the v1 implementation and uses the four approved seed brands: Sézane, Claudie Pierlot, & Other Stories, and Sandro.
+`PriceSource` remains the mobile prototype's local price boundary.
+`SeedPriceSource` uses the four approved seed brands: Sézane, Claudie Pierlot,
+& Other Stories, and Sandro. The catalogue service is a separate asynchronous
+boundary and does not pretend network I/O is a synchronous `PriceSource`.
 
-This build does **not** scrape or call brand sites. It has no ingestion cadence, remote backend, authentication, or multi-user data. Follows, stars, the latest snapshot per watched item, and up to 100 recent alerts belong to one local user and persist through AsyncStorage. A future approved ingestion implementation can replace `SeedPriceSource` without changing drop detection or UI state.
+This build does **not** scrape or call brand sites. The catalogue service has no
+ingestion cadence or persistent state, and the mobile app is not wired to it
+yet. Authentication and multi-user data remain out of scope. Follows, coveted
+items, the latest snapshot per watched item, and up to 100 recent alerts belong
+to one local user and persist through AsyncStorage.

@@ -1,6 +1,6 @@
 # Ingestion Source Decision
 
-Status: Source route selected; authenticated access pending
+Status: Backend boundary implemented; authenticated access pending
 Decision owner: Product and catalogue service owner  
 Last updated: 2026-08-06
 
@@ -93,6 +93,10 @@ should answer:
 
 Do not add a database, scheduler, queue, or scraper during this proof. Those
 create service ownership and should follow the source decision.
+
+The repository now contains this proof as `npm run catalogue:probe:awin` and a
+minimal catalogue HTTP service backed by in-memory seed data. The mobile app is
+intentionally not wired to it until a real feed and target market are confirmed.
 
 ## Evidence
 
