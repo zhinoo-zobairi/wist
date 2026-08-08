@@ -3,5 +3,6 @@ node_modules/
 dist/
 web-build/
 coverage/
+catalogue-service/data/
 *.log
 .DS_Store
