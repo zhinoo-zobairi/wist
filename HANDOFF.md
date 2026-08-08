@@ -1,4 +1,4 @@
-# Covet — Build Handoff (for Codex)
+# Wist — Build Handoff (for Codex)
 
 > Visual reference: open `index.html` in this folder. It is the source of truth for look & feel.
 > This document is the source of truth for scope, data model, and sequencing.
@@ -6,7 +6,7 @@
 ---
 
 ## 0. What you're building
-**Covet** is a *signal-detection app for fashion* — "Dataminr, but for clothes." A user follows a
+**Wist** is a *signal-detection app for fashion* — "Dataminr, but for clothes." A user follows a
 curated set of indie fashion brands, browses them in an Instagram-familiar feed, **stars** the pieces
 they love, and gets a **push notification the moment a starred item goes on sale**. That price-drop
 alert is the entire point of v1. It is not a social network; the feed is a delivery surface for signals.

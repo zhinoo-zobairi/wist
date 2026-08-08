@@ -1,6 +1,6 @@
-# Covet v1
+# Wist v1
 
-Covet is a local-first personal fashion intelligence prototype built with Expo and TypeScript. Follow a curated brand, covet a piece, trigger a seeded price change, and COVET creates an alert and schedules a local push notification.
+Wist (pronounced “weest,” from Kurdish for deeply wanting something) is a local-first personal fashion intelligence prototype built with Expo and TypeScript. Follow a curated brand, covet a piece, trigger a seeded price change, and Wist creates an alert and schedules a local push notification.
 
 ## Run it
 
