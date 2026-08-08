@@ -16,33 +16,43 @@ Use `npm run android` for Android or `npm run web` for the browser preview. The 
 ## Catalogue backend
 
 The first backend slice is a separate TypeScript catalogue service. It owns the
-normalized brand/product API contract while the mobile app remains on its
-existing local seed source.
+normalized brand/product API contract and the single-user watch list consumed
+by the mobile app.
 
 ```bash
 npm run catalogue:start
 ```
 
 The service listens on `http://127.0.0.1:4000` by default. Set `PORT` to change
-it. Available read endpoints are:
+it. Available endpoints are:
 
 - `GET /health`
 - `GET /v1/brands`
 - `GET /v1/brands/:brandId/items`
 - `GET /v1/items/:itemId`
+- `GET /v1/watches` (owner token)
+- `PUT /v1/watches/:itemId` (owner token)
+- `DELETE /v1/watches/:itemId` (owner token)
 
 The service uses a local SQLite database. Record an explicit supported product
 before starting it:
 
 ```bash
+cp .env.example .env.local
+# Replace both token placeholders with the same random owner value.
 npm run catalogue:observe -- https://www.bobbies.com/en/4000785248-opera-iridescent-champagne-3663902758263.html
 npm run catalogue:start
 ```
 
 Set `CATALOGUE_DB_PATH` to choose another database location. Each observation
 stores an immutable price snapshot and reports a price drop when the new price
-is lower than the previous observation in the same currency. There is no
-scheduler, authentication, watch registration, or remote push delivery yet.
+is lower than the previous observation in the same currency. Covet and Uncovet
+use owner-token-authenticated endpoints and persist one user's watches in the
+backend. There is no scheduler or remote push delivery yet.
+
+This bearer token is a narrow personal-prototype gate. The Expo-prefixed copy
+is bundled into the client, so it must be replaced by real user authentication
+before Wist becomes a multi-user or publicly distributed service.
 
 The Expo app loads this catalogue at startup. Web and iOS Simulator use
 `http://127.0.0.1:4000` by default. Set `EXPO_PUBLIC_CATALOGUE_URL` to the
@@ -94,9 +104,10 @@ URLs from its output. Never commit the key.
 5. Covet it and confirm it appears under **Coveted**.
 
 The rendered app no longer mixes placeholder products with the live catalogue.
-Backend-owned watches, scheduled observation, and remote push are the next
-integration. The persisted local field remains named `starredItemIds` for
-backward compatibility, but the product exposes one save verb: **Covet**.
+The backend owns the watch list; AsyncStorage caches it for responsive UI.
+Scheduled observation and remote push are the next integration. The cached
+field remains named `starredItemIds` for backward compatibility, but the
+product exposes one save verb: **Covet**.
 
 ## Checks
 
@@ -115,7 +126,7 @@ provide products or placeholder images to the UI.
 The API runtime does **not** call brand sites. Manual observation commands call
 the bounded Bobbies or Sandro adapter and store results in SQLite; the service
 only reads the stored catalogue. It has no ingestion cadence. The mobile app
-reads products from the catalogue API, but authentication and multi-user data
-remain out of scope. Follows, coveted items, the latest mobile snapshot per
-watched item, and up to 100 recent alerts still belong to one local user in
-AsyncStorage.
+reads products and synchronizes one user's watches through an owner bearer
+token. Full authentication and multi-user data remain out of scope. Follows,
+the latest mobile snapshot per watched item, and up to 100 recent alerts still
+belong to one local user in AsyncStorage.

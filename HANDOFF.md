@@ -6,8 +6,9 @@
 > **Catalogue update (2026-08-08):** The original seed-data v1 is complete.
 > `docs/INGESTION_SOURCE_DECISION.md` now governs backend ingestion work. The
 > catalogue service has bounded Bobbies/Sandro adapters and manual persistent
-> observations, and the mobile catalogue reads those products; recurring
-> collection and remote push remain gated.
+> observations. The mobile catalogue reads those products and synchronizes
+> single-user watches through an owner token; recurring collection and remote
+> push remain gated.
 
 ---
 

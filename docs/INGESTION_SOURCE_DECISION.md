@@ -1,6 +1,6 @@
 # Ingestion Source Decision
 
-Status: Manual Sandro and Bobbies observations persist; recurring scheduling approval pending
+Status: Manual observations and single-user watches persist; scheduling and push pending
 Decision owner: Product and catalogue service owner  
 Last updated: 2026-08-09
 
@@ -104,13 +104,15 @@ Before designing recurring ingestion, the remaining questions are:
 The owner approved the first persistent slice after the bounded proof. The
 catalogue service now owns manual Bobbies/Sandro observations in SQLite and
 compares each new price with the preceding observation. It still has no
-scheduler, queue, sitemap crawler, watch registration, or push delivery.
+scheduler, queue, sitemap crawler, or push delivery. Single-user watches now
+persist behind an owner bearer token.
 
 The repository contains bounded direct probes, the optional earlier Awin probe,
 and `npm run catalogue:observe -- <product-url>` for manual persistence. The
 catalogue HTTP service reads the resulting SQLite catalogue, and the mobile app
-loads those products through its asynchronous HTTP client. It is intentionally
-not wired to recurring ingestion or backend-owned watches yet.
+loads products and synchronizes backend-owned watches through its asynchronous
+HTTP client. It is intentionally not wired to recurring ingestion or remote
+push yet.
 
 ## Evidence
 
@@ -159,4 +161,4 @@ Before recurring ingestion, confirm:
 - Permission to collect and display Sandro and Bobbies product data and images
 - Initial market and currency (current proof: Germany and EUR)
 - Price-check cadence and request limits
-- Whether the next backend remains a single-user proof or introduces accounts
+- When the single-user owner-token proof should be replaced with real accounts
