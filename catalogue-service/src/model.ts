@@ -5,7 +5,7 @@ export type CatalogueBrand = {
 
 export type CatalogueItem = {
   id: string;
-  source: "seed" | "awin";
+  source: "seed" | "awin" | "sandro";
   sourceProductId: string;
   brandId: string;
   name: string;
