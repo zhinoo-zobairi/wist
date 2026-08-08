@@ -2,7 +2,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 
 import { Icon } from "../components/Icon";
 import { brandsById, itemsById } from "../data/seed";
-import { useCovetStore } from "../store/useCovetStore";
+import { useWistStore } from "../store/useWistStore";
 import { colors, fonts } from "../theme";
 
 type Props = { onViewItem: (itemId: string) => void };
@@ -14,8 +14,8 @@ const relativeTime = (value: string) => {
 };
 
 export function AlertsScreen({ onViewItem }: Props) {
-  const alerts = useCovetStore((state) => state.alerts);
-  const markRead = useCovetStore((state) => state.markAlertRead);
+  const alerts = useWistStore((state) => state.alerts);
+  const markRead = useWistStore((state) => state.markAlertRead);
   const hero = alerts[0];
   const heroItem = hero ? itemsById[hero.itemId] : undefined;
   const heroBrand = heroItem ? brandsById[heroItem.brandId] : undefined;
@@ -31,7 +31,7 @@ export function AlertsScreen({ onViewItem }: Props) {
         <View style={styles.empty}>
           <Icon color={colors.moss} name="bell" size={28} />
           <Text style={styles.emptyTitle}>The room is quiet.</Text>
-          <Text style={styles.emptyBody}>COVET is observing your pieces. A price movement will appear here when it deserves your attention.</Text>
+          <Text style={styles.emptyBody}>WIST is observing your pieces. A price movement will appear here when it deserves your attention.</Text>
         </View>
       ) : (
         <>

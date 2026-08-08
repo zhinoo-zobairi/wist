@@ -9,7 +9,7 @@ describe("catalogue API", () => {
   it("reports service health", async () => {
     await expect(handleRequest("GET", "/health", repository)).resolves.toEqual({
       status: 200,
-      body: { status: "ok", service: "covet-catalogue" },
+      body: { status: "ok", service: "wist-catalogue" },
     });
   });
 

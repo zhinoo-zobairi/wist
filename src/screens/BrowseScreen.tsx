@@ -3,24 +3,24 @@ import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, View } from "
 import { Icon } from "../components/Icon";
 import { seedBrands } from "../data/seed";
 import { seedPriceSource } from "../services/SeedPriceSource";
-import { useCovetStore } from "../store/useCovetStore";
+import { useWistStore } from "../store/useWistStore";
 import { colors, fonts } from "../theme";
 
 type Props = { selectedBrandId: string; onSelectBrand: (brandId: string) => void };
 
 export function BrowseScreen({ selectedBrandId, onSelectBrand }: Props) {
-  const followed = useCovetStore((state) => state.followedBrandIds);
-  const coveted = useCovetStore((state) => state.starredItemIds);
-  const toggleFollow = useCovetStore((state) => state.toggleFollow);
-  const toggleCovet = useCovetStore((state) => state.toggleStar);
-  useCovetStore((state) => state.priceRevision);
+  const followed = useWistStore((state) => state.followedBrandIds);
+  const coveted = useWistStore((state) => state.starredItemIds);
+  const toggleFollow = useWistStore((state) => state.toggleFollow);
+  const toggleCovet = useWistStore((state) => state.toggleStar);
+  useWistStore((state) => state.priceRevision);
   const brand = seedBrands.find((candidate) => candidate.id === selectedBrandId) ?? seedBrands[0];
   const items = brand ? seedPriceSource.getItems(brand.id) : [];
 
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        <Text style={styles.kicker}>THE COVET INDEX</Text>
+        <Text style={styles.kicker}>THE WIST INDEX</Text>
         <Text style={styles.title}>Discover</Text>
         <Pressable accessibilityLabel="Search pieces" style={styles.search}>
           <Icon color={colors.muted} name="search" size={19} />

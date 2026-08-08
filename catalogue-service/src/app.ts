@@ -19,7 +19,7 @@ export async function handleRequest(
   if (pathname === "/health") {
     return {
       status: 200,
-      body: { status: "ok", service: "covet-catalogue" },
+      body: { status: "ok", service: "wist-catalogue" },
     };
   }
 

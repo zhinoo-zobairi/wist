@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Covet",
-    "slug": "covet",
+    "name": "Wist",
+    "slug": "wist",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -11,10 +11,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.covet.app"
+      "bundleIdentifier": "com.wist.app"
     },
     "android": {
-      "package": "com.covet.app"
+      "package": "com.wist.app"
     },
     "web": {
       "bundler": "metro"

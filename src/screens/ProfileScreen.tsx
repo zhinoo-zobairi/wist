@@ -1,19 +1,19 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { seedBrands } from "../data/seed";
-import { useCovetStore } from "../store/useCovetStore";
+import { useWistStore } from "../store/useWistStore";
 import { colors, fonts } from "../theme";
 
 export function ProfileScreen() {
-  const followed = useCovetStore((state) => state.followedBrandIds);
-  const toggleFollow = useCovetStore((state) => state.toggleFollow);
+  const followed = useWistStore((state) => state.followedBrandIds);
+  const toggleFollow = useWistStore((state) => state.toggleFollow);
 
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
         <Text style={styles.kicker}>YOUR TASTE, IN PROGRESS</Text>
         <Text style={styles.title}>Profile</Text>
-        <Text style={styles.subtitle}>The preferences COVET uses to shape your edit.</Text>
+        <Text style={styles.subtitle}>The preferences Wist uses to shape your edit.</Text>
       </View>
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>FOLLOWED HOUSES · {followed.length}</Text>
@@ -32,7 +32,7 @@ export function ProfileScreen() {
         })}
       </View>
       <View style={styles.note}>
-        <Text style={styles.noteLabel}>HOW COVET LEARNS</Text>
+        <Text style={styles.noteLabel}>HOW WIST LEARNS</Text>
         <Text style={styles.noteTitle}>Every choice sharpens the edit.</Text>
         <Text style={styles.noteBody}>Following a house and coveting a piece are the signals available in this first version.</Text>
       </View>

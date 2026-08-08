@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { Icon } from "../components/Icon";
 import { brandsById } from "../data/seed";
 import { seedPriceSource } from "../services/SeedPriceSource";
-import { useCovetStore } from "../store/useCovetStore";
+import { useWistStore } from "../store/useWistStore";
 import { colors, fonts } from "../theme";
 
 type Props = { onTriggerDrop: () => void };
@@ -12,11 +12,11 @@ const covetedOn = (value?: string) =>
   value ? new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(new Date(value)) : "Recently";
 
 export function SavedScreen({ onTriggerDrop }: Props) {
-  const ids = useCovetStore((state) => state.starredItemIds);
-  const alerts = useCovetStore((state) => state.alerts);
-  const snapshots = useCovetStore((state) => state.snapshots);
-  const toggleCovet = useCovetStore((state) => state.toggleStar);
-  useCovetStore((state) => state.priceRevision);
+  const ids = useWistStore((state) => state.starredItemIds);
+  const alerts = useWistStore((state) => state.alerts);
+  const snapshots = useWistStore((state) => state.snapshots);
+  const toggleCovet = useWistStore((state) => state.toggleStar);
+  useWistStore((state) => state.priceRevision);
   const items = seedPriceSource.getAllItems().filter((item) => ids.includes(item.id));
 
   return (
@@ -60,7 +60,7 @@ export function SavedScreen({ onTriggerDrop }: Props) {
           <View style={styles.demo}>
             <View style={styles.demoCopy}>
               <Text style={styles.demoLabel}>DEMO THE INTELLIGENCE LOOP</Text>
-              <Text style={styles.demoText}>Lower the first coveted piece by 30% and let COVET notice.</Text>
+              <Text style={styles.demoText}>Lower the first coveted piece by 30% and let Wist notice.</Text>
             </View>
             <Pressable accessibilityLabel="Trigger a price drop" onPress={onTriggerDrop} style={styles.demoButton}>
               <Icon color={colors.card} name="arrow" size={18} />

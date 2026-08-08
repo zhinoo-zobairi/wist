@@ -10,7 +10,7 @@ import {
 } from "../services/dropEngine";
 import type { Alert, PriceSnapshot } from "../types";
 
-type CovetState = {
+type WistState = {
   followedBrandIds: string[];
   starredItemIds: string[];
   priceRevision: number;
@@ -29,7 +29,7 @@ const toggleId = (ids: string[], id: string) =>
 
 const MAX_LOCAL_ALERTS = 100;
 
-export const useCovetStore = create<CovetState>()(
+export const useWistStore = create<WistState>()(
   persist(
     (set) => ({
       followedBrandIds: seedBrands.map((brand) => brand.id),
@@ -105,7 +105,7 @@ export const useCovetStore = create<CovetState>()(
         }),
     }),
     {
-      name: "covet-preferences",
+      name: "wist-preferences",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: ({
         alerts,

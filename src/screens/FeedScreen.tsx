@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { Icon } from "../components/Icon";
 import { brandsById, seedBrands } from "../data/seed";
 import { seedPriceSource } from "../services/SeedPriceSource";
-import { useCovetStore } from "../store/useCovetStore";
+import { useWistStore } from "../store/useWistStore";
 import { colors, fonts } from "../theme";
 
 type Props = {
@@ -13,11 +13,11 @@ type Props = {
 };
 
 export function FeedScreen({ onBrowseBrand, onOpenAlerts, onOpenBrowse }: Props) {
-  const followedBrandIds = useCovetStore((state) => state.followedBrandIds);
-  const covetedIds = useCovetStore((state) => state.starredItemIds);
-  const toggleCovet = useCovetStore((state) => state.toggleStar);
-  const alerts = useCovetStore((state) => state.alerts);
-  useCovetStore((state) => state.priceRevision);
+  const followedBrandIds = useWistStore((state) => state.followedBrandIds);
+  const covetedIds = useWistStore((state) => state.starredItemIds);
+  const toggleCovet = useWistStore((state) => state.toggleStar);
+  const alerts = useWistStore((state) => state.alerts);
+  useWistStore((state) => state.priceRevision);
 
   const followedBrands = seedBrands.filter((brand) => followedBrandIds.includes(brand.id));
   const allItems = seedPriceSource.getAllItems();
@@ -28,7 +28,7 @@ export function FeedScreen({ onBrowseBrand, onOpenAlerts, onOpenBrowse }: Props)
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.screen}>
       <View style={styles.header}>
-        <Text style={styles.wordmark}>COVET</Text>
+        <Text style={styles.wordmark}>WIST</Text>
         <Pressable accessibilityLabel="Open alerts" hitSlop={12} onPress={onOpenAlerts}>
           <View>
             <Icon color={colors.ink} name="bell" size={22} />
@@ -59,7 +59,7 @@ export function FeedScreen({ onBrowseBrand, onOpenAlerts, onOpenBrowse }: Props)
         </Pressable>
       ) : (
         <View style={styles.quietSignal}>
-          <Text style={styles.quietKicker}>COVET IS WATCHING</Text>
+          <Text style={styles.quietKicker}>WIST IS WATCHING</Text>
           <Text style={styles.quietTitle}>No meaningful changes yet.</Text>
           <Text style={styles.quietBody}>When a coveted piece drops in price, it will interrupt the quiet here.</Text>
         </View>

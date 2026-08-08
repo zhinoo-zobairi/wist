@@ -21,16 +21,16 @@ import { FeedScreen } from "./src/screens/FeedScreen";
 import { SavedScreen } from "./src/screens/SavedScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { colors } from "./src/theme";
-import { useCovetStore } from "./src/store/useCovetStore";
+import { useWistStore } from "./src/store/useWistStore";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>("feed");
   const [selectedBrandId, setSelectedBrandId] = useState(seedBrands[0]?.id ?? "");
   const [storeHydrated, setStoreHydrated] = useState(
-    useCovetStore.persist.hasHydrated(),
+    useWistStore.persist.hasHydrated(),
   );
-  const alerts = useCovetStore((state) => state.alerts);
-  const triggerSeedDrop = useCovetStore((state) => state.triggerSeedDrop);
+  const alerts = useWistStore((state) => state.alerts);
+  const triggerSeedDrop = useWistStore((state) => state.triggerSeedDrop);
   const [fontsLoaded] = useFonts({
     CormorantGaramond_600SemiBold,
     Inter_400Regular,
@@ -39,10 +39,10 @@ export default function App() {
   });
 
   useEffect(() => {
-    const unsubscribe = useCovetStore.persist.onFinishHydration(() => {
+    const unsubscribe = useWistStore.persist.onFinishHydration(() => {
       setStoreHydrated(true);
     });
-    setStoreHydrated(useCovetStore.persist.hasHydrated());
+    setStoreHydrated(useWistStore.persist.hasHydrated());
     return unsubscribe;
   }, []);
 
