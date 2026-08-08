@@ -1,4 +1,17 @@
-import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import {
+  Image,
+  Linking,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { useVideoPlayer, VideoView } from "expo-video";
 
 import { Icon } from "../components/Icon";
 import { colors, fonts } from "../theme";
@@ -20,6 +33,24 @@ const observedOn = (value?: string) =>
       }).format(new Date(value))
     : "Unknown";
 
+function ProductVideo({ height, url, width }: { height: number; url: string; width: number }) {
+  const player = useVideoPlayer(url, (videoPlayer) => {
+    videoPlayer.loop = true;
+    videoPlayer.muted = true;
+    videoPlayer.play();
+  });
+
+  return (
+    <VideoView
+      contentFit="cover"
+      nativeControls
+      player={player}
+      playsInline
+      style={{ backgroundColor: colors.ink, height, width }}
+    />
+  );
+}
+
 export function ProductDetailScreen({
   brand,
   coveted,
@@ -27,6 +58,22 @@ export function ProductDetailScreen({
   onBack,
   onToggleCovet,
 }: Props) {
+  const { width } = useWindowDimensions();
+  const mediaWidth = Math.min(width, 480);
+  const mediaHeight = mediaWidth * 1.25;
+  const media =
+    item.media && item.media.length > 0
+      ? item.media
+      : [{ type: "image" as const, url: item.imageUrl }];
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  const updateActiveMedia = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    setActiveMediaIndex(
+      Math.round(event.nativeEvent.contentOffset.x / mediaWidth),
+    );
+  };
+
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.screen}>
       <View style={styles.topbar}>
@@ -36,7 +83,41 @@ export function ProductDetailScreen({
         <Text style={styles.wordmark}>WIST</Text>
       </View>
 
-      <Image source={{ uri: item.imageUrl }} style={styles.image} />
+      <View>
+        <ScrollView
+          horizontal
+          onMomentumScrollEnd={updateActiveMedia}
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+        >
+          {media.map((entry, index) =>
+            entry.type === "video" ? (
+              <ProductVideo
+                height={mediaHeight}
+                key={`${entry.url}-${index}`}
+                url={entry.url}
+                width={mediaWidth}
+              />
+            ) : (
+              <Image
+                key={`${entry.url}-${index}`}
+                resizeMode="cover"
+                source={{ uri: entry.url }}
+                style={{
+                  backgroundColor: colors.line,
+                  height: mediaHeight,
+                  width: mediaWidth,
+                }}
+              />
+            ),
+          )}
+        </ScrollView>
+        <View style={styles.mediaCount}>
+          <Text style={styles.mediaCountText}>
+            {activeMediaIndex + 1} / {media.length}
+          </Text>
+        </View>
+      </View>
 
       <View style={styles.body}>
         <Text style={styles.brand}>{brand.name.toUpperCase()}</Text>
@@ -95,7 +176,8 @@ const styles = StyleSheet.create({
   topbar: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 22, paddingVertical: 15 },
   back: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1.2 },
   wordmark: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 14, letterSpacing: 4 },
-  image: { aspectRatio: 4 / 5, backgroundColor: colors.line, width: "100%" },
+  mediaCount: { backgroundColor: colors.card, bottom: 12, paddingHorizontal: 9, paddingVertical: 5, position: "absolute", right: 12 },
+  mediaCountText: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 0.8 },
   body: { paddingBottom: 48, paddingHorizontal: 22, paddingTop: 25 },
   brand: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1.5 },
   name: { color: colors.ink, fontFamily: fonts.display, fontSize: 37, lineHeight: 39, marginTop: 7 },

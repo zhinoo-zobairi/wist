@@ -20,7 +20,8 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-notifications"
+      "expo-notifications",
+      "expo-video"
     ]
   }
 }

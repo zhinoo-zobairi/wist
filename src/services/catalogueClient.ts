@@ -1,4 +1,4 @@
-import type { Brand, Item } from "../types";
+import type { Brand, Item, ItemMedia } from "../types";
 
 type Fetch = typeof fetch;
 type JsonObject = Record<string, unknown>;
@@ -55,11 +55,25 @@ function toItem(value: unknown): Item {
   if (previousPrice !== null && typeof previousPrice !== "number") {
     throw new Error("Catalogue response has an invalid previousPrice");
   }
+  if (!Array.isArray(value.media)) {
+    throw new Error("Catalogue response is missing product media");
+  }
+  const media = value.media.map((candidate): ItemMedia => {
+    if (!isObject(candidate)) {
+      throw new Error("Catalogue response has invalid product media");
+    }
+    const type = stringField(candidate, "type");
+    if (type !== "image" && type !== "video") {
+      throw new Error(`Unsupported product media type: ${type}`);
+    }
+    return { type, url: stringField(candidate, "url") };
+  });
   return {
     id: stringField(value, "id"),
     brandId: stringField(value, "brandId"),
     name: stringField(value, "name"),
     imageUrl: stringField(value, "imageUrl"),
+    media,
     currentPrice,
     currency,
     url: stringField(value, "url"),

@@ -20,6 +20,16 @@ describe("catalogue client", () => {
                 brandId: "bobbies",
                 name: "Opéra - Iridescent Champagne",
                 imageUrl: "https://images.bobbies.com/opera.jpg",
+                media: [
+                  {
+                    type: "image",
+                    url: "https://images.bobbies.com/opera.jpg",
+                  },
+                  {
+                    type: "video",
+                    url: "https://videos.bobbies.com/opera.mp4",
+                  },
+                ],
                 currentPrice: 225,
                 currency: "EUR",
                 url: "https://www.bobbies.com/en/opera.html",
@@ -45,6 +55,16 @@ describe("catalogue client", () => {
           brandId: "bobbies",
           name: "Opéra - Iridescent Champagne",
           imageUrl: "https://images.bobbies.com/opera.jpg",
+          media: [
+            {
+              type: "image",
+              url: "https://images.bobbies.com/opera.jpg",
+            },
+            {
+              type: "video",
+              url: "https://videos.bobbies.com/opera.mp4",
+            },
+          ],
           currentPrice: 225,
           currency: "EUR",
           url: "https://www.bobbies.com/en/opera.html",

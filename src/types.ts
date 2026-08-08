@@ -5,11 +5,17 @@ export type Brand = {
   curated: true;
 };
 
+export type ItemMedia = {
+  type: "image" | "video";
+  url: string;
+};
+
 export type Item = {
   id: string;
   brandId: string;
   name: string;
   imageUrl: string;
+  media?: ItemMedia[];
   currentPrice: number;
   currency: "EUR";
   url: string;
