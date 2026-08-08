@@ -32,9 +32,22 @@ it. Available read endpoints are:
 - `GET /v1/items/:itemId`
 
 The service currently uses an in-memory seed repository. It has no database,
-scheduler, scraper, authentication, or long-running ingestion yet.
+scheduler, authentication, or long-running ingestion yet.
 
-### Prove Awin feed access
+### Prove direct Sandro product access
+
+The MVP's active ingestion proof reads one explicit public product page from
+Sandro Germany and normalizes its Product JSON-LD into the catalogue model:
+
+```bash
+npm run catalogue:probe:sandro -- https://de.sandro-paris.com/de/p/haargummi-mit-paisley-print/SFABI00075_80.html
+```
+
+The command accepts only HTTPS product URLs on `de.sandro-paris.com`, refuses
+redirects, caps the response size, and does not crawl the product sitemap. It
+is a technical feasibility probe, not permission for recurring or bulk use.
+
+### Optional Awin feed-access probe
 
 After obtaining an Awin publisher product-feed API key, run:
 
@@ -72,8 +85,9 @@ npm run catalogue:build
 & Other Stories, and Sandro. The catalogue service is a separate asynchronous
 boundary and does not pretend network I/O is a synchronous `PriceSource`.
 
-This build does **not** scrape or call brand sites. The catalogue service has no
-ingestion cadence or persistent state, and the mobile app is not wired to it
-yet. Authentication and multi-user data remain out of scope. Follows, coveted
-items, the latest snapshot per watched item, and up to 100 recent alerts belong
-to one local user and persist through AsyncStorage.
+The API runtime does **not** call brand sites. The repository contains one
+manual, single-product Sandro probe, but the catalogue service has no ingestion
+cadence or persistent state and the mobile app is not wired to it yet.
+Authentication and multi-user data remain out of scope. Follows, coveted items,
+the latest snapshot per watched item, and up to 100 recent alerts belong to one
+local user and persist through AsyncStorage.

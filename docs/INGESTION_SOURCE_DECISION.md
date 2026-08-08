@@ -1,8 +1,8 @@
 # Ingestion Source Decision
 
-Status: Backend boundary implemented; authenticated access pending
+Status: Sandro direct-source feasibility proved; recurring-use approval pending
 Decision owner: Product and catalogue service owner  
-Last updated: 2026-08-06
+Last updated: 2026-08-08
 
 ## Decision to make
 
@@ -28,33 +28,33 @@ A source is viable only if it reliably supplies:
 Size-level availability, restock signals, raw payload retention, and historical
 catalogue completeness are not required for the first integration.
 
-## Evaluation order
+## MVP evaluation order
 
-1. Affiliate product feed
-2. Official brand or commerce API offered for this use
-3. Storefront scraping, only after legal and operational approval
+1. Official brand or commerce API offered for this use
+2. Public storefront product data, only after legal and operational approval
+3. Affiliate product feed as a later option
 
-Affiliate feeds are evaluated first because they can provide structured,
-authorized product data and may also support attribution. Scraping is the most
-expensive option to own: it introduces selector maintenance, blocking risk,
-terms-of-use review, throttling, retries, and monitoring.
+The MVP will not depend on an affiliate platform. Direct storefront ingestion
+still depends on each brand and is more expensive to own: it introduces parser
+maintenance, blocking risk, terms-of-use review, throttling, retries, and
+monitoring. Awin remains a later distribution and attribution option.
 
 ## Research conclusion
 
-Prove Awin product-feed access first. Awin is the only source found that has
-both active public advertiser profiles for seed brands and official product
-feed documentation covering COVET's required fields.
+Prove direct access with Sandro Germany first. No public first-party product API
+documentation surfaced for any of the four seed brands, so the narrow proof
+uses structured data published on one public product page.
 
-Awin documents publisher feeds containing product IDs, names, descriptions,
-deep links, prices and discounts, images, availability, and vertical-specific
-fashion data. Its feed-list endpoint includes feed membership, locale, last
-import time, and the download URL. Access requires an Awin publisher account
-and a separate product-feed API key; an advertiser profile alone does not prove
-that its product feed is available to a particular publisher.
+Sandro publishes a product sitemap with daily last-modified timestamps. Normal
+German product paths are not disallowed by its current `robots.txt`. Each tested
+product page contains schema.org Product JSON-LD with a SKU/GTIN, name,
+canonical offer URL, image, EUR price, and availability. The JSON-LD avoids
+fragile CSS-selector parsing.
 
-No public first-party product API documentation surfaced for any of the four
-brands. This means “not publicly documented,” not proof that a private partner
-API does not exist.
+These observations prove technical accessibility only. `robots.txt` is crawler
+guidance, not permission for commercial reuse. Recurring or bulk collection
+still requires explicit legal and operational approval. “No public API found”
+also does not prove that a private partner API does not exist.
 
 ## Brand evidence matrix
 
@@ -63,43 +63,46 @@ API does not exist.
 | Sézane | Active Awin profiles verified for US (`30299`), UK (`30297`), Switzerland (`83637`), and Denmark (`102319`). US and UK profiles publish a 15-day attribution period. | None found | German storefront returned HTTP 403 to a basic read-only client. | Best technical Awin candidate, but a EUR-market feed is not yet verified. |
 | Claudie Pierlot | FlexOffers publicly lists a France programme, last modified 2025-12-20. An older Awin France account (`7159`) is explicitly inactive. | None found | German storefront returned HTTP 200. | Possible secondary-network candidate; current feed access must be confirmed inside FlexOffers. |
 | & Other Stories | The brand publishes official affiliate pages for US and worldwide markets. Skimlinks lists a programme. A search result for Adtraction now redirects to its generic directory, so it is not accepted as current proof. | None found | German storefront returned HTTP 403 to a basic read-only client. | Programme exists, but current provider, market coverage, and product-feed access remain unverified. |
-| Sandro | Active Awin US profile verified (`89061`) with a 30-day attribution period. | None found | German storefront returned HTTP 200. | Strong Awin candidate if a US proof is acceptable; EUR-market feed is not yet verified. |
+| Sandro | Active Awin US profile verified (`89061`) with a 30-day attribution period. | None found | German homepage and tested product page returned HTTP 200. Public sitemap and Product JSON-LD verified. | Selected direct-source proof; DE/EUR fields normalize cleanly. Recurring-use approval remains open. |
 
-The HTTP checks only describe technical accessibility observed on 2026-08-06.
+The HTTP checks only describe technical accessibility observed on 2026-08-06
+and 2026-08-08.
 They are not permission to scrape and do not assess terms of use.
 
 ## First proof of access
 
-Create or use an Awin publisher account, obtain its product-feed API key, then
-call the documented feed-list endpoint once:
+Run the bounded manual proof with one explicit Sandro Germany product URL:
 
-```text
-https://productdata.awin.com/datafeed/list/apikey/{PRODUCT_FEED_API_KEY}
+```bash
+npm run catalogue:probe:sandro -- https://de.sandro-paris.com/de/p/haargummi-mit-paisley-print/SFABI00075_80.html
 ```
 
-Check whether one of the verified advertiser IDs appears with a usable feed,
-locale, membership status, last-import timestamp, and download URL. Prefer a
-EUR-market feed. If no EUR feed is available, pause for the initial-market
-decision instead of silently changing the app's currency.
+The observed proof normalized SKU `3607172192761`, the German product name,
+canonical URL, high-resolution image, EUR 25 price, and in-stock state. It made
+one request and did not crawl the sitemap.
 
-Test exactly one accessible feed before designing the full service. The proof
-should answer:
+Before designing recurring ingestion, the remaining questions are:
 
-1. Can we obtain a small product sample through an authorized interface?
-2. Can it be normalized into the required fields without brand-specific fields
-   leaking into the mobile model?
-3. Does a second fetch expose a reliable price change?
-4. What polling or feed-refresh cadence is permitted?
+1. Do we have permission for recurring commercial product-page collection and
+   image display?
+2. What request cadence is acceptable?
+3. Does the SKU remain stable across colour and size variants?
+4. Does a later observation expose a reliable price change?
 
-Do not add a database, scheduler, queue, or scraper during this proof. Those
-create service ownership and should follow the source decision.
+Do not add a database, scheduler, queue, or sitemap crawler during this proof.
+Those create service ownership and should follow the permission and cadence
+decisions.
 
-The repository now contains this proof as `npm run catalogue:probe:awin` and a
-minimal catalogue HTTP service backed by in-memory seed data. The mobile app is
-intentionally not wired to it until a real feed and target market are confirmed.
+The repository contains the direct proof as `npm run catalogue:probe:sandro`,
+the optional earlier Awin probe, and a minimal catalogue HTTP service backed by
+in-memory seed data. The mobile app is intentionally not wired to recurring
+ingestion yet.
 
 ## Evidence
 
+- [Sandro Germany robots.txt](https://de.sandro-paris.com/robots.txt)
+- [Sandro Germany sitemap index](https://de.sandro-paris.com/sitemap_index.xml)
+- [Tested Sandro Germany product page](https://de.sandro-paris.com/de/p/haargummi-mit-paisley-print/SFABI00075_80.html)
 - [Awin product feed publisher guide](https://help.awin.com/developers/docs/product-feed-publisher.md)
 - [Awin product feed list download](https://help.awin.com/developers/docs/product-feed-list-download.md)
 - [Awin enhanced publisher feed API](https://help.awin.com/apidocs/retail-publisher-productapidocumentation-1.md)
@@ -116,7 +119,7 @@ intentionally not wired to it until a real feed and target market are confirmed.
 ## Expected boundary after approval
 
 ```text
-Affiliate feed / official API / approved scraper
+Official API / approved direct-source parser
                     |
                     v
             Catalogue service
@@ -136,9 +139,9 @@ is local.
 
 ## Decision gates
 
-Before implementation, confirm:
+Before recurring ingestion, confirm:
 
-- The selected source and permission to use it
-- Initial supported market and currency
-- Price-check or feed-refresh cadence
+- Permission to collect and display Sandro product data and images
+- Initial market and currency (current proof: Germany and EUR)
+- Price-check cadence and request limits
 - Whether the next backend remains a single-user proof or introduces accounts
