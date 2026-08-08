@@ -4,6 +4,9 @@ export interface CatalogueRepository {
   listBrands(): Promise<CatalogueBrand[]>;
   listItems(brandId: string): Promise<CatalogueItem[]>;
   getItem(itemId: string): Promise<CatalogueItem | null>;
+  listWatchedItemIds(): Promise<string[]>;
+  watchItem(itemId: string): Promise<void>;
+  unwatchItem(itemId: string): Promise<void>;
 }
 
 export type PriceDrop = {

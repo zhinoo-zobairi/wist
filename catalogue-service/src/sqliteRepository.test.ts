@@ -76,4 +76,18 @@ describe("SQLite catalogue repository", () => {
       repository.getItem("bobbies-L-M24WO-OPE01"),
     ).resolves.toMatchObject({ currentPrice: 180, previousPrice: 225 });
   });
+
+  it("persists one idempotent single-user watch per item", async () => {
+    const repository = createRepository();
+    const item = itemAt(225, "2026-08-08T12:00:00.000Z");
+    await repository.recordObservation(brand, item);
+
+    await repository.watchItem(item.id);
+    await repository.watchItem(item.id);
+    await expect(repository.listWatchedItemIds()).resolves.toEqual([item.id]);
+
+    await repository.unwatchItem(item.id);
+    await repository.unwatchItem(item.id);
+    await expect(repository.listWatchedItemIds()).resolves.toEqual([]);
+  });
 });

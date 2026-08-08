@@ -38,6 +38,8 @@ const items: CatalogueItem[] = [
 }));
 
 export class SeedCatalogueRepository implements CatalogueRepository {
+  private readonly watchedItemIds = new Set<string>();
+
   async listBrands(): Promise<CatalogueBrand[]> {
     return brands.map((brand) => ({ ...brand }));
   }
@@ -51,5 +53,17 @@ export class SeedCatalogueRepository implements CatalogueRepository {
   async getItem(itemId: string): Promise<CatalogueItem | null> {
     const item = items.find((candidate) => candidate.id === itemId);
     return item ? { ...item } : null;
+  }
+
+  async listWatchedItemIds(): Promise<string[]> {
+    return [...this.watchedItemIds];
+  }
+
+  async watchItem(itemId: string): Promise<void> {
+    this.watchedItemIds.add(itemId);
+  }
+
+  async unwatchItem(itemId: string): Promise<void> {
+    this.watchedItemIds.delete(itemId);
   }
 }

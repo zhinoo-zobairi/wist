@@ -137,6 +137,11 @@ export class SqliteCatalogueRepository
         PRIMARY KEY (item_id, position)
       );
 
+      CREATE TABLE IF NOT EXISTS catalogue_watches (
+        item_id TEXT PRIMARY KEY REFERENCES catalogue_items(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL
+      );
+
       CREATE INDEX IF NOT EXISTS price_observations_item_time
       ON price_observations(item_id, observed_at DESC);
     `);
@@ -161,6 +166,29 @@ export class SqliteCatalogueRepository
       .prepare(`${itemSelect} WHERE item.id = ?`)
       .get(itemId) as unknown as ItemRow | undefined;
     return row ? rowToItem(row, this.mediaFor(row.id, row.image_url)) : null;
+  }
+
+  async listWatchedItemIds(): Promise<string[]> {
+    const rows = this.database
+      .prepare("SELECT item_id FROM catalogue_watches ORDER BY created_at, item_id")
+      .all() as unknown as Array<{ item_id: string }>;
+    return rows.map((row) => row.item_id);
+  }
+
+  async watchItem(itemId: string): Promise<void> {
+    this.database
+      .prepare(`
+        INSERT INTO catalogue_watches (item_id, created_at)
+        VALUES (?, ?)
+        ON CONFLICT (item_id) DO NOTHING
+      `)
+      .run(itemId, new Date().toISOString());
+  }
+
+  async unwatchItem(itemId: string): Promise<void> {
+    this.database
+      .prepare("DELETE FROM catalogue_watches WHERE item_id = ?")
+      .run(itemId);
   }
 
   async recordObservation(
