@@ -2,6 +2,12 @@
 
 > Visual reference: open `index.html` in this folder. It is the source of truth for look & feel.
 > This document is the source of truth for scope, data model, and sequencing.
+>
+> **Catalogue update (2026-08-08):** The original seed-data v1 is complete.
+> `docs/INGESTION_SOURCE_DECISION.md` now governs backend ingestion work. The
+> catalogue service has bounded Bobbies/Sandro adapters and manual persistent
+> observations, and the mobile catalogue reads those products; recurring
+> collection and remote push remain gated.
 
 ---
 
