@@ -9,16 +9,16 @@ type Props = {
   brands: Brand[];
   items: Item[];
   onOpenItem: (itemId: string) => void;
+  onToggleCovet: (item: Item) => void;
 };
 
 const covetedOn = (value?: string) =>
   value ? new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(new Date(value)) : "Recently";
 
-export function SavedScreen({ brands, items: allItems, onOpenItem }: Props) {
+export function SavedScreen({ brands, items: allItems, onOpenItem, onToggleCovet }: Props) {
   const ids = useWistStore((state) => state.starredItemIds);
   const alerts = useWistStore((state) => state.alerts);
   const snapshots = useWistStore((state) => state.snapshots);
-  const toggleCovet = useWistStore((state) => state.toggleStar);
   useWistStore((state) => state.priceRevision);
   const brandsById = Object.fromEntries(brands.map((brand) => [brand.id, brand]));
   const items = allItems.filter((item) => ids.includes(item.id));
@@ -58,7 +58,7 @@ export function SavedScreen({ brands, items: allItems, onOpenItem }: Props) {
                     {drop ? <Text style={styles.oldPrice}>€ {drop.oldPrice.toFixed(0)}</Text> : null}
                   </View>
                   <Text style={styles.since}>COVETED {covetedOn(snapshot?.capturedAt).toUpperCase()}</Text>
-                  <Pressable onPress={() => toggleCovet(item.id)} style={styles.remove}>
+                  <Pressable onPress={() => onToggleCovet(item)} style={styles.remove}>
                     <Text style={styles.removeText}>REMOVE</Text>
                   </Pressable>
                 </View>

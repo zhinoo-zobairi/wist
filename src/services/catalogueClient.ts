@@ -10,6 +10,7 @@ export type Catalogue = {
 
 const defaultBaseUrl =
   process.env.EXPO_PUBLIC_CATALOGUE_URL ?? "http://127.0.0.1:4000";
+const defaultOwnerToken = process.env.EXPO_PUBLIC_CATALOGUE_OWNER_TOKEN;
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -120,4 +121,53 @@ export async function loadCatalogue(
   }
 
   return { brands, items };
+}
+
+function authorizationHeaders(ownerToken: string | undefined) {
+  if (!ownerToken) {
+    throw new Error("EXPO_PUBLIC_CATALOGUE_OWNER_TOKEN is required");
+  }
+  return {
+    accept: "application/json",
+    authorization: `Bearer ${ownerToken}`,
+  };
+}
+
+export async function loadWatchedItemIds(
+  fetchImpl: Fetch = fetch,
+  baseUrl = defaultBaseUrl,
+  ownerToken = defaultOwnerToken,
+): Promise<string[]> {
+  const root = baseUrl.replace(/\/$/, "");
+  const body = await responseJson(
+    await fetchImpl(`${root}/v1/watches`, {
+      headers: authorizationHeaders(ownerToken),
+    }),
+  );
+  if (
+    !Array.isArray(body.itemIds) ||
+    !body.itemIds.every((itemId) => typeof itemId === "string")
+  ) {
+    throw new Error("Catalogue response has invalid watch item IDs");
+  }
+  return body.itemIds;
+}
+
+export async function setCatalogueWatch(
+  itemId: string,
+  watched: boolean,
+  fetchImpl: Fetch = fetch,
+  baseUrl = defaultBaseUrl,
+  ownerToken = defaultOwnerToken,
+): Promise<void> {
+  const root = baseUrl.replace(/\/$/, "");
+  const body = await responseJson(
+    await fetchImpl(`${root}/v1/watches/${encodeURIComponent(itemId)}`, {
+      headers: authorizationHeaders(ownerToken),
+      method: watched ? "PUT" : "DELETE",
+    }),
+  );
+  if (body.itemId !== itemId || body.watched !== watched) {
+    throw new Error("Catalogue returned an invalid watch result");
+  }
 }

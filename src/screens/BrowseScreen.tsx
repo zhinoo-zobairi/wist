@@ -11,13 +11,13 @@ type Props = {
   selectedBrandId: string;
   onSelectBrand: (brandId: string) => void;
   onOpenItem: (itemId: string) => void;
+  onToggleCovet: (item: Item) => void;
 };
 
-export function BrowseScreen({ brands, items: allItems, selectedBrandId, onSelectBrand, onOpenItem }: Props) {
+export function BrowseScreen({ brands, items: allItems, selectedBrandId, onSelectBrand, onOpenItem, onToggleCovet }: Props) {
   const followed = useWistStore((state) => state.followedBrandIds);
   const coveted = useWistStore((state) => state.starredItemIds);
   const toggleFollow = useWistStore((state) => state.toggleFollow);
-  const toggleCovet = useWistStore((state) => state.toggleStar);
   useWistStore((state) => state.priceRevision);
   const brand = brands.find((candidate) => candidate.id === selectedBrandId) ?? brands[0];
   const items = brand ? allItems.filter((item) => item.brandId === brand.id) : [];
@@ -88,7 +88,7 @@ export function BrowseScreen({ brands, items: allItems, selectedBrandId, onSelec
                   <Pressable
                     accessibilityLabel={`${selected ? "Remove" : "Covet"} ${item.name}`}
                     accessibilityState={{ selected }}
-                    onPress={() => toggleCovet(item.id, item.currentPrice)}
+                    onPress={() => onToggleCovet(item)}
                     style={styles.covet}
                   >
                     <Icon color={colors.ink} filled={selected} name="heart" size={17} />

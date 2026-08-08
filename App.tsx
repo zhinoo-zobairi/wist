@@ -7,13 +7,18 @@ import {
   Inter_600SemiBold,
 } from "@expo-google-fonts/inter";
 import { useFonts } from "expo-font";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 
 import { BottomTabBar, type TabId } from "./src/components/BottomTabBar";
-import { loadCatalogue, type Catalogue } from "./src/services/catalogueClient";
+import {
+  loadCatalogue,
+  loadWatchedItemIds,
+  setCatalogueWatch,
+  type Catalogue,
+} from "./src/services/catalogueClient";
 import { AlertsScreen } from "./src/screens/AlertsScreen";
 import { BrowseScreen } from "./src/screens/BrowseScreen";
 import { FeedScreen } from "./src/screens/FeedScreen";
@@ -22,6 +27,7 @@ import { SavedScreen } from "./src/screens/SavedScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { colors } from "./src/theme";
 import { useWistStore } from "./src/store/useWistStore";
+import type { Item } from "./src/types";
 
 export default function App() {
   const [liveCatalogue, setLiveCatalogue] = useState<Catalogue>({
@@ -31,13 +37,17 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>("feed");
   const [selectedBrandId, setSelectedBrandId] = useState("");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [syncingWatchIds, setSyncingWatchIds] = useState<string[]>([]);
   const [storeHydrated, setStoreHydrated] = useState(
     useWistStore.persist.hasHydrated(),
   );
   const alerts = useWistStore((state) => state.alerts);
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const addFollowedBrands = useWistStore((state) => state.addFollowedBrands);
-  const toggleCovet = useWistStore((state) => state.toggleStar);
+  const replaceStarredItems = useWistStore(
+    (state) => state.replaceStarredItems,
+  );
+  const setStarredItem = useWistStore((state) => state.setStarredItem);
   const [fontsLoaded] = useFonts({
     CormorantGaramond_600SemiBold,
     Inter_400Regular,
@@ -72,6 +82,23 @@ export default function App() {
     };
   }, [addFollowedBrands]);
 
+  useEffect(() => {
+    if (!storeHydrated) return;
+    let cancelled = false;
+    void loadWatchedItemIds()
+      .then((itemIds) => {
+        if (!cancelled) replaceStarredItems(itemIds);
+      })
+      .catch((error: unknown) => {
+        console.warn(
+          `Watch synchronization unavailable: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [replaceStarredItems, storeHydrated]);
+
   const brands = liveCatalogue.brands;
   const items = liveCatalogue.items;
   const brandsById = Object.fromEntries(brands.map((brand) => [brand.id, brand]));
@@ -96,6 +123,26 @@ export default function App() {
     if (item) setSelectedItemId(item.id);
   };
 
+  const toggleLiveCovet = async (item: Item) => {
+    if (syncingWatchIds.includes(item.id)) return;
+    const watched = !covetedIds.includes(item.id);
+    setStarredItem(item.id, watched, item.currentPrice);
+    setSyncingWatchIds((itemIds) => [...itemIds, item.id]);
+    try {
+      await setCatalogueWatch(item.id, watched);
+    } catch (error) {
+      setStarredItem(item.id, !watched, item.currentPrice);
+      Alert.alert(
+        "Could not update Coveted",
+        error instanceof Error ? error.message : "Unknown catalogue error",
+      );
+    } finally {
+      setSyncingWatchIds((itemIds) =>
+        itemIds.filter((itemId) => itemId !== item.id),
+      );
+    }
+  };
+
   const renderScreen = () => {
     const selectedItem = selectedItemId ? itemsById[selectedItemId] : undefined;
     const selectedItemBrand = selectedItem
@@ -108,9 +155,7 @@ export default function App() {
           coveted={covetedIds.includes(selectedItem.id)}
           item={selectedItem}
           onBack={() => setSelectedItemId(null)}
-          onToggleCovet={() =>
-            toggleCovet(selectedItem.id, selectedItem.currentPrice)
-          }
+          onToggleCovet={() => void toggleLiveCovet(selectedItem)}
         />
       );
     }
@@ -123,6 +168,7 @@ export default function App() {
             items={items}
             onOpenItem={setSelectedItemId}
             onSelectBrand={setSelectedBrandId}
+            onToggleCovet={(item) => void toggleLiveCovet(item)}
             selectedBrandId={selectedBrandId}
           />
         );
@@ -134,6 +180,7 @@ export default function App() {
             brands={brands}
             items={items}
             onOpenItem={setSelectedItemId}
+            onToggleCovet={(item) => void toggleLiveCovet(item)}
           />
         );
       case "profile":
@@ -148,6 +195,7 @@ export default function App() {
             onOpenAlerts={() => setActiveTab("alerts")}
             onOpenBrowse={() => setActiveTab("browse")}
             onOpenItem={setSelectedItemId}
+            onToggleCovet={(item) => void toggleLiveCovet(item)}
           />
         );
     }

@@ -19,6 +19,8 @@ type WistState = {
   alerts: Alert[];
   toggleFollow: (brandId: string) => void;
   addFollowedBrands: (brandIds: string[]) => void;
+  replaceStarredItems: (itemIds: string[]) => void;
+  setStarredItem: (itemId: string, watched: boolean, currentPrice: number) => void;
   toggleStar: (itemId: string, currentPrice?: number) => void;
   triggerSeedDrop: () => Alert | null;
   markAlertRead: (alertId: string) => void;
@@ -47,6 +49,41 @@ export const useWistStore = create<WistState>()(
         set((state) => ({
           followedBrandIds: [...new Set([...state.followedBrandIds, ...brandIds])],
         })),
+      replaceStarredItems: (itemIds) =>
+        set((state) => {
+          const uniqueItemIds = [...new Set(itemIds)];
+          return {
+            starredItemIds: uniqueItemIds,
+            snapshots: state.snapshots.filter((snapshot) =>
+              uniqueItemIds.includes(snapshot.itemId),
+            ),
+          };
+        }),
+      setStarredItem: (itemId, watched, currentPrice) =>
+        set((state) => {
+          const isStarred = state.starredItemIds.includes(itemId);
+          if (watched === isStarred) return state;
+          if (!watched) {
+            return {
+              starredItemIds: state.starredItemIds.filter(
+                (candidate) => candidate !== itemId,
+              ),
+            };
+          }
+          const capturedAt = new Date().toISOString();
+          return {
+            starredItemIds: [...state.starredItemIds, itemId],
+            snapshots: retainLatestSnapshots([
+              ...state.snapshots,
+              {
+                id: `snapshot-${itemId}-${capturedAt}`,
+                itemId,
+                price: currentPrice,
+                capturedAt,
+              },
+            ]),
+          };
+        }),
       toggleStar: (itemId, currentPrice) =>
         set((state) => {
           const isStarred = state.starredItemIds.includes(itemId);

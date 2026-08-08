@@ -10,14 +10,14 @@ type Props = {
   onOpenAlerts: () => void;
   onOpenBrowse: () => void;
   onOpenItem: (itemId: string) => void;
+  onToggleCovet: (item: Item) => void;
   brands: Brand[];
   items: Item[];
 };
 
-export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenBrowse, onOpenItem }: Props) {
+export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenBrowse, onOpenItem, onToggleCovet }: Props) {
   const followedBrandIds = useWistStore((state) => state.followedBrandIds);
   const covetedIds = useWistStore((state) => state.starredItemIds);
-  const toggleCovet = useWistStore((state) => state.toggleStar);
   const alerts = useWistStore((state) => state.alerts);
   useWistStore((state) => state.priceRevision);
 
@@ -104,7 +104,7 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
                 <Pressable
                   accessibilityLabel={`${coveted ? "Remove" : "Covet"} ${item.name}`}
                   accessibilityState={{ selected: coveted }}
-                  onPress={() => toggleCovet(item.id, item.currentPrice)}
+                  onPress={() => onToggleCovet(item)}
                   style={[styles.covetButton, coveted && styles.covetButtonSelected]}
                 >
                   <Icon color={colors.ink} filled={coveted} name="heart" size={20} />

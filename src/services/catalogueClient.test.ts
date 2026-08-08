@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { loadCatalogue } from "./catalogueClient";
+import {
+  loadCatalogue,
+  loadWatchedItemIds,
+  setCatalogueWatch,
+} from "./catalogueClient";
 
 describe("catalogue client", () => {
   it("loads brands and their products from the backend", async () => {
@@ -79,6 +83,49 @@ describe("catalogue client", () => {
       1,
       "http://catalogue.test/v1/brands",
       { headers: { accept: "application/json" } },
+    );
+  });
+
+  it("loads and mutates watches with the owner bearer token", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ itemIds: ["bobbies-L-M24WO-OPE01"] }),
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            itemId: "bobbies-L-M24WO-OPE01",
+            watched: true,
+          }),
+        ),
+      );
+
+    await expect(
+      loadWatchedItemIds(fetchImpl, "http://catalogue.test", "owner-token"),
+    ).resolves.toEqual(["bobbies-L-M24WO-OPE01"]);
+    await expect(
+      setCatalogueWatch(
+        "bobbies-L-M24WO-OPE01",
+        true,
+        fetchImpl,
+        "http://catalogue.test",
+        "owner-token",
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      "http://catalogue.test/v1/watches/bobbies-L-M24WO-OPE01",
+      {
+        headers: {
+          accept: "application/json",
+          authorization: "Bearer owner-token",
+        },
+        method: "PUT",
+      },
     );
   });
 });
