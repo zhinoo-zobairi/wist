@@ -18,7 +18,8 @@ type WistState = {
   snapshots: PriceSnapshot[];
   alerts: Alert[];
   toggleFollow: (brandId: string) => void;
-  toggleStar: (itemId: string) => void;
+  addFollowedBrands: (brandIds: string[]) => void;
+  toggleStar: (itemId: string, currentPrice?: number) => void;
   triggerSeedDrop: () => Alert | null;
   markAlertRead: (alertId: string) => void;
   restoreSeedPrices: () => void;
@@ -42,7 +43,11 @@ export const useWistStore = create<WistState>()(
         set((state) => ({
           followedBrandIds: toggleId(state.followedBrandIds, brandId),
         })),
-      toggleStar: (itemId) =>
+      addFollowedBrands: (brandIds) =>
+        set((state) => ({
+          followedBrandIds: [...new Set([...state.followedBrandIds, ...brandIds])],
+        })),
+      toggleStar: (itemId, currentPrice) =>
         set((state) => {
           const isStarred = state.starredItemIds.includes(itemId);
           if (isStarred) {
@@ -57,7 +62,7 @@ export const useWistStore = create<WistState>()(
           const baseline: PriceSnapshot = {
             id: `snapshot-${itemId}-${capturedAt}`,
             itemId,
-            price: seedPriceSource.getPrice(itemId),
+            price: currentPrice ?? seedPriceSource.getPrice(itemId),
             capturedAt,
           };
           return {
@@ -68,7 +73,9 @@ export const useWistStore = create<WistState>()(
       triggerSeedDrop: () => {
         let createdAlert: Alert | null = null;
         set((state) => {
-          const itemId = state.starredItemIds[0];
+          const itemId = state.starredItemIds.find((id) =>
+            seedPriceSource.hasItem(id),
+          );
           if (!itemId) return state;
           const drop = seedPriceSource.triggerPriceDrop(itemId);
           const result = captureStarredPrices({

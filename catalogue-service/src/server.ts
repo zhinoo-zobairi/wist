@@ -16,10 +16,16 @@ const server = createServer(async (request, response) => {
       request.url ?? "/",
       repository,
     );
-    response.writeHead(result.status, { "content-type": "application/json" });
+    response.writeHead(result.status, {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json",
+    });
     response.end(JSON.stringify(result.body));
   } catch {
-    response.writeHead(500, { "content-type": "application/json" });
+    response.writeHead(500, {
+      "access-control-allow-origin": "*",
+      "content-type": "application/json",
+    });
     response.end(JSON.stringify({ error: "internal_error" }));
   }
 });

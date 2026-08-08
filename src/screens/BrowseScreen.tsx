@@ -1,21 +1,25 @@
 import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Icon } from "../components/Icon";
-import { seedBrands } from "../data/seed";
-import { seedPriceSource } from "../services/SeedPriceSource";
 import { useWistStore } from "../store/useWistStore";
 import { colors, fonts } from "../theme";
+import type { Brand, Item } from "../types";
 
-type Props = { selectedBrandId: string; onSelectBrand: (brandId: string) => void };
+type Props = {
+  brands: Brand[];
+  items: Item[];
+  selectedBrandId: string;
+  onSelectBrand: (brandId: string) => void;
+};
 
-export function BrowseScreen({ selectedBrandId, onSelectBrand }: Props) {
+export function BrowseScreen({ brands, items: allItems, selectedBrandId, onSelectBrand }: Props) {
   const followed = useWistStore((state) => state.followedBrandIds);
   const coveted = useWistStore((state) => state.starredItemIds);
   const toggleFollow = useWistStore((state) => state.toggleFollow);
   const toggleCovet = useWistStore((state) => state.toggleStar);
   useWistStore((state) => state.priceRevision);
-  const brand = seedBrands.find((candidate) => candidate.id === selectedBrandId) ?? seedBrands[0];
-  const items = brand ? seedPriceSource.getItems(brand.id) : [];
+  const brand = brands.find((candidate) => candidate.id === selectedBrandId) ?? brands[0];
+  const items = brand ? allItems.filter((item) => item.brandId === brand.id) : [];
 
   return (
     <View style={styles.screen}>
@@ -28,7 +32,7 @@ export function BrowseScreen({ selectedBrandId, onSelectBrand }: Props) {
         </Pressable>
       </View>
       <ScrollView contentContainerStyle={styles.tabs} horizontal showsHorizontalScrollIndicator={false}>
-        {seedBrands.map((item) => {
+        {brands.map((item) => {
           const selected = item.id === brand?.id;
           return (
             <Pressable key={item.id} onPress={() => onSelectBrand(item.id)} style={styles.tab}>
@@ -73,7 +77,7 @@ export function BrowseScreen({ selectedBrandId, onSelectBrand }: Props) {
                   <Pressable
                     accessibilityLabel={`${selected ? "Remove" : "Covet"} ${item.name}`}
                     accessibilityState={{ selected }}
-                    onPress={() => toggleCovet(item.id)}
+                    onPress={() => toggleCovet(item.id, item.currentPrice)}
                     style={styles.covet}
                   >
                     <Icon color={colors.ink} filled={selected} name="heart" size={17} />

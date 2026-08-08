@@ -27,6 +27,10 @@ export class SeedPriceSource implements PriceSource {
     return price;
   }
 
+  hasItem(itemId: string): boolean {
+    return this.prices.has(itemId);
+  }
+
   getAllItems(): Item[] {
     return seedItems.map((item) => ({
       ...item,

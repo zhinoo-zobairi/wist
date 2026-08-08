@@ -1,26 +1,28 @@
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Icon } from "../components/Icon";
-import { brandsById, seedBrands } from "../data/seed";
-import { seedPriceSource } from "../services/SeedPriceSource";
 import { useWistStore } from "../store/useWistStore";
 import { colors, fonts } from "../theme";
+import type { Brand, Item } from "../types";
 
 type Props = {
   onBrowseBrand: (brandId: string) => void;
   onOpenAlerts: () => void;
   onOpenBrowse: () => void;
+  brands: Brand[];
+  items: Item[];
 };
 
-export function FeedScreen({ onBrowseBrand, onOpenAlerts, onOpenBrowse }: Props) {
+export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenBrowse }: Props) {
   const followedBrandIds = useWistStore((state) => state.followedBrandIds);
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const toggleCovet = useWistStore((state) => state.toggleStar);
   const alerts = useWistStore((state) => state.alerts);
   useWistStore((state) => state.priceRevision);
 
-  const followedBrands = seedBrands.filter((brand) => followedBrandIds.includes(brand.id));
-  const allItems = seedPriceSource.getAllItems();
+  const followedBrands = brands.filter((brand) => followedBrandIds.includes(brand.id));
+  const brandsById = Object.fromEntries(brands.map((brand) => [brand.id, brand]));
+  const allItems = items;
   const latestAlert = alerts[0];
   const alertItem = latestAlert ? allItems.find((item) => item.id === latestAlert.itemId) : undefined;
   const edit = allItems.filter((item) => followedBrandIds.includes(item.brandId)).slice(0, 4);
@@ -93,7 +95,7 @@ export function FeedScreen({ onBrowseBrand, onOpenAlerts, onOpenBrowse }: Props)
                 <Pressable
                   accessibilityLabel={`${coveted ? "Remove" : "Covet"} ${item.name}`}
                   accessibilityState={{ selected: coveted }}
-                  onPress={() => toggleCovet(item.id)}
+                  onPress={() => toggleCovet(item.id, item.currentPrice)}
                   style={styles.covetButton}
                 >
                   <Icon color={colors.ink} filled={coveted} name="heart" size={20} />
