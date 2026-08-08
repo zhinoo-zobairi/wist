@@ -46,6 +46,15 @@ function toItem(value: unknown): Item {
   if (currency !== "EUR") {
     throw new Error(`Unsupported catalogue currency: ${currency}`);
   }
+  const available = value.available;
+  const observedAt = value.observedAt;
+  const previousPrice = value.previousPrice;
+  if (typeof available !== "boolean" || typeof observedAt !== "string") {
+    throw new Error("Catalogue response is missing observation details");
+  }
+  if (previousPrice !== null && typeof previousPrice !== "number") {
+    throw new Error("Catalogue response has an invalid previousPrice");
+  }
   return {
     id: stringField(value, "id"),
     brandId: stringField(value, "brandId"),
@@ -54,6 +63,10 @@ function toItem(value: unknown): Item {
     currentPrice,
     currency,
     url: stringField(value, "url"),
+    available,
+    observedAt,
+    previousPrice,
+    sourceProductId: stringField(value, "sourceProductId"),
   };
 }
 

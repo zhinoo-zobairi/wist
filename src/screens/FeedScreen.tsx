@@ -9,11 +9,12 @@ type Props = {
   onBrowseBrand: (brandId: string) => void;
   onOpenAlerts: () => void;
   onOpenBrowse: () => void;
+  onOpenItem: (itemId: string) => void;
   brands: Brand[];
   items: Item[];
 };
 
-export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenBrowse }: Props) {
+export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenBrowse, onOpenItem }: Props) {
   const followedBrandIds = useWistStore((state) => state.followedBrandIds);
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const toggleCovet = useWistStore((state) => state.toggleStar);
@@ -85,24 +86,34 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
         <Text style={styles.sectionNote}>FOR YOU</Text>
       </View>
       <View style={styles.editGrid}>
+        {edit.length === 0 ? (
+          <View style={styles.catalogueEmpty}>
+            <Text style={styles.quietTitle}>Live catalogue unavailable.</Text>
+            <Text style={styles.quietBody}>Start the catalogue service, then refresh Wist.</Text>
+          </View>
+        ) : null}
         {edit.map((item, index) => {
           const coveted = covetedIds.includes(item.id);
           const brand = brandsById[item.brandId];
           return (
             <View key={item.id} style={[styles.editItem, index % 2 === 1 && styles.editItemLower]}>
               <View>
-                <Image source={{ uri: item.imageUrl }} style={styles.editImage} />
+                <Pressable onPress={() => onOpenItem(item.id)}>
+                  <Image source={{ uri: item.imageUrl }} style={styles.editImage} />
+                </Pressable>
                 <Pressable
                   accessibilityLabel={`${coveted ? "Remove" : "Covet"} ${item.name}`}
                   accessibilityState={{ selected: coveted }}
                   onPress={() => toggleCovet(item.id, item.currentPrice)}
-                  style={styles.covetButton}
+                  style={[styles.covetButton, coveted && styles.covetButtonSelected]}
                 >
                   <Icon color={colors.ink} filled={coveted} name="heart" size={20} />
                 </Pressable>
               </View>
               <Text style={styles.itemBrand}>{brand?.name}</Text>
-              <Text numberOfLines={2} style={styles.itemName}>{item.name}</Text>
+              <Pressable onPress={() => onOpenItem(item.id)}>
+                <Text numberOfLines={2} style={styles.itemName}>{item.name}</Text>
+              </Pressable>
               <Text style={styles.itemPrice}>€ {item.currentPrice.toFixed(0)}</Text>
             </View>
           );
@@ -144,10 +155,12 @@ const styles = StyleSheet.create({
   houseIndex: { color: colors.muted, fontFamily: fonts.text, fontSize: 9 },
   houseName: { color: colors.ink, fontFamily: fonts.display, fontSize: 18, lineHeight: 19 },
   editGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingBottom: 40, paddingHorizontal: 14, paddingTop: 16 },
+  catalogueEmpty: { borderTopColor: colors.line, borderTopWidth: 1, marginHorizontal: 8, paddingVertical: 24, width: "100%" },
   editItem: { marginBottom: 24, width: "48%" },
   editItemLower: { marginTop: 38 },
   editImage: { aspectRatio: 3 / 4, backgroundColor: colors.line, width: "100%" },
   covetButton: { alignItems: "center", backgroundColor: colors.card, bottom: 0, height: 42, justifyContent: "center", position: "absolute", right: 0, width: 42 },
+  covetButtonSelected: { backgroundColor: colors.wash },
   itemBrand: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2, marginTop: 9, textTransform: "uppercase" },
   itemName: { color: colors.ink, fontFamily: fonts.display, fontSize: 18, lineHeight: 19, marginTop: 3 },
   itemPrice: { color: colors.ink, fontFamily: fonts.textMedium, fontSize: 11, marginTop: 5 },

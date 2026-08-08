@@ -10,9 +10,10 @@ type Props = {
   items: Item[];
   selectedBrandId: string;
   onSelectBrand: (brandId: string) => void;
+  onOpenItem: (itemId: string) => void;
 };
 
-export function BrowseScreen({ brands, items: allItems, selectedBrandId, onSelectBrand }: Props) {
+export function BrowseScreen({ brands, items: allItems, selectedBrandId, onSelectBrand, onOpenItem }: Props) {
   const followed = useWistStore((state) => state.followedBrandIds);
   const coveted = useWistStore((state) => state.starredItemIds);
   const toggleFollow = useWistStore((state) => state.toggleFollow);
@@ -64,15 +65,25 @@ export function BrowseScreen({ brands, items: allItems, selectedBrandId, onSelec
         contentContainerStyle={styles.list}
         data={items}
         keyExtractor={(item) => item.id}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>No live pieces available.</Text>
+            <Text style={styles.emptyBody}>Start the catalogue service, then refresh Wist.</Text>
+          </View>
+        }
         renderItem={({ item, index }) => {
           const selected = coveted.includes(item.id);
           return (
             <View style={[styles.product, index % 2 === 1 && styles.reverse]}>
-              <Image source={{ uri: item.imageUrl }} style={styles.image} />
+              <Pressable onPress={() => onOpenItem(item.id)} style={styles.imageLink}>
+                <Image source={{ uri: item.imageUrl }} style={styles.image} />
+              </Pressable>
               <View style={styles.productBody}>
                 <Text style={styles.number}>0{index + 1}</Text>
                 <View>
-                  <Text style={styles.productName}>{item.name}</Text>
+                  <Pressable onPress={() => onOpenItem(item.id)}>
+                    <Text style={styles.productName}>{item.name}</Text>
+                  </Pressable>
                   <Text style={styles.price}>€ {item.currentPrice.toFixed(0)}</Text>
                   <Pressable
                     accessibilityLabel={`${selected ? "Remove" : "Covet"} ${item.name}`}
@@ -115,9 +126,13 @@ const styles = StyleSheet.create({
   followText: { color: colors.card, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2, textAlign: "center" },
   followingText: { color: colors.ink },
   list: { paddingBottom: 30, paddingHorizontal: 14 },
+  empty: { borderTopColor: colors.line, borderTopWidth: 1, marginHorizontal: 8, paddingTop: 50 },
+  emptyTitle: { color: colors.ink, fontFamily: fonts.display, fontSize: 26, textAlign: "center" },
+  emptyBody: { color: colors.muted, fontFamily: fonts.text, fontSize: 11, marginTop: 7, textAlign: "center" },
   product: { flexDirection: "row", marginBottom: 14, minHeight: 226 },
   reverse: { flexDirection: "row-reverse" },
-  image: { backgroundColor: colors.line, width: "61%" },
+  image: { backgroundColor: colors.line, width: "100%" },
+  imageLink: { width: "61%" },
   productBody: { justifyContent: "space-between", padding: 14, width: "39%" },
   number: { color: colors.muted, fontFamily: fonts.text, fontSize: 9 },
   productName: { color: colors.ink, fontFamily: fonts.display, fontSize: 20, lineHeight: 21 },

@@ -13,6 +13,10 @@ export type Item = {
   currentPrice: number;
   currency: "EUR";
   url: string;
+  available?: boolean;
+  observedAt?: string;
+  previousPrice?: number | null;
+  sourceProductId?: string;
 };
 
 export type PriceSnapshot = {

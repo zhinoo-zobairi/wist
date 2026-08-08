@@ -8,14 +8,13 @@ import type { Brand, Item } from "../types";
 type Props = {
   brands: Brand[];
   items: Item[];
-  onTriggerDrop: () => void;
-  showSeedDemo: boolean;
+  onOpenItem: (itemId: string) => void;
 };
 
 const covetedOn = (value?: string) =>
   value ? new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(new Date(value)) : "Recently";
 
-export function SavedScreen({ brands, items: allItems, onTriggerDrop, showSeedDemo }: Props) {
+export function SavedScreen({ brands, items: allItems, onOpenItem }: Props) {
   const ids = useWistStore((state) => state.starredItemIds);
   const alerts = useWistStore((state) => state.alerts);
   const snapshots = useWistStore((state) => state.snapshots);
@@ -46,10 +45,14 @@ export function SavedScreen({ brands, items: allItems, onTriggerDrop, showSeedDe
             return (
               <View key={item.id} style={styles.row}>
                 <Text style={styles.index}>0{index + 1}</Text>
-                <Image source={{ uri: item.imageUrl }} style={styles.image} />
+                <Pressable onPress={() => onOpenItem(item.id)}>
+                  <Image source={{ uri: item.imageUrl }} style={styles.image} />
+                </Pressable>
                 <View style={styles.body}>
                   <Text style={styles.brand}>{brand?.name}</Text>
-                  <Text style={styles.name}>{item.name}</Text>
+                  <Pressable onPress={() => onOpenItem(item.id)}>
+                    <Text style={styles.name}>{item.name}</Text>
+                  </Pressable>
                   <View style={styles.priceRow}>
                     <Text style={[styles.price, drop && styles.sale]}>€ {item.currentPrice.toFixed(0)}</Text>
                     {drop ? <Text style={styles.oldPrice}>€ {drop.oldPrice.toFixed(0)}</Text> : null}
@@ -62,15 +65,6 @@ export function SavedScreen({ brands, items: allItems, onTriggerDrop, showSeedDe
               </View>
             );
           })}
-          {showSeedDemo ? <View style={styles.demo}>
-            <View style={styles.demoCopy}>
-              <Text style={styles.demoLabel}>DEMO THE INTELLIGENCE LOOP</Text>
-              <Text style={styles.demoText}>Lower the first coveted piece by 30% and let Wist notice.</Text>
-            </View>
-            <Pressable accessibilityLabel="Trigger a price drop" onPress={onTriggerDrop} style={styles.demoButton}>
-              <Icon color={colors.card} name="arrow" size={18} />
-            </Pressable>
-          </View> : null}
         </View>
       )}
     </ScrollView>
@@ -97,11 +91,6 @@ const styles = StyleSheet.create({
   since: { color: colors.muted, fontFamily: fonts.textMedium, fontSize: 7.5, letterSpacing: 1, marginTop: 19 },
   remove: { marginTop: 12 },
   removeText: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2, textDecorationLine: "underline" },
-  demo: { alignItems: "center", backgroundColor: colors.ink, flexDirection: "row", marginBottom: 30, marginTop: 20, padding: 18 },
-  demoCopy: { flex: 1, paddingRight: 12 },
-  demoLabel: { color: colors.card, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.3 },
-  demoText: { color: "#BFB9B0", fontFamily: fonts.text, fontSize: 11, lineHeight: 16, marginTop: 5 },
-  demoButton: { alignItems: "center", borderColor: colors.card, borderWidth: 1, height: 42, justifyContent: "center", width: 42 },
   empty: { alignItems: "center", borderTopColor: colors.line, borderTopWidth: 1, marginHorizontal: 22, paddingHorizontal: 28, paddingTop: 100 },
   emptyTitle: { color: colors.ink, fontFamily: fonts.display, fontSize: 28, marginTop: 15 },
   emptyBody: { color: colors.muted, fontFamily: fonts.text, fontSize: 12, lineHeight: 19, marginTop: 6, textAlign: "center" },

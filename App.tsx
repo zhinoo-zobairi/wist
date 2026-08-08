@@ -13,13 +13,11 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 
 import { BottomTabBar, type TabId } from "./src/components/BottomTabBar";
-import { seedBrands } from "./src/data/seed";
 import { loadCatalogue, type Catalogue } from "./src/services/catalogueClient";
-import { sendPriceDropNotification } from "./src/services/notifications";
-import { seedPriceSource } from "./src/services/SeedPriceSource";
 import { AlertsScreen } from "./src/screens/AlertsScreen";
 import { BrowseScreen } from "./src/screens/BrowseScreen";
 import { FeedScreen } from "./src/screens/FeedScreen";
+import { ProductDetailScreen } from "./src/screens/ProductDetailScreen";
 import { SavedScreen } from "./src/screens/SavedScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { colors } from "./src/theme";
@@ -31,15 +29,15 @@ export default function App() {
     items: [],
   });
   const [activeTab, setActiveTab] = useState<TabId>("feed");
-  const [selectedBrandId, setSelectedBrandId] = useState(seedBrands[0]?.id ?? "");
+  const [selectedBrandId, setSelectedBrandId] = useState("");
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [storeHydrated, setStoreHydrated] = useState(
     useWistStore.persist.hasHydrated(),
   );
   const alerts = useWistStore((state) => state.alerts);
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const addFollowedBrands = useWistStore((state) => state.addFollowedBrands);
-  const triggerSeedDrop = useWistStore((state) => state.triggerSeedDrop);
-  useWistStore((state) => state.priceRevision);
+  const toggleCovet = useWistStore((state) => state.toggleStar);
   const [fontsLoaded] = useFonts({
     CormorantGaramond_600SemiBold,
     Inter_400Regular,
@@ -74,20 +72,8 @@ export default function App() {
     };
   }, [addFollowedBrands]);
 
-  const brands = [
-    ...liveCatalogue.brands,
-    ...seedBrands.filter(
-      (brand) => !liveCatalogue.brands.some((live) => live.id === brand.id),
-    ),
-  ];
-  const items = [
-    ...liveCatalogue.items,
-    ...seedPriceSource
-      .getAllItems()
-      .filter(
-        (item) => !liveCatalogue.items.some((live) => live.id === item.id),
-      ),
-  ];
+  const brands = liveCatalogue.brands;
+  const items = liveCatalogue.items;
   const brandsById = Object.fromEntries(brands.map((brand) => [brand.id, brand]));
   const itemsById = Object.fromEntries(items.map((item) => [item.id, item]));
 
@@ -100,32 +86,42 @@ export default function App() {
   }
 
   const browseBrand = (brandId: string) => {
+    setSelectedItemId(null);
     setSelectedBrandId(brandId);
     setActiveTab("browse");
   };
 
   const viewAlertItem = (itemId: string) => {
     const item = itemsById[itemId];
-    if (item) browseBrand(item.brandId);
-  };
-
-  const handleSeedDrop = async () => {
-    const alert = triggerSeedDrop();
-    if (!alert) return;
-    const item = itemsById[alert.itemId];
-    const brand = item ? brandsById[item.brandId] : undefined;
-    if (item && brand) {
-      await sendPriceDropNotification(alert, item, brand);
-    }
+    if (item) setSelectedItemId(item.id);
   };
 
   const renderScreen = () => {
+    const selectedItem = selectedItemId ? itemsById[selectedItemId] : undefined;
+    const selectedItemBrand = selectedItem
+      ? brandsById[selectedItem.brandId]
+      : undefined;
+    if (selectedItem && selectedItemBrand) {
+      return (
+        <ProductDetailScreen
+          brand={selectedItemBrand}
+          coveted={covetedIds.includes(selectedItem.id)}
+          item={selectedItem}
+          onBack={() => setSelectedItemId(null)}
+          onToggleCovet={() =>
+            toggleCovet(selectedItem.id, selectedItem.currentPrice)
+          }
+        />
+      );
+    }
+
     switch (activeTab) {
       case "browse":
         return (
           <BrowseScreen
             brands={brands}
             items={items}
+            onOpenItem={setSelectedItemId}
             onSelectBrand={setSelectedBrandId}
             selectedBrandId={selectedBrandId}
           />
@@ -137,8 +133,7 @@ export default function App() {
           <SavedScreen
             brands={brands}
             items={items}
-            onTriggerDrop={() => void handleSeedDrop()}
-            showSeedDemo={covetedIds.some((id) => seedPriceSource.hasItem(id))}
+            onOpenItem={setSelectedItemId}
           />
         );
       case "profile":
@@ -152,6 +147,7 @@ export default function App() {
             onBrowseBrand={browseBrand}
             onOpenAlerts={() => setActiveTab("alerts")}
             onOpenBrowse={() => setActiveTab("browse")}
+            onOpenItem={setSelectedItemId}
           />
         );
     }
@@ -162,13 +158,13 @@ export default function App() {
       <SafeAreaView edges={["top"]} style={styles.container}>
         <StatusBar style="dark" />
         <View style={styles.content}>{renderScreen()}</View>
-        <SafeAreaView edges={["bottom"]} style={styles.navSafeArea}>
+        {!selectedItemId ? <SafeAreaView edges={["bottom"]} style={styles.navSafeArea}>
           <BottomTabBar
             activeTab={activeTab}
             hasUnreadAlerts={alerts.some((alert) => !alert.read)}
             onChange={setActiveTab}
           />
-        </SafeAreaView>
+        </SafeAreaView> : null}
       </SafeAreaView>
     </SafeAreaProvider>
   );
