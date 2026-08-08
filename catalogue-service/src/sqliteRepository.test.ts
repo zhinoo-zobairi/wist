@@ -13,6 +13,7 @@ const itemAt = (price: number, observedAt: string): CatalogueItem => ({
   name: "Opéra - Iridescent Champagne",
   url: "https://www.bobbies.com/en/opera.html",
   imageUrl: "https://images.bobbies.com/opera.jpg",
+  media: [{ type: "image", url: "https://images.bobbies.com/opera.jpg" }],
   currentPrice: price,
   previousPrice: null,
   currency: "EUR",

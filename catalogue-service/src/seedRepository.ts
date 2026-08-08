@@ -27,6 +27,9 @@ const items: CatalogueItem[] = [
   name: name as string,
   url: `https://example.com/items/${id}`,
   imageUrl: `https://picsum.photos/seed/${id}/800/1000`,
+  media: [
+    { type: "image", url: `https://picsum.photos/seed/${id}/800/1000` },
+  ],
   currentPrice: currentPrice as number,
   previousPrice: null,
   currency: "EUR",

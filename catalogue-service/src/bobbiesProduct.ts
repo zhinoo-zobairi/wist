@@ -1,4 +1,4 @@
-import type { CatalogueItem } from "./model.js";
+import type { CatalogueItem, CatalogueMedia } from "./model.js";
 
 type Fetch = typeof fetch;
 type JsonObject = Record<string, unknown>;
@@ -15,6 +15,41 @@ function requiredString(value: unknown, field: string): string {
     throw new Error(`Bobbies product is missing ${field}`);
   }
   return value.trim();
+}
+
+function strings(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (candidate): candidate is string =>
+      typeof candidate === "string" && candidate.trim().length > 0,
+  );
+}
+
+function productMedia(
+  html: string,
+  product: JsonObject,
+  offers: JsonObject,
+): CatalogueMedia[] {
+  const fallbackImage = requiredString(product.image, "image");
+  const images = strings(offers.image);
+  const videoPattern = /<video\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi;
+  const videos = [...html.matchAll(videoPattern)]
+    .map((match) => match[1]?.trim())
+    .filter((url): url is string => Boolean(url));
+
+  return [
+    ...(images.length > 0 ? images : [fallbackImage]).map(
+      (url): CatalogueMedia => ({ type: "image", url }),
+    ),
+    ...videos.map((url): CatalogueMedia => ({ type: "video", url })),
+  ].filter(
+    (media, index, all) =>
+      all.findIndex(
+        (candidate) =>
+          candidate.type === media.type && candidate.url === media.url,
+      ) === index,
+  );
 }
 
 function productJsonLd(html: string): JsonObject {
@@ -68,6 +103,7 @@ export function parseBobbiesProductPage(
     name: requiredString(product.name, "name"),
     url: requiredString(offers.url, "offer URL"),
     imageUrl: requiredString(product.image, "image"),
+    media: productMedia(html, product, offers),
     currentPrice: price,
     previousPrice: null,
     currency: requiredString(offers.priceCurrency, "price currency"),

@@ -18,12 +18,17 @@ const product = {
     availability: "http://schema.org/InStock",
     priceCurrency: "EUR",
     price: "225",
+    image: [
+      "https://images.bobbies.com/opera-front.jpg",
+      "https://images.bobbies.com/opera-side.jpg",
+    ],
   },
 };
 
 const html = `
   <script type="application/ld+json">{"@type":"Organization"}</script>
   <script type="application/ld+json">${JSON.stringify(product)}</script>
+  <video src="https://videos.bobbies.com/produits/opera_normal.mp4" autoplay></video>
 `;
 
 describe("Bobbies product", () => {
@@ -38,6 +43,11 @@ describe("Bobbies product", () => {
       name: "Opéra - Iridescent Champagne",
       url: "https://www.bobbies.com/en/4000785248-opera-iridescent-champagne-3663902758263.html",
       imageUrl: "https://images.bobbies.com/opera.jpg",
+      media: [
+        { type: "image", url: "https://images.bobbies.com/opera-front.jpg" },
+        { type: "image", url: "https://images.bobbies.com/opera-side.jpg" },
+        { type: "video", url: "https://videos.bobbies.com/produits/opera_normal.mp4" },
+      ],
       currentPrice: 225,
       previousPrice: null,
       currency: "EUR",

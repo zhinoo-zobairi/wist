@@ -60,6 +60,7 @@ export function parseSandroProductPage(
   }
 
   const sourceProductId = requiredString(product.sku, "sku");
+  const imageUrl = firstImage(product.image);
   const price = Number(offers.price);
   if (!Number.isFinite(price) || price < 0) {
     throw new Error("Sandro product has an invalid price");
@@ -72,7 +73,8 @@ export function parseSandroProductPage(
     brandId: "sandro",
     name: requiredString(product.name, "name"),
     url: requiredString(offers.url, "offer URL"),
-    imageUrl: firstImage(product.image),
+    imageUrl,
+    media: [{ type: "image", url: imageUrl }],
     currentPrice: price,
     previousPrice: null,
     currency: requiredString(offers.priceCurrency, "price currency"),

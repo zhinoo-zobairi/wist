@@ -2,7 +2,11 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import type { CatalogueBrand, CatalogueItem } from "./model.js";
+import type {
+  CatalogueBrand,
+  CatalogueItem,
+  CatalogueMedia,
+} from "./model.js";
 import type {
   CatalogueObservationRepository,
   PriceDrop,
@@ -27,6 +31,11 @@ type ItemRow = {
 type PriceRow = {
   price: number;
   currency: string;
+};
+
+type MediaRow = {
+  type: CatalogueMedia["type"];
+  url: string;
 };
 
 const itemSelect = `
@@ -64,7 +73,7 @@ const itemSelect = `
   FROM catalogue_items AS item
 `;
 
-function rowToItem(row: ItemRow): CatalogueItem {
+function rowToItem(row: ItemRow, media: CatalogueMedia[]): CatalogueItem {
   return {
     id: row.id,
     source: row.source,
@@ -73,6 +82,7 @@ function rowToItem(row: ItemRow): CatalogueItem {
     name: row.name,
     url: row.url,
     imageUrl: row.image_url,
+    media,
     currentPrice: row.current_price,
     previousPrice: row.previous_price,
     currency: row.currency,
@@ -119,6 +129,14 @@ export class SqliteCatalogueRepository
         UNIQUE (item_id, observed_at)
       );
 
+      CREATE TABLE IF NOT EXISTS catalogue_media (
+        item_id TEXT NOT NULL REFERENCES catalogue_items(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('image', 'video')),
+        url TEXT NOT NULL,
+        PRIMARY KEY (item_id, position)
+      );
+
       CREATE INDEX IF NOT EXISTS price_observations_item_time
       ON price_observations(item_id, observed_at DESC);
     `);
@@ -135,14 +153,14 @@ export class SqliteCatalogueRepository
     const rows = this.database
       .prepare(`${itemSelect} WHERE item.brand_id = ? ORDER BY item.name`)
       .all(brandId) as unknown as ItemRow[];
-    return rows.map(rowToItem);
+    return rows.map((row) => rowToItem(row, this.mediaFor(row.id, row.image_url)));
   }
 
   async getItem(itemId: string): Promise<CatalogueItem | null> {
     const row = this.database
       .prepare(`${itemSelect} WHERE item.id = ?`)
       .get(itemId) as unknown as ItemRow | undefined;
-    return row ? rowToItem(row) : null;
+    return row ? rowToItem(row, this.mediaFor(row.id, row.image_url)) : null;
   }
 
   async recordObservation(
@@ -198,6 +216,17 @@ export class SqliteCatalogueRepository
         );
 
       this.database
+        .prepare("DELETE FROM catalogue_media WHERE item_id = ?")
+        .run(item.id);
+      const insertMedia = this.database.prepare(`
+        INSERT INTO catalogue_media (item_id, position, type, url)
+        VALUES (?, ?, ?, ?)
+      `);
+      item.media.forEach((media, position) => {
+        insertMedia.run(item.id, position, media.type, media.url);
+      });
+
+      this.database
         .prepare(`
           INSERT INTO price_observations (item_id, price, currency, observed_at)
           VALUES (?, ?, ?, ?)
@@ -234,5 +263,19 @@ export class SqliteCatalogueRepository
 
   close(): void {
     this.database.close();
+  }
+
+  private mediaFor(itemId: string, fallbackImageUrl: string): CatalogueMedia[] {
+    const rows = this.database
+      .prepare(`
+        SELECT type, url
+        FROM catalogue_media
+        WHERE item_id = ?
+        ORDER BY position
+      `)
+      .all(itemId) as unknown as MediaRow[];
+    return rows.length > 0
+      ? rows.map((row) => ({ ...row }))
+      : [{ type: "image", url: fallbackImageUrl }];
   }
 }

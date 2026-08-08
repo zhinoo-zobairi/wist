@@ -3,6 +3,11 @@ export type CatalogueBrand = {
   name: string;
 };
 
+export type CatalogueMedia = {
+  type: "image" | "video";
+  url: string;
+};
+
 export type CatalogueItem = {
   id: string;
   source: "seed" | "awin" | "sandro" | "bobbies";
@@ -11,6 +16,7 @@ export type CatalogueItem = {
   name: string;
   url: string;
   imageUrl: string;
+  media: CatalogueMedia[];
   currentPrice: number;
   previousPrice: number | null;
   currency: string;
