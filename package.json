@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "catalogue:build": "tsc -p catalogue-service/tsconfig.json",
     "catalogue:probe:awin": "npm run catalogue:build && node catalogue-service/dist/probeAwin.js",
+    "catalogue:probe:sandro": "npm run catalogue:build && node catalogue-service/dist/probeSandro.js",
     "catalogue:start": "npm run catalogue:build && node catalogue-service/dist/server.js",
     "typecheck": "tsc --noEmit && tsc -p catalogue-service/tsconfig.json --noEmit",
     "test": "vitest run"
