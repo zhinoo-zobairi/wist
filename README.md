@@ -48,7 +48,10 @@ Set `CATALOGUE_DB_PATH` to choose another database location. Each observation
 stores an immutable price snapshot and reports a price drop when the new price
 is lower than the previous observation in the same currency. Covet and Uncovet
 use owner-token-authenticated endpoints and persist one user's watches in the
-backend. There is no scheduler or remote push delivery yet.
+backend. Bobbies observations also persist the size availability published by
+the product page, which the product detail screen displays. There is no
+scheduler, restock notification, remote push delivery, or automatic checkout
+yet.
 
 This bearer token is a narrow personal-prototype gate. The Expo-prefixed copy
 is bundled into the client, so it must be replaced by real user authentication
