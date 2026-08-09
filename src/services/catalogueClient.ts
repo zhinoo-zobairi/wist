@@ -1,4 +1,4 @@
-import type { Brand, Item, ItemMedia } from "../types";
+import type { Brand, Item, ItemMedia, ItemVariant } from "../types";
 
 type Fetch = typeof fetch;
 type JsonObject = Record<string, unknown>;
@@ -69,12 +69,29 @@ function toItem(value: unknown): Item {
     }
     return { type, url: stringField(candidate, "url") };
   });
+  if (!Array.isArray(value.variants)) {
+    throw new Error("Catalogue response is missing product variants");
+  }
+  const variants = value.variants.map((candidate): ItemVariant => {
+    if (!isObject(candidate)) {
+      throw new Error("Catalogue response has invalid product variants");
+    }
+    if (typeof candidate.available !== "boolean") {
+      throw new Error("Catalogue response has invalid variant availability");
+    }
+    return {
+      id: stringField(candidate, "id"),
+      label: stringField(candidate, "label"),
+      available: candidate.available,
+    };
+  });
   return {
     id: stringField(value, "id"),
     brandId: stringField(value, "brandId"),
     name: stringField(value, "name"),
     imageUrl: stringField(value, "imageUrl"),
     media,
+    variants,
     currentPrice,
     currency,
     url: stringField(value, "url"),

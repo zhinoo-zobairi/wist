@@ -34,6 +34,10 @@ describe("catalogue client", () => {
                     url: "https://videos.bobbies.com/opera.mp4",
                   },
                 ],
+                variants: [
+                  { id: "137", label: "39", available: false },
+                  { id: "138", label: "40", available: false },
+                ],
                 currentPrice: 225,
                 currency: "EUR",
                 url: "https://www.bobbies.com/en/opera.html",
@@ -68,6 +72,10 @@ describe("catalogue client", () => {
               type: "video",
               url: "https://videos.bobbies.com/opera.mp4",
             },
+          ],
+          variants: [
+            { id: "137", label: "39", available: false },
+            { id: "138", label: "40", available: false },
           ],
           currentPrice: 225,
           currency: "EUR",

@@ -140,6 +140,34 @@ export function ProductDetailScreen({
           </Text>
         </Pressable>
 
+        {item.variants && item.variants.length > 0 ? (
+          <View style={styles.variants}>
+            <Text style={styles.variantsTitle}>OBSERVED SIZES</Text>
+            <View style={styles.variantGrid}>
+              {item.variants.map((variant) => (
+                <View
+                  accessibilityLabel={`Size ${variant.label}, ${variant.available ? "available" : "unavailable"}`}
+                  key={variant.id}
+                  style={[
+                    styles.variant,
+                    !variant.available && styles.variantUnavailable,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.variantLabel,
+                      !variant.available && styles.variantLabelUnavailable,
+                    ]}
+                  >
+                    {variant.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.variantNote}>Faded sizes were unavailable at the last check.</Text>
+          </View>
+        ) : null}
+
         <View style={styles.facts}>
           <View style={styles.fact}>
             <Text style={styles.factLabel}>AVAILABILITY</Text>
@@ -188,6 +216,14 @@ const styles = StyleSheet.create({
   coveted: { backgroundColor: colors.ink, borderColor: colors.ink },
   covetText: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1.2 },
   covetedText: { color: colors.card },
+  variants: { marginTop: 30 },
+  variantsTitle: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2 },
+  variantGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
+  variant: { alignItems: "center", borderColor: colors.ink, borderWidth: 1, justifyContent: "center", minHeight: 38, minWidth: 44, paddingHorizontal: 10 },
+  variantUnavailable: { borderColor: colors.line },
+  variantLabel: { color: colors.ink, fontFamily: fonts.textMedium, fontSize: 11 },
+  variantLabelUnavailable: { color: colors.muted, textDecorationLine: "line-through" },
+  variantNote: { color: colors.muted, fontFamily: fonts.text, fontSize: 9, marginTop: 9 },
   facts: { borderTopColor: colors.line, borderTopWidth: 1, marginTop: 30 },
   fact: { borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingVertical: 14 },
   factLabel: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2 },

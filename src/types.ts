@@ -10,12 +10,19 @@ export type ItemMedia = {
   url: string;
 };
 
+export type ItemVariant = {
+  id: string;
+  label: string;
+  available: boolean;
+};
+
 export type Item = {
   id: string;
   brandId: string;
   name: string;
   imageUrl: string;
   media?: ItemMedia[];
+  variants?: ItemVariant[];
   currentPrice: number;
   currency: "EUR";
   url: string;
