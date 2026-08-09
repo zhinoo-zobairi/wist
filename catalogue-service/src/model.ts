@@ -8,6 +8,12 @@ export type CatalogueMedia = {
   url: string;
 };
 
+export type CatalogueVariant = {
+  id: string;
+  label: string;
+  available: boolean;
+};
+
 export type CatalogueItem = {
   id: string;
   source: "seed" | "awin" | "sandro" | "bobbies";
@@ -17,6 +23,7 @@ export type CatalogueItem = {
   url: string;
   imageUrl: string;
   media: CatalogueMedia[];
+  variants: CatalogueVariant[];
   currentPrice: number;
   previousPrice: number | null;
   currency: string;

@@ -30,6 +30,7 @@ const items: CatalogueItem[] = [
   media: [
     { type: "image", url: `https://picsum.photos/seed/${id}/800/1000` },
   ],
+  variants: [],
   currentPrice: currentPrice as number,
   previousPrice: null,
   currency: "EUR",

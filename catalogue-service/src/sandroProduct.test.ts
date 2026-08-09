@@ -40,6 +40,7 @@ describe("Sandro product", () => {
       media: [
         { type: "image", url: "https://de.sandro-paris.com/image.jpg" },
       ],
+      variants: [],
       currentPrice: 345,
       previousPrice: null,
       currency: "EUR",

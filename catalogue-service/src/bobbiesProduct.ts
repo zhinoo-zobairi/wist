@@ -104,6 +104,7 @@ export function parseBobbiesProductPage(
     url: requiredString(offers.url, "offer URL"),
     imageUrl: requiredString(product.image, "image"),
     media: productMedia(html, product, offers),
+    variants: [],
     currentPrice: price,
     previousPrice: null,
     currency: requiredString(offers.priceCurrency, "price currency"),

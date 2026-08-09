@@ -14,6 +14,10 @@ const itemAt = (price: number, observedAt: string): CatalogueItem => ({
   url: "https://www.bobbies.com/en/opera.html",
   imageUrl: "https://images.bobbies.com/opera.jpg",
   media: [{ type: "image", url: "https://images.bobbies.com/opera.jpg" }],
+  variants: [
+    { id: "137", label: "39", available: false },
+    { id: "138", label: "40", available: true },
+  ],
   currentPrice: price,
   previousPrice: null,
   currency: "EUR",

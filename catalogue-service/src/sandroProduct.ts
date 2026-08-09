@@ -75,6 +75,7 @@ export function parseSandroProductPage(
     url: requiredString(offers.url, "offer URL"),
     imageUrl,
     media: [{ type: "image", url: imageUrl }],
+    variants: [],
     currentPrice: price,
     previousPrice: null,
     currency: requiredString(offers.priceCurrency, "price currency"),

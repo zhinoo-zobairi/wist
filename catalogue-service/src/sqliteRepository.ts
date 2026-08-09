@@ -6,6 +6,7 @@ import type {
   CatalogueBrand,
   CatalogueItem,
   CatalogueMedia,
+  CatalogueVariant,
 } from "./model.js";
 import type {
   CatalogueObservationRepository,
@@ -36,6 +37,12 @@ type PriceRow = {
 type MediaRow = {
   type: CatalogueMedia["type"];
   url: string;
+};
+
+type VariantRow = {
+  id: string;
+  label: string;
+  available: number;
 };
 
 const itemSelect = `
@@ -73,7 +80,11 @@ const itemSelect = `
   FROM catalogue_items AS item
 `;
 
-function rowToItem(row: ItemRow, media: CatalogueMedia[]): CatalogueItem {
+function rowToItem(
+  row: ItemRow,
+  media: CatalogueMedia[],
+  variants: CatalogueVariant[],
+): CatalogueItem {
   return {
     id: row.id,
     source: row.source,
@@ -83,6 +94,7 @@ function rowToItem(row: ItemRow, media: CatalogueMedia[]): CatalogueItem {
     url: row.url,
     imageUrl: row.image_url,
     media,
+    variants,
     currentPrice: row.current_price,
     previousPrice: row.previous_price,
     currency: row.currency,
@@ -137,6 +149,15 @@ export class SqliteCatalogueRepository
         PRIMARY KEY (item_id, position)
       );
 
+      CREATE TABLE IF NOT EXISTS catalogue_variants (
+        item_id TEXT NOT NULL REFERENCES catalogue_items(id) ON DELETE CASCADE,
+        id TEXT NOT NULL,
+        label TEXT NOT NULL,
+        available INTEGER NOT NULL CHECK (available IN (0, 1)),
+        position INTEGER NOT NULL,
+        PRIMARY KEY (item_id, id)
+      );
+
       CREATE TABLE IF NOT EXISTS catalogue_watches (
         item_id TEXT PRIMARY KEY REFERENCES catalogue_items(id) ON DELETE CASCADE,
         created_at TEXT NOT NULL
@@ -158,14 +179,26 @@ export class SqliteCatalogueRepository
     const rows = this.database
       .prepare(`${itemSelect} WHERE item.brand_id = ? ORDER BY item.name`)
       .all(brandId) as unknown as ItemRow[];
-    return rows.map((row) => rowToItem(row, this.mediaFor(row.id, row.image_url)));
+    return rows.map((row) =>
+      rowToItem(
+        row,
+        this.mediaFor(row.id, row.image_url),
+        this.variantsFor(row.id),
+      ),
+    );
   }
 
   async getItem(itemId: string): Promise<CatalogueItem | null> {
     const row = this.database
       .prepare(`${itemSelect} WHERE item.id = ?`)
       .get(itemId) as unknown as ItemRow | undefined;
-    return row ? rowToItem(row, this.mediaFor(row.id, row.image_url)) : null;
+    return row
+      ? rowToItem(
+          row,
+          this.mediaFor(row.id, row.image_url),
+          this.variantsFor(row.id),
+        )
+      : null;
   }
 
   async listWatchedItemIds(): Promise<string[]> {
@@ -255,6 +288,23 @@ export class SqliteCatalogueRepository
       });
 
       this.database
+        .prepare("DELETE FROM catalogue_variants WHERE item_id = ?")
+        .run(item.id);
+      const insertVariant = this.database.prepare(`
+        INSERT INTO catalogue_variants (item_id, id, label, available, position)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      item.variants.forEach((variant, position) => {
+        insertVariant.run(
+          item.id,
+          variant.id,
+          variant.label,
+          variant.available ? 1 : 0,
+          position,
+        );
+      });
+
+      this.database
         .prepare(`
           INSERT INTO price_observations (item_id, price, currency, observed_at)
           VALUES (?, ?, ?, ?)
@@ -305,5 +355,21 @@ export class SqliteCatalogueRepository
     return rows.length > 0
       ? rows.map((row) => ({ ...row }))
       : [{ type: "image", url: fallbackImageUrl }];
+  }
+
+  private variantsFor(itemId: string): CatalogueVariant[] {
+    const rows = this.database
+      .prepare(`
+        SELECT id, label, available
+        FROM catalogue_variants
+        WHERE item_id = ?
+        ORDER BY position
+      `)
+      .all(itemId) as unknown as VariantRow[];
+    return rows.map((row) => ({
+      id: row.id,
+      label: row.label,
+      available: row.available === 1,
+    }));
   }
 }

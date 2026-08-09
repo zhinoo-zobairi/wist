@@ -48,6 +48,7 @@ describe("Bobbies product", () => {
         { type: "image", url: "https://images.bobbies.com/opera-side.jpg" },
         { type: "video", url: "https://videos.bobbies.com/produits/opera_normal.mp4" },
       ],
+      variants: [],
       currentPrice: 225,
       previousPrice: null,
       currency: "EUR",
