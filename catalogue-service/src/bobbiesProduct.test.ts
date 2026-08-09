@@ -29,6 +29,12 @@ const html = `
   <script type="application/ld+json">{"@type":"Organization"}</script>
   <script type="application/ld+json">${JSON.stringify(product)}</script>
   <video src="https://videos.bobbies.com/produits/opera_normal.mp4" autoplay></video>
+  <li class="custom-dropdown__item variant" data-value="r-variant-7-137">
+    <span class="grid-option-text display-fr">39</span>
+  </li>
+  <li class="custom-dropdown__item variant variant--alert" data-value="r-variant-7-138">
+    <span class="grid-option-text display-fr">40</span>
+  </li>
 `;
 
 describe("Bobbies product", () => {
@@ -48,7 +54,10 @@ describe("Bobbies product", () => {
         { type: "image", url: "https://images.bobbies.com/opera-side.jpg" },
         { type: "video", url: "https://videos.bobbies.com/produits/opera_normal.mp4" },
       ],
-      variants: [],
+      variants: [
+        { id: "137", label: "39", available: true },
+        { id: "138", label: "40", available: false },
+      ],
       currentPrice: 225,
       previousPrice: null,
       currency: "EUR",

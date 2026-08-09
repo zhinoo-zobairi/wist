@@ -1,4 +1,8 @@
-import type { CatalogueItem, CatalogueMedia } from "./model.js";
+import type {
+  CatalogueItem,
+  CatalogueMedia,
+  CatalogueVariant,
+} from "./model.js";
 
 type Fetch = typeof fetch;
 type JsonObject = Record<string, unknown>;
@@ -50,6 +54,30 @@ function productMedia(
           candidate.type === media.type && candidate.url === media.url,
       ) === index,
   );
+}
+
+function productVariants(html: string): CatalogueVariant[] {
+  const rowPattern =
+    /<li\b[^>]*class=["'][^"']*\bcustom-dropdown__item\b[^"']*\bvariant\b[^"']*["'][^>]*>([\s\S]*?)<\/li>/gi;
+
+  return [...html.matchAll(rowPattern)].flatMap((match) => {
+    const row = match[0];
+    const content = match[1] ?? "";
+    const id = row.match(/\bdata-value=["']r-variant-\d+-([^"']+)["']/i)?.[1];
+    const label = content
+      .match(
+        /<span\b[^>]*class=["'][^"']*\bdisplay-fr\b[^"']*["'][^>]*>([^<]+)<\/span>/i,
+      )?.[1]
+      ?.trim();
+    if (!id || !label) return [];
+    return [
+      {
+        id,
+        label,
+        available: !/\bvariant--alert\b/i.test(row),
+      },
+    ];
+  });
 }
 
 function productJsonLd(html: string): JsonObject {
@@ -104,7 +132,7 @@ export function parseBobbiesProductPage(
     url: requiredString(offers.url, "offer URL"),
     imageUrl: requiredString(product.image, "image"),
     media: productMedia(html, product, offers),
-    variants: [],
+    variants: productVariants(html),
     currentPrice: price,
     previousPrice: null,
     currency: requiredString(offers.priceCurrency, "price currency"),
