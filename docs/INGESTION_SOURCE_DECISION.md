@@ -1,6 +1,6 @@
 # Ingestion Source Decision
 
-Status: Manual observations and single-user watches persist; scheduling and push pending
+Status: Watched-product scheduling active; discovery and push pending
 Decision owner: Product and catalogue service owner  
 Last updated: 2026-08-09
 
@@ -93,7 +93,8 @@ It normalized SKU `L-M24WO-OPE01`, the Opéra product name, canonical URL,
 the HTTP schema.org availability identifier while Sandro uses HTTPS, so it has
 a separate adapter.
 
-Before designing recurring ingestion, the remaining questions are:
+Before expanding recurring ingestion beyond the local single-user prototype,
+the remaining questions are:
 
 1. Do we have permission for recurring commercial product-page collection and
    image display?
@@ -101,18 +102,20 @@ Before designing recurring ingestion, the remaining questions are:
 3. Does the SKU remain stable across colour and size variants?
 4. Does a later observation expose a reliable price change?
 
-The owner approved the first persistent slice after the bounded proof. The
-catalogue service now owns manual Bobbies/Sandro observations in SQLite and
-compares each new price with the preceding observation. It still has no
-scheduler, queue, sitemap crawler, or push delivery. Single-user watches now
-persist behind an owner bearer token.
+The owner approved recurring checks for explicitly observed and coveted
+products in the local single-user prototype. The catalogue service owns manual
+Bobbies/Sandro observations in SQLite, checks watched products sequentially
+every six hours by default, compares each new price with the preceding
+observation, and persists detected drops. It still has no queue, sitemap
+crawler, distributed scheduler coordination, or push delivery. Single-user
+watches and alerts persist behind an owner bearer token.
 
 The repository contains bounded direct probes, the optional earlier Awin probe,
 and `npm run catalogue:observe -- <product-url>` for manual persistence. The
 catalogue HTTP service reads the resulting SQLite catalogue, and the mobile app
-loads products and synchronizes backend-owned watches through its asynchronous
-HTTP client. It is intentionally not wired to recurring ingestion or remote
-push yet.
+loads products and synchronizes backend-owned watches and alerts through its
+asynchronous HTTP client. Recurring observation is limited to stored watched
+URLs; product discovery and remote push remain separate work.
 
 ## Evidence
 
@@ -154,9 +157,9 @@ backend integration will require a separate asynchronous mobile HTTP client;
 it should not make the current synchronous interface pretend that network I/O
 is local.
 
-## Decision gates
+## Expansion gates
 
-Before recurring ingestion, confirm:
+Before production or broader recurring ingestion, confirm:
 
 - Permission to collect and display Sandro and Bobbies product data and images
 - Initial market and currency (current proof: Germany and EUR)

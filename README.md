@@ -33,6 +33,7 @@ it. Available endpoints are:
 - `GET /v1/watches` (owner token)
 - `PUT /v1/watches/:itemId` (owner token)
 - `DELETE /v1/watches/:itemId` (owner token)
+- `GET /v1/alerts` (owner token)
 
 The service uses a local SQLite database. Record an explicit supported product
 before starting it:
@@ -48,10 +49,14 @@ Set `CATALOGUE_DB_PATH` to choose another database location. Each observation
 stores an immutable price snapshot and reports a price drop when the new price
 is lower than the previous observation in the same currency. Covet and Uncovet
 use owner-token-authenticated endpoints and persist one user's watches in the
-backend. Bobbies observations also persist the size availability published by
-the product page, which the product detail screen displays. There is no
-scheduler, restock notification, remote push delivery, or automatic checkout
-yet.
+backend. While the catalogue service is running, it immediately checks every
+watched product and repeats the cycle every six hours. Set
+`CATALOGUE_WATCH_INTERVAL_MS` to a positive number of milliseconds to change
+that cadence. Checks run sequentially, failed products do not stop the cycle,
+and detected drops persist for the app to synchronize. Bobbies observations
+also persist the size availability published by the product page, which the
+product detail screen displays. There is no product discovery, restock
+notification, remote push delivery, or automatic checkout yet.
 
 This bearer token is a narrow personal-prototype gate. The Expo-prefixed copy
 is bundled into the client, so it must be replaced by real user authentication
@@ -108,9 +113,11 @@ URLs from its output. Never commit the key.
 
 The rendered app no longer mixes placeholder products with the live catalogue.
 The backend owns the watch list; AsyncStorage caches it for responsive UI.
-Scheduled observation and remote push are the next integration. The cached
-field remains named `starredItemIds` for backward compatibility, but the
-product exposes one save verb: **Covet**.
+The app synchronizes persisted price-drop alerts once per minute while it is
+active. Remote push is still a separate integration, so a terminated app shows
+a drop after it is reopened rather than receiving a background notification.
+The cached field remains named `starredItemIds` for backward compatibility, but
+the product exposes one save verb: **Covet**.
 
 ## Checks
 
@@ -126,10 +133,10 @@ The rendered mobile catalogue uses an asynchronous HTTP client. The legacy
 `SeedPriceSource` remains only for isolated drop-engine tests and does not
 provide products or placeholder images to the UI.
 
-The API runtime does **not** call brand sites. Manual observation commands call
-the bounded Bobbies or Sandro adapter and store results in SQLite; the service
-only reads the stored catalogue. It has no ingestion cadence. The mobile app
-reads products and synchronizes one user's watches through an owner bearer
-token. Full authentication and multi-user data remain out of scope. Follows,
-the latest mobile snapshot per watched item, and up to 100 recent alerts still
-belong to one local user in AsyncStorage.
+The catalogue service calls brand sites only for explicitly observed products
+that are subsequently coveted; it does not crawl storefronts or discover
+products. Manual observation commands seed Bobbies or Sandro products in
+SQLite, and the service owns their recurring snapshots, price-drop history,
+and single-user watches. The mobile app reads those records through an owner
+bearer token. Full authentication, multi-user data, and distributed scheduler
+coordination remain out of scope.
