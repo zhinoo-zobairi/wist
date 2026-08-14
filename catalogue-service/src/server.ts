@@ -3,12 +3,21 @@ import { resolve } from "node:path";
 
 import { handleRequest } from "./app.js";
 import { SqliteCatalogueRepository } from "./sqliteRepository.js";
+import { startWatchScheduler } from "./watchScheduler.js";
 
 const databasePath =
   process.env.CATALOGUE_DB_PATH ?? resolve("catalogue-service/data/wist.sqlite");
 const repository = new SqliteCatalogueRepository(databasePath);
 const port = Number.parseInt(process.env.PORT ?? "4000", 10);
 const ownerToken = process.env.CATALOGUE_OWNER_TOKEN;
+const watchIntervalMs = Number.parseInt(
+  process.env.CATALOGUE_WATCH_INTERVAL_MS ?? String(6 * 60 * 60 * 1000),
+  10,
+);
+if (!Number.isFinite(watchIntervalMs) || watchIntervalMs <= 0) {
+  throw new Error("CATALOGUE_WATCH_INTERVAL_MS must be a positive integer");
+}
+const stopWatchScheduler = startWatchScheduler(repository, watchIntervalMs);
 
 const responseHeaders = {
   "access-control-allow-headers": "authorization, content-type",
@@ -47,6 +56,7 @@ server.listen(port, "127.0.0.1", () => {
 });
 
 function shutdown() {
+  stopWatchScheduler();
   server.close(() => {
     repository.close();
   });
