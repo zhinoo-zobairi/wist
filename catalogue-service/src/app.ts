@@ -50,6 +50,18 @@ export async function handleRequest(
     };
   }
 
+  if (pathname === "/v1/alerts") {
+    if (method !== "GET") {
+      return { status: 405, body: { error: "method_not_allowed" } };
+    }
+    const authError = watchAuthError(auth);
+    if (authError) return authError;
+    return {
+      status: 200,
+      body: { alerts: await repository.listPriceDropAlerts() },
+    };
+  }
+
   const watchMatch = pathname.match(/^\/v1\/watches\/([^/]+)$/);
   if (watchMatch?.[1]) {
     if (method !== "PUT" && method !== "DELETE") {

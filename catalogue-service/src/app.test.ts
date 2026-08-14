@@ -63,6 +63,17 @@ describe("catalogue API", () => {
     ).resolves.toEqual({ status: 401, body: { error: "unauthorized" } });
   });
 
+  it("lists price-drop alerts only for the owner", async () => {
+    await expect(
+      handleRequest("GET", "/v1/alerts", repository, auth),
+    ).resolves.toEqual({ status: 200, body: { alerts: [] } });
+    await expect(
+      handleRequest("GET", "/v1/alerts", repository, {
+        ownerToken: "owner-test-token",
+      }),
+    ).resolves.toEqual({ status: 401, body: { error: "unauthorized" } });
+  });
+
   it("creates, lists, and removes a single-user watch", async () => {
     await expect(
       handleRequest(

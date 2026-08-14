@@ -1,5 +1,5 @@
 import type { CatalogueBrand, CatalogueItem } from "./model.js";
-import type { CatalogueRepository } from "./repository.js";
+import type { CatalogueRepository, PriceDropAlert } from "./repository.js";
 
 const brands: CatalogueBrand[] = [
   { id: "sezane", name: "Sézane" },
@@ -66,5 +66,9 @@ export class SeedCatalogueRepository implements CatalogueRepository {
 
   async unwatchItem(itemId: string): Promise<void> {
     this.watchedItemIds.delete(itemId);
+  }
+
+  async listPriceDropAlerts(): Promise<PriceDropAlert[]> {
+    return [];
   }
 }

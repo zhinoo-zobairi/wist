@@ -7,6 +7,7 @@ export interface CatalogueRepository {
   listWatchedItemIds(): Promise<string[]>;
   watchItem(itemId: string): Promise<void>;
   unwatchItem(itemId: string): Promise<void>;
+  listPriceDropAlerts(): Promise<PriceDropAlert[]>;
 }
 
 export type PriceDrop = {
@@ -16,6 +17,10 @@ export type PriceDrop = {
   currency: string;
   pctOff: number;
   observedAt: string;
+};
+
+export type PriceDropAlert = PriceDrop & {
+  id: string;
 };
 
 export type RecordedObservation = {

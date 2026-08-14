@@ -79,6 +79,17 @@ describe("SQLite catalogue repository", () => {
     await expect(
       repository.getItem("bobbies-L-M24WO-OPE01"),
     ).resolves.toMatchObject({ currentPrice: 180, previousPrice: 225 });
+    await expect(repository.listPriceDropAlerts()).resolves.toMatchObject([
+      {
+        id: "price-drop-1",
+        itemId: "bobbies-L-M24WO-OPE01",
+        oldPrice: 225,
+        newPrice: 180,
+        currency: "EUR",
+        pctOff: 20,
+        observedAt: "2026-08-09T12:00:00.000Z",
+      },
+    ]);
   });
 
   it("persists one idempotent single-user watch per item", async () => {

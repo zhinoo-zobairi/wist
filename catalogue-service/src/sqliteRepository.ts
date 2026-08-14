@@ -11,6 +11,7 @@ import type {
 import type {
   CatalogueObservationRepository,
   PriceDrop,
+  PriceDropAlert,
   RecordedObservation,
 } from "./repository.js";
 
@@ -32,6 +33,16 @@ type ItemRow = {
 type PriceRow = {
   price: number;
   currency: string;
+};
+
+type PriceDropAlertRow = {
+  id: number;
+  item_id: string;
+  old_price: number;
+  new_price: number;
+  currency: string;
+  pct_off: number;
+  observed_at: string;
 };
 
 type MediaRow = {
@@ -163,6 +174,17 @@ export class SqliteCatalogueRepository
         created_at TEXT NOT NULL
       );
 
+      CREATE TABLE IF NOT EXISTS price_drop_alerts (
+        id INTEGER PRIMARY KEY,
+        item_id TEXT NOT NULL REFERENCES catalogue_items(id) ON DELETE CASCADE,
+        old_price REAL NOT NULL CHECK (old_price >= 0),
+        new_price REAL NOT NULL CHECK (new_price >= 0),
+        currency TEXT NOT NULL,
+        pct_off INTEGER NOT NULL CHECK (pct_off >= 0),
+        observed_at TEXT NOT NULL,
+        UNIQUE (item_id, observed_at)
+      );
+
       CREATE INDEX IF NOT EXISTS price_observations_item_time
       ON price_observations(item_id, observed_at DESC);
     `);
@@ -224,6 +246,26 @@ export class SqliteCatalogueRepository
       .run(itemId);
   }
 
+  async listPriceDropAlerts(): Promise<PriceDropAlert[]> {
+    const rows = this.database
+      .prepare(`
+        SELECT id, item_id, old_price, new_price, currency, pct_off, observed_at
+        FROM price_drop_alerts
+        ORDER BY observed_at DESC, id DESC
+        LIMIT 100
+      `)
+      .all() as unknown as PriceDropAlertRow[];
+    return rows.map((row) => ({
+      id: `price-drop-${row.id}`,
+      itemId: row.item_id,
+      oldPrice: row.old_price,
+      newPrice: row.new_price,
+      currency: row.currency,
+      pctOff: row.pct_off,
+      observedAt: row.observed_at,
+    }));
+  }
+
   async recordObservation(
     brand: CatalogueBrand,
     item: CatalogueItem,
@@ -239,6 +281,21 @@ export class SqliteCatalogueRepository
           LIMIT 1
         `)
         .get(item.id) as unknown as PriceRow | undefined;
+      const priceDrop: PriceDrop | null =
+        previous &&
+        previous.currency === item.currency &&
+        item.currentPrice < previous.price
+          ? {
+              itemId: item.id,
+              oldPrice: previous.price,
+              newPrice: item.currentPrice,
+              currency: item.currency,
+              pctOff: Math.round(
+                ((previous.price - item.currentPrice) / previous.price) * 100,
+              ),
+              observedAt: item.observedAt,
+            }
+          : null;
 
       this.database
         .prepare(`
@@ -311,23 +368,24 @@ export class SqliteCatalogueRepository
         `)
         .run(item.id, item.currentPrice, item.currency, item.observedAt);
 
-      this.database.exec("COMMIT");
+      if (priceDrop) {
+        this.database
+          .prepare(`
+            INSERT INTO price_drop_alerts (
+              item_id, old_price, new_price, currency, pct_off, observed_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+          `)
+          .run(
+            priceDrop.itemId,
+            priceDrop.oldPrice,
+            priceDrop.newPrice,
+            priceDrop.currency,
+            priceDrop.pctOff,
+            priceDrop.observedAt,
+          );
+      }
 
-      const priceDrop: PriceDrop | null =
-        previous &&
-        previous.currency === item.currency &&
-        item.currentPrice < previous.price
-          ? {
-              itemId: item.id,
-              oldPrice: previous.price,
-              newPrice: item.currentPrice,
-              currency: item.currency,
-              pctOff: Math.round(
-                ((previous.price - item.currentPrice) / previous.price) * 100,
-              ),
-              observedAt: item.observedAt,
-            }
-          : null;
+      this.database.exec("COMMIT");
 
       return {
         item: { ...item, previousPrice: previous?.price ?? null },
