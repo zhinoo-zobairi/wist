@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { BottomTabBar, type TabId } from "./src/components/BottomTabBar";
 import {
   loadCatalogue,
+  loadPriceDropAlerts,
   loadWatchedItemIds,
   setCatalogueWatch,
   type Catalogue,
@@ -46,6 +47,9 @@ export default function App() {
   const addFollowedBrands = useWistStore((state) => state.addFollowedBrands);
   const replaceStarredItems = useWistStore(
     (state) => state.replaceStarredItems,
+  );
+  const mergePriceDropAlerts = useWistStore(
+    (state) => state.mergePriceDropAlerts,
   );
   const setStarredItem = useWistStore((state) => state.setStarredItem);
   const [fontsLoaded] = useFonts({
@@ -98,6 +102,30 @@ export default function App() {
       cancelled = true;
     };
   }, [replaceStarredItems, storeHydrated]);
+
+  useEffect(() => {
+    if (!storeHydrated) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const synchronizeAlerts = async () => {
+      try {
+        const remoteAlerts = await loadPriceDropAlerts();
+        if (!cancelled) mergePriceDropAlerts(remoteAlerts);
+      } catch (error) {
+        console.warn(
+          `Alert synchronization unavailable: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      }
+      if (!cancelled) timer = setTimeout(synchronizeAlerts, 60_000);
+    };
+
+    void synchronizeAlerts();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [mergePriceDropAlerts, storeHydrated]);
 
   const brands = liveCatalogue.brands;
   const items = liveCatalogue.items;

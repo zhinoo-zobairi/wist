@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   loadCatalogue,
+  loadPriceDropAlerts,
   loadWatchedItemIds,
   setCatalogueWatch,
 } from "./catalogueClient";
@@ -135,5 +136,46 @@ describe("catalogue client", () => {
         method: "PUT",
       },
     );
+  });
+
+  it("loads price-drop alerts with the owner bearer token", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          alerts: [
+            {
+              id: "price-drop-1",
+              itemId: "bobbies-L-M24WO-OPE01",
+              oldPrice: 225,
+              newPrice: 180,
+              currency: "EUR",
+              pctOff: 20,
+              observedAt: "2026-08-15T12:00:00.000Z",
+            },
+          ],
+        }),
+      ),
+    );
+
+    await expect(
+      loadPriceDropAlerts(fetchImpl, "http://catalogue.test", "owner-token"),
+    ).resolves.toEqual([
+      {
+        id: "price-drop-1",
+        userId: "local-user",
+        itemId: "bobbies-L-M24WO-OPE01",
+        oldPrice: 225,
+        newPrice: 180,
+        pctOff: 20,
+        createdAt: "2026-08-15T12:00:00.000Z",
+        read: false,
+      },
+    ]);
+    expect(fetchImpl).toHaveBeenCalledWith("http://catalogue.test/v1/alerts", {
+      headers: {
+        accept: "application/json",
+        authorization: "Bearer owner-token",
+      },
+    });
   });
 });

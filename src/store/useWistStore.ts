@@ -20,6 +20,7 @@ type WistState = {
   toggleFollow: (brandId: string) => void;
   addFollowedBrands: (brandIds: string[]) => void;
   replaceStarredItems: (itemIds: string[]) => void;
+  mergePriceDropAlerts: (alerts: Alert[]) => void;
   setStarredItem: (itemId: string, watched: boolean, currentPrice: number) => void;
   toggleStar: (itemId: string, currentPrice?: number) => void;
   triggerSeedDrop: () => Alert | null;
@@ -57,6 +58,22 @@ export const useWistStore = create<WistState>()(
             snapshots: state.snapshots.filter((snapshot) =>
               uniqueItemIds.includes(snapshot.itemId),
             ),
+          };
+        }),
+      mergePriceDropAlerts: (alerts) =>
+        set((state) => {
+          const existingById = new Map(
+            state.alerts.map((alert) => [alert.id, alert]),
+          );
+          const remoteIds = new Set(alerts.map((alert) => alert.id));
+          return {
+            alerts: [
+              ...alerts.map((alert) => ({
+                ...alert,
+                read: existingById.get(alert.id)?.read ?? false,
+              })),
+              ...state.alerts.filter((alert) => !remoteIds.has(alert.id)),
+            ].slice(0, MAX_LOCAL_ALERTS),
           };
         }),
       setStarredItem: (itemId, watched, currentPrice) =>

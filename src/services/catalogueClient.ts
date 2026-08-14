@@ -1,4 +1,11 @@
-import type { Brand, Item, ItemMedia, ItemVariant } from "../types";
+import {
+  LOCAL_USER_ID,
+  type Alert,
+  type Brand,
+  type Item,
+  type ItemMedia,
+  type ItemVariant,
+} from "../types";
 
 type Fetch = typeof fetch;
 type JsonObject = Record<string, unknown>;
@@ -102,6 +109,36 @@ function toItem(value: unknown): Item {
   };
 }
 
+function toAlert(value: unknown): Alert {
+  if (!isObject(value)) throw new Error("Catalogue returned an invalid alert");
+  const oldPrice = value.oldPrice;
+  const newPrice = value.newPrice;
+  const pctOff = value.pctOff;
+  if (
+    typeof oldPrice !== "number" ||
+    typeof newPrice !== "number" ||
+    typeof pctOff !== "number" ||
+    !Number.isFinite(oldPrice) ||
+    !Number.isFinite(newPrice) ||
+    !Number.isFinite(pctOff)
+  ) {
+    throw new Error("Catalogue response has invalid alert prices");
+  }
+  if (stringField(value, "currency") !== "EUR") {
+    throw new Error("Catalogue response has an unsupported alert currency");
+  }
+  return {
+    id: stringField(value, "id"),
+    userId: LOCAL_USER_ID,
+    itemId: stringField(value, "itemId"),
+    oldPrice,
+    newPrice,
+    pctOff,
+    createdAt: stringField(value, "observedAt"),
+    read: false,
+  };
+}
+
 async function responseJson(response: Response): Promise<JsonObject> {
   if (!response.ok) {
     throw new Error(`Catalogue request failed with HTTP ${response.status}`);
@@ -168,6 +205,23 @@ export async function loadWatchedItemIds(
     throw new Error("Catalogue response has invalid watch item IDs");
   }
   return body.itemIds;
+}
+
+export async function loadPriceDropAlerts(
+  fetchImpl: Fetch = fetch,
+  baseUrl = defaultBaseUrl,
+  ownerToken = defaultOwnerToken,
+): Promise<Alert[]> {
+  const root = baseUrl.replace(/\/$/, "");
+  const body = await responseJson(
+    await fetchImpl(`${root}/v1/alerts`, {
+      headers: authorizationHeaders(ownerToken),
+    }),
+  );
+  if (!Array.isArray(body.alerts)) {
+    throw new Error("Catalogue response is missing alerts");
+  }
+  return body.alerts.map(toAlert);
 }
 
 export async function setCatalogueWatch(
