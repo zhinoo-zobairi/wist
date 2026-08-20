@@ -16,6 +16,7 @@ import { BottomTabBar, type TabId } from "./src/components/BottomTabBar";
 import {
   loadCatalogue,
   loadPriceDropAlerts,
+  loadStyleProfile,
   loadWatchedItemIds,
   setCatalogueWatch,
   type Catalogue,
@@ -26,6 +27,8 @@ import { FeedScreen } from "./src/screens/FeedScreen";
 import { ProductDetailScreen } from "./src/screens/ProductDetailScreen";
 import { SavedScreen } from "./src/screens/SavedScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
+import { OnboardingScreen } from "./src/screens/OnboardingScreen";
+import { resolveProfileGate } from "./src/profileGate";
 import { colors } from "./src/theme";
 import { useWistStore } from "./src/store/useWistStore";
 import type { Item } from "./src/types";
@@ -42,6 +45,7 @@ export default function App() {
   const [storeHydrated, setStoreHydrated] = useState(
     useWistStore.persist.hasHydrated(),
   );
+  const [profileLookupComplete, setProfileLookupComplete] = useState(false);
   const alerts = useWistStore((state) => state.alerts);
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const addFollowedBrands = useWistStore((state) => state.addFollowedBrands);
@@ -52,6 +56,10 @@ export default function App() {
     (state) => state.mergePriceDropAlerts,
   );
   const setStarredItem = useWistStore((state) => state.setStarredItem);
+  const profileStatus = useWistStore((state) => state.profileStatus);
+  const replaceStyleProfile = useWistStore(
+    (state) => state.replaceStyleProfile,
+  );
   const [fontsLoaded] = useFonts({
     CormorantGaramond_600SemiBold,
     Inter_400Regular,
@@ -106,6 +114,28 @@ export default function App() {
   useEffect(() => {
     if (!storeHydrated) return;
     let cancelled = false;
+    void loadStyleProfile()
+      .then((profile) => {
+        if (!cancelled && profile) {
+          replaceStyleProfile(profile.occasions, profile.styles);
+        }
+      })
+      .catch((error: unknown) => {
+        console.warn(
+          `Profile synchronization unavailable: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setProfileLookupComplete(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [replaceStyleProfile, storeHydrated]);
+
+  useEffect(() => {
+    if (!storeHydrated) return;
+    let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const synchronizeAlerts = async () => {
@@ -132,11 +162,29 @@ export default function App() {
   const brandsById = Object.fromEntries(brands.map((brand) => [brand.id, brand]));
   const itemsById = Object.fromEntries(items.map((item) => [item.id, item]));
 
-  if (!fontsLoaded || !storeHydrated) {
+  const profileGate = resolveProfileGate({
+    fontsLoaded,
+    profileLookupComplete,
+    profileStatus,
+    storeHydrated,
+  });
+
+  if (profileGate === "loading") {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={colors.wine} />
       </View>
+    );
+  }
+
+  if (profileGate === "onboarding") {
+    return (
+      <SafeAreaProvider style={styles.root}>
+        <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
+          <StatusBar style="dark" />
+          <OnboardingScreen />
+        </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
