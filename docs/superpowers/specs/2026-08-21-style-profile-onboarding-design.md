@@ -1,7 +1,7 @@
 # Style Profile & Occasion Onboarding — Design
 
 **Date:** 2026-08-21
-**Status:** Approved design, pending spec review
+**Status:** Approved design, revised after spec review
 **Slice:** A of a four-part feature (A: style profile · B: wardrobe inventory · C: outfit suggestion · D: buy-through). This spec covers **A only**.
 
 ## Problem
@@ -88,9 +88,15 @@ is a deliberate, low-cost duplication, not shared code.
 ## Service design
 
 ### Ownership boundary
-The profile is **not** part of the catalogue domain. `model.ts`, `repository.ts`, and
-`sqliteRepository.ts` are untouched. The profile gets its own module, interface, and
-SQLite implementation, sharing only the process, the SQLite file, and the owner token.
+This change makes `catalogue-service` responsible for durable owner taste data, which is
+a service-level ownership expansion even though the profile is **not** part of the
+catalogue domain. Co-location is deliberate for the single-user prototype: the process
+already owns the owner's watches and alerts, and the planned outfit engine will consume
+the profile. The profile keeps its own module, interface, and SQLite implementation so
+the domain boundary remains visible; a separate service is not justified yet.
+
+`model.ts`, `repository.ts`, and `sqliteRepository.ts` remain untouched. The profile
+shares only the process, the SQLite file, and the owner token with the catalogue module.
 
 ```
 server.ts  (reads request body; owns both repositories)
@@ -108,9 +114,10 @@ server.ts  (reads request body; owns both repositories)
 | `styleProfileRepository.ts` | `repository.ts` | `StyleProfileRepository` interface |
 | `sqliteStyleProfileRepository.ts` | `sqliteRepository.ts` | SQLite implementation, its own connection to the same DB file |
 
-WAL is already enabled, so one writer + concurrent readers across two connections to
-the same file is safe. If write contention ever appears, the fix is sharing one handle —
-a small, local change. Justified for a single-user prototype.
+WAL permits concurrent readers, but SQLite still serializes writes from the catalogue
+scheduler and profile repository. Both connections set a short `busy_timeout`, allowing
+the tiny profile transaction to wait for an active catalogue write instead of failing
+immediately with `SQLITE_BUSY`. A shared handle is unnecessary for this prototype.
 
 ### Schema (additive; plain `CREATE TABLE IF NOT EXISTS`, no migration framework exists)
 ```sql
@@ -153,7 +160,7 @@ Errors (following existing vocabulary):
 |---|---|---|
 | 503 | `profile_api_not_configured` | No owner token, or repository unavailable |
 | 401 | `unauthorized` | Bad/missing token |
-| 400 | `invalid_profile` | Unknown enum, duplicate, or >3 styles |
+| 400 | `invalid_profile` | Malformed JSON, non-object/missing fields, unknown enum, duplicate, or >3 styles |
 | 413 | `payload_too_large` | Body exceeds 8 KB cap |
 | 405 | `method_not_allowed` | Any method other than GET/PUT |
 
@@ -172,9 +179,8 @@ New slice (added to `partialize` so the gate survives restart):
 occasions: Occasion[];
 styles: Style[];
 profileStatus: "unknown" | "answered" | "skipped";
-setStyleProfile: (occasions, styles) => void;     // optimistic local write
 markProfileSkipped: () => void;
-replaceStyleProfile: (occasions, styles) => void; // from backend GET
+replaceStyleProfile: (occasions, styles) => void; // after GET or successful PUT
 ```
 
 `profileStatus` is the entire gate:
@@ -185,39 +191,47 @@ GET mapping: a returned profile → `"answered"`; `profile: null` leaves status 
 (`"unknown"`, unless the user already tapped skip → `"skipped"`).
 
 ### Gate wiring (App.tsx)
-Slots in right after the existing hydration gate at `App.tsx:135`:
+An unpersisted `profileLookupComplete` flag prevents the wizard from racing the initial
+backend read. It slots in after the existing hydration gate at `App.tsx:135`:
 ```
-fonts + store hydrated?           ─no→  spinner
-profileStatus === "unknown"?      ─yes→ <OnboardingScreen />   (full-screen, no tab bar)
-                                  ─no→  existing tabs + screens
+fonts + store hydrated?                              ─no→  spinner
+profileStatus unknown + profile lookup incomplete?  ─yes→ spinner
+profileStatus === "unknown"?                         ─yes→ <OnboardingScreen />
+                                                     ─no→  existing tabs + screens
 ```
 A new `GET /v1/profile` effect mirrors the `loadWatchedItemIds` effect (`App.tsx:89-104`):
-same `storeHydrated` guard, cancel flag, and warn-on-failure. Catalogue offline → status
-stays whatever the cache says; degrades exactly like watches already do.
+same `storeHydrated` guard, cancel flag, and warn-on-failure. The lookup is marked complete
+in `finally`. Catalogue offline → status stays whatever the cache says; a fresh install
+shows onboarding, while a cached answer or skip continues into the app.
 
 ### Wizard (`src/screens/OnboardingScreen.tsx`, Layout A)
 Plus one reusable `OccasionStylePicker` chip component (the tap-grid), reused by the edit rows.
 ```
-STEP 1 occasions → STEP 2 styles → PUT /v1/profile → status "answered" → app
+STEP 1 occasions → STEP 2 styles → PUT /v1/profile succeeds → status "answered" → app
    └── Skip ───────────────────────→ status "skipped" (no network call) → app
 ```
 - Continue is always enabled (empty selections are valid). Styles disables unselected
   chips once 3 are chosen.
 - Progress dots + Continue pill; garnet only on selected chips; tokens from `theme.ts`.
-- PUT failure: keep local answers, set status `"answered"` anyway, `Alert.alert` the sync
-  problem — same posture as `toggleLiveCovet` (`App.tsx:161-166`). Never trap the user.
+- The picker owns draft selections. On PUT failure it keeps the draft visible and shows
+  `Alert.alert`; the user can retry or explicitly Skip. The persisted cache changes only
+  after backend success, preserving backend ownership without a dirty-sync state.
 
 ### Edit path (`ProfileScreen`)
 Two `EDIT` rows added **above** the `FOLLOWED HOUSES` section — occasions and styles,
 showing current selections as read-back text ("Work, Evening"). Tapping opens the same
-`OccasionStylePicker` in a modal; saving does optimistic write + PUT. This is both the
-edit path Layout A lacked and the "your taste" summary chosen as the consumer.
+`OccasionStylePicker` in a modal. Saving sends PUT first, then updates the cache and closes
+the modal on success; failure retains the draft. This is both the edit path Layout A lacked
+and the "your taste" summary chosen as the consumer.
 
 ## Testing (mirrors existing test files)
 - `styleProfile.test.ts` — validation: rejects unknown enum / >3 styles / duplicates; accepts empty.
 - `sqliteStyleProfileRepository.test.ts` — round-trip, replace-overwrites, cascade delete.
 - `app.test.ts` additions — GET null-then-value, PUT replace, 401 / 400 / 413.
+- Client tests — response validation and PUT request/response handling.
 - Store test — `profileStatus` transitions.
+- App gate tests — remote profile suppresses onboarding before first render; null and
+  offline fresh-state results show it; cached answered/skipped state bypasses it.
 
 No new dependencies. No changes to the drop engine, watch scheduler, or catalogue repository.
 
