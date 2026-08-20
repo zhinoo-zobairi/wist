@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   loadCatalogue,
   loadPriceDropAlerts,
+  loadStyleProfile,
   loadWatchedItemIds,
+  saveStyleProfile,
   setCatalogueWatch,
 } from "./catalogueClient";
 
@@ -177,5 +179,73 @@ describe("catalogue client", () => {
         authorization: "Bearer owner-token",
       },
     });
+  });
+
+  it("loads and replaces the owner style profile", async () => {
+    const profile = {
+      occasions: ["work", "travel"],
+      styles: ["minimal", "bold"],
+      updatedAt: "2026-08-21T12:00:00.000Z",
+    };
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ profile })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ profile })));
+
+    await expect(
+      loadStyleProfile(fetchImpl, "http://catalogue.test", "owner-token"),
+    ).resolves.toEqual(profile);
+    await expect(
+      saveStyleProfile(
+        ["work", "travel"],
+        ["minimal", "bold"],
+        fetchImpl,
+        "http://catalogue.test",
+        "owner-token",
+      ),
+    ).resolves.toEqual(profile);
+
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      "http://catalogue.test/v1/profile",
+      {
+        body: JSON.stringify({
+          occasions: ["work", "travel"],
+          styles: ["minimal", "bold"],
+        }),
+        headers: {
+          accept: "application/json",
+          authorization: "Bearer owner-token",
+          "content-type": "application/json",
+        },
+        method: "PUT",
+      },
+    );
+  });
+
+  it("distinguishes an unanswered profile and rejects invalid selections", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ profile: null })),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            profile: {
+              occasions: ["unknown"],
+              styles: [],
+              updatedAt: "2026-08-21T12:00:00.000Z",
+            },
+          }),
+        ),
+      );
+
+    await expect(
+      loadStyleProfile(fetchImpl, "http://catalogue.test", "owner-token"),
+    ).resolves.toBeNull();
+    await expect(
+      loadStyleProfile(fetchImpl, "http://catalogue.test", "owner-token"),
+    ).rejects.toThrow("invalid style profile selections");
   });
 });

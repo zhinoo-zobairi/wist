@@ -64,4 +64,30 @@ export type Alert = {
   read: boolean;
 };
 
+export const OCCASION_OPTIONS = [
+  { id: "work", label: "Work" },
+  { id: "evening", label: "Evening" },
+  { id: "weekend", label: "Weekend" },
+  { id: "celebration", label: "Celebration" },
+  { id: "travel", label: "Travel" },
+] as const;
+
+export const STYLE_OPTIONS = [
+  { id: "minimal", label: "Minimal" },
+  { id: "tailored", label: "Tailored" },
+  { id: "romantic", label: "Romantic" },
+  { id: "utilitarian", label: "Utilitarian" },
+  { id: "bold", label: "Bold" },
+  { id: "eclectic", label: "Eclectic" },
+] as const;
+
+export type Occasion = (typeof OCCASION_OPTIONS)[number]["id"];
+export type Style = (typeof STYLE_OPTIONS)[number]["id"];
+
+export type StyleProfile = {
+  occasions: Occasion[];
+  styles: Style[];
+  updatedAt: string;
+};
+
 export const LOCAL_USER_ID = "local-user";

@@ -5,6 +5,11 @@ import {
   type Item,
   type ItemMedia,
   type ItemVariant,
+  OCCASION_OPTIONS,
+  STYLE_OPTIONS,
+  type Occasion,
+  type Style,
+  type StyleProfile,
 } from "../types";
 
 type Fetch = typeof fetch;
@@ -139,6 +144,38 @@ function toAlert(value: unknown): Alert {
   };
 }
 
+function toStyleProfile(value: unknown): StyleProfile {
+  if (!isObject(value)) {
+    throw new Error("Catalogue returned an invalid style profile");
+  }
+  if (!Array.isArray(value.occasions) || !Array.isArray(value.styles)) {
+    throw new Error("Catalogue response is missing style profile selections");
+  }
+  const occasionIds = new Set(value.occasions);
+  const styleIds = new Set(value.styles);
+  const validOccasions = new Set(OCCASION_OPTIONS.map((option) => option.id));
+  const validStyles = new Set(STYLE_OPTIONS.map((option) => option.id));
+  if (
+    occasionIds.size !== value.occasions.length ||
+    styleIds.size !== value.styles.length ||
+    value.styles.length > 3 ||
+    value.occasions.some((occasion) => !validOccasions.has(occasion as Occasion)) ||
+    value.styles.some((style) => !validStyles.has(style as Style))
+  ) {
+    throw new Error("Catalogue returned invalid style profile selections");
+  }
+
+  return {
+    occasions: OCCASION_OPTIONS.map((option) => option.id).filter((occasion) =>
+      occasionIds.has(occasion),
+    ),
+    styles: STYLE_OPTIONS.map((option) => option.id).filter((style) =>
+      styleIds.has(style),
+    ),
+    updatedAt: stringField(value, "updatedAt"),
+  };
+}
+
 async function responseJson(response: Response): Promise<JsonObject> {
   if (!response.ok) {
     throw new Error(`Catalogue request failed with HTTP ${response.status}`);
@@ -222,6 +259,41 @@ export async function loadPriceDropAlerts(
     throw new Error("Catalogue response is missing alerts");
   }
   return body.alerts.map(toAlert);
+}
+
+export async function loadStyleProfile(
+  fetchImpl: Fetch = fetch,
+  baseUrl = defaultBaseUrl,
+  ownerToken = defaultOwnerToken,
+): Promise<StyleProfile | null> {
+  const root = baseUrl.replace(/\/$/, "");
+  const body = await responseJson(
+    await fetchImpl(`${root}/v1/profile`, {
+      headers: authorizationHeaders(ownerToken),
+    }),
+  );
+  return body.profile === null ? null : toStyleProfile(body.profile);
+}
+
+export async function saveStyleProfile(
+  occasions: Occasion[],
+  styles: Style[],
+  fetchImpl: Fetch = fetch,
+  baseUrl = defaultBaseUrl,
+  ownerToken = defaultOwnerToken,
+): Promise<StyleProfile> {
+  const root = baseUrl.replace(/\/$/, "");
+  const body = await responseJson(
+    await fetchImpl(`${root}/v1/profile`, {
+      body: JSON.stringify({ occasions, styles }),
+      headers: {
+        ...authorizationHeaders(ownerToken),
+        "content-type": "application/json",
+      },
+      method: "PUT",
+    }),
+  );
+  return toStyleProfile(body.profile);
 }
 
 export async function setCatalogueWatch(

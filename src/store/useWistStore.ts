@@ -8,7 +8,9 @@ import {
   captureStarredPrices,
   retainLatestSnapshots,
 } from "../services/dropEngine";
-import type { Alert, PriceSnapshot } from "../types";
+import type { Alert, Occasion, PriceSnapshot, Style } from "../types";
+
+export type ProfileStatus = "unknown" | "answered" | "skipped";
 
 type WistState = {
   followedBrandIds: string[];
@@ -17,6 +19,9 @@ type WistState = {
   priceOverrides: Record<string, number>;
   snapshots: PriceSnapshot[];
   alerts: Alert[];
+  occasions: Occasion[];
+  styles: Style[];
+  profileStatus: ProfileStatus;
   toggleFollow: (brandId: string) => void;
   addFollowedBrands: (brandIds: string[]) => void;
   replaceStarredItems: (itemIds: string[]) => void;
@@ -26,6 +31,8 @@ type WistState = {
   triggerSeedDrop: () => Alert | null;
   markAlertRead: (alertId: string) => void;
   restoreSeedPrices: () => void;
+  markProfileSkipped: () => void;
+  replaceStyleProfile: (occasions: Occasion[], styles: Style[]) => void;
 };
 
 const toggleId = (ids: string[], id: string) =>
@@ -42,6 +49,9 @@ export const useWistStore = create<WistState>()(
       priceOverrides: {},
       snapshots: [],
       alerts: [],
+      occasions: [],
+      styles: [],
+      profileStatus: "unknown",
       toggleFollow: (brandId) =>
         set((state) => ({
           followedBrandIds: toggleId(state.followedBrandIds, brandId),
@@ -164,6 +174,13 @@ export const useWistStore = create<WistState>()(
           seedPriceSource.restorePrices(state.priceOverrides);
           return { priceRevision: state.priceRevision + 1 };
         }),
+      markProfileSkipped: () => set({ profileStatus: "skipped" }),
+      replaceStyleProfile: (occasions, styles) =>
+        set({
+          occasions: [...occasions],
+          styles: [...styles],
+          profileStatus: "answered",
+        }),
     }),
     {
       name: "wist-preferences",
@@ -171,15 +188,21 @@ export const useWistStore = create<WistState>()(
       partialize: ({
         alerts,
         followedBrandIds,
+        occasions,
         priceOverrides,
+        profileStatus,
         snapshots,
         starredItemIds,
+        styles,
       }) => ({
         alerts,
         followedBrandIds,
+        occasions,
         priceOverrides,
+        profileStatus,
         snapshots,
         starredItemIds,
+        styles,
       }),
       onRehydrateStorage: () => (state) => state?.restoreSeedPrices(),
     },
