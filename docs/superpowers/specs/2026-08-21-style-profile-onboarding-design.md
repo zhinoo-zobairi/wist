@@ -95,8 +95,9 @@ already owns the owner's watches and alerts, and the planned outfit engine will 
 the profile. The profile keeps its own module, interface, and SQLite implementation so
 the domain boundary remains visible; a separate service is not justified yet.
 
-`model.ts`, `repository.ts`, and `sqliteRepository.ts` remain untouched. The profile
-shares only the process, the SQLite file, and the owner token with the catalogue module.
+`model.ts` and `repository.ts` remain untouched. `sqliteRepository.ts` only gains the
+same `busy_timeout` used by the new repository. The profile shares only the process,
+the SQLite file, and the owner token with the catalogue module.
 
 ```
 server.ts  (reads request body; owns both repositories)
@@ -238,7 +239,7 @@ No new dependencies. No changes to the drop engine, watch scheduler, or catalogu
 ## Scope summary
 | New files | Modified files | Untouched |
 |---|---|---|
-| `styleProfile.ts`, `styleProfileRepository.ts`, `sqliteStyleProfileRepository.ts`, `OnboardingScreen.tsx`, `OccasionStylePicker.tsx`, + tests | `app.ts`, `server.ts`, `useWistStore.ts`, `App.tsx`, `ProfileScreen.tsx`, `src/types.ts` (add `Occasion`/`Style` enums) | catalogue repo/model, drop engine, scheduler |
+| `styleProfile.ts`, `styleProfileRepository.ts`, `sqliteStyleProfileRepository.ts`, `OnboardingScreen.tsx`, `OccasionStylePicker.tsx`, + tests | `app.ts`, `server.ts`, `sqliteRepository.ts` (busy timeout only), `useWistStore.ts`, `App.tsx`, `ProfileScreen.tsx`, `src/types.ts` (add `Occasion`/`Style` enums) | catalogue repository interface/model, drop engine, scheduler |
 
 ## Future migration triggers (recorded, not built)
 - **Multi-user:** replace the `'owner'` profile id and owner token with real per-user auth.

@@ -2,8 +2,29 @@ import { describe, expect, it } from "vitest";
 
 import { handleRequest } from "./app.js";
 import { SeedCatalogueRepository } from "./seedRepository.js";
+import type {
+  StyleProfile,
+  StyleProfileSelection,
+} from "./styleProfile.js";
+import type { StyleProfileRepository } from "./styleProfileRepository.js";
 
 const repository = new SeedCatalogueRepository();
+
+class MemoryStyleProfileRepository implements StyleProfileRepository {
+  profile: StyleProfile | null = null;
+
+  async getProfile() {
+    return this.profile;
+  }
+
+  async replaceProfile(selection: StyleProfileSelection) {
+    this.profile = {
+      ...selection,
+      updatedAt: "2026-08-21T12:00:00.000Z",
+    };
+    return this.profile;
+  }
+}
 
 describe("catalogue API", () => {
   const auth = {
@@ -102,6 +123,58 @@ describe("catalogue API", () => {
     ).resolves.toEqual({
       status: 200,
       body: { itemId: "sandro-tweed-dress", watched: false },
+    });
+  });
+
+  it("reads and replaces the owner style profile", async () => {
+    const profiles = new MemoryStyleProfileRepository();
+    await expect(
+      handleRequest("GET", "/v1/profile", repository, auth, { profiles }),
+    ).resolves.toEqual({ status: 200, body: { profile: null } });
+
+    await expect(
+      handleRequest("PUT", "/v1/profile", repository, auth, {
+        profiles,
+        body: JSON.stringify({
+          occasions: ["evening", "work"],
+          styles: ["tailored"],
+        }),
+      }),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: {
+        profile: {
+          occasions: ["work", "evening"],
+          styles: ["tailored"],
+        },
+      },
+    });
+  });
+
+  it("protects and validates profile requests", async () => {
+    const profiles = new MemoryStyleProfileRepository();
+    await expect(
+      handleRequest("GET", "/v1/profile", repository, {
+        ownerToken: "owner-test-token",
+      }, { profiles }),
+    ).resolves.toEqual({ status: 401, body: { error: "unauthorized" } });
+    await expect(
+      handleRequest("PUT", "/v1/profile", repository, auth, {
+        profiles,
+        body: "not json",
+      }),
+    ).resolves.toEqual({
+      status: 400,
+      body: { error: "invalid_profile" },
+    });
+    await expect(
+      handleRequest("PUT", "/v1/profile", repository, auth, {
+        profiles,
+        bodyTooLarge: true,
+      }),
+    ).resolves.toEqual({
+      status: 413,
+      body: { error: "payload_too_large" },
     });
   });
 });

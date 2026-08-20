@@ -1,6 +1,8 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
 import type { CatalogueRepository } from "./repository.js";
+import { parseStyleProfile } from "./styleProfile.js";
+import type { StyleProfileRepository } from "./styleProfileRepository.js";
 
 export type ApiResponse = {
   status: number;
@@ -21,28 +23,76 @@ function authorized(auth: RequestAuth): boolean {
   return timingSafeEqual(actual, expected);
 }
 
-function watchAuthError(auth: RequestAuth): ApiResponse | null {
+function ownerAuthError(
+  auth: RequestAuth,
+  notConfiguredError: string,
+): ApiResponse | null {
   if (!auth.ownerToken) {
-    return { status: 503, body: { error: "watch_api_not_configured" } };
+    return { status: 503, body: { error: notConfiguredError } };
   }
   return authorized(auth)
     ? null
     : { status: 401, body: { error: "unauthorized" } };
 }
 
+export type RequestOptions = {
+  body?: string;
+  bodyTooLarge?: boolean;
+  profiles?: StyleProfileRepository;
+};
+
 export async function handleRequest(
   method: string,
   rawUrl: string,
   repository: CatalogueRepository,
   auth: RequestAuth = {},
+  options: RequestOptions = {},
 ): Promise<ApiResponse> {
   const { pathname } = new URL(rawUrl, "http://catalogue.local");
+
+  if (pathname === "/v1/profile") {
+    if (method !== "GET" && method !== "PUT") {
+      return { status: 405, body: { error: "method_not_allowed" } };
+    }
+    const authError = ownerAuthError(auth, "profile_api_not_configured");
+    if (authError) return authError;
+    if (!options.profiles) {
+      return {
+        status: 503,
+        body: { error: "profile_api_not_configured" },
+      };
+    }
+    if (method === "GET") {
+      return {
+        status: 200,
+        body: { profile: await options.profiles.getProfile() },
+      };
+    }
+    if (options.bodyTooLarge) {
+      return { status: 413, body: { error: "payload_too_large" } };
+    }
+
+    let value: unknown;
+    try {
+      value = JSON.parse(options.body ?? "");
+    } catch {
+      return { status: 400, body: { error: "invalid_profile" } };
+    }
+    const selection = parseStyleProfile(value);
+    if (!selection) {
+      return { status: 400, body: { error: "invalid_profile" } };
+    }
+    return {
+      status: 200,
+      body: { profile: await options.profiles.replaceProfile(selection) },
+    };
+  }
 
   if (pathname === "/v1/watches") {
     if (method !== "GET") {
       return { status: 405, body: { error: "method_not_allowed" } };
     }
-    const authError = watchAuthError(auth);
+    const authError = ownerAuthError(auth, "watch_api_not_configured");
     if (authError) return authError;
     return {
       status: 200,
@@ -54,7 +104,7 @@ export async function handleRequest(
     if (method !== "GET") {
       return { status: 405, body: { error: "method_not_allowed" } };
     }
-    const authError = watchAuthError(auth);
+    const authError = ownerAuthError(auth, "watch_api_not_configured");
     if (authError) return authError;
     return {
       status: 200,
@@ -67,7 +117,7 @@ export async function handleRequest(
     if (method !== "PUT" && method !== "DELETE") {
       return { status: 405, body: { error: "method_not_allowed" } };
     }
-    const authError = watchAuthError(auth);
+    const authError = ownerAuthError(auth, "watch_api_not_configured");
     if (authError) return authError;
 
     const itemId = decodeURIComponent(watchMatch[1]);

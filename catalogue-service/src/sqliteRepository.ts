@@ -124,6 +124,7 @@ export class SqliteCatalogueRepository
     this.database = new DatabaseSync(path);
     this.database.exec("PRAGMA foreign_keys = ON");
     this.database.exec("PRAGMA journal_mode = WAL");
+    this.database.exec("PRAGMA busy_timeout = 5000");
     this.database.exec(`
       CREATE TABLE IF NOT EXISTS catalogue_brands (
         id TEXT PRIMARY KEY,

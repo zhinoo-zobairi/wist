@@ -3,11 +3,13 @@ import { resolve } from "node:path";
 
 import { handleRequest } from "./app.js";
 import { SqliteCatalogueRepository } from "./sqliteRepository.js";
+import { SqliteStyleProfileRepository } from "./sqliteStyleProfileRepository.js";
 import { startWatchScheduler } from "./watchScheduler.js";
 
 const databasePath =
   process.env.CATALOGUE_DB_PATH ?? resolve("catalogue-service/data/wist.sqlite");
 const repository = new SqliteCatalogueRepository(databasePath);
+const profiles = new SqliteStyleProfileRepository(databasePath);
 const port = Number.parseInt(process.env.PORT ?? "4000", 10);
 const ownerToken = process.env.CATALOGUE_OWNER_TOKEN;
 const watchIntervalMs = Number.parseInt(
@@ -26,6 +28,29 @@ const responseHeaders = {
   "content-type": "application/json",
 };
 
+const MAX_PROFILE_BODY_BYTES = 8 * 1024;
+
+async function readProfileBody(request: AsyncIterable<unknown>) {
+  const chunks: Buffer[] = [];
+  let bytesRead = 0;
+  let bodyTooLarge = false;
+
+  for await (const chunk of request) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+    bytesRead += buffer.byteLength;
+    if (bytesRead > MAX_PROFILE_BODY_BYTES) {
+      bodyTooLarge = true;
+      chunks.length = 0;
+    } else if (!bodyTooLarge) {
+      chunks.push(buffer);
+    }
+  }
+
+  return bodyTooLarge
+    ? { bodyTooLarge: true }
+    : { body: Buffer.concat(chunks).toString("utf8") };
+}
+
 const server = createServer(async (request, response) => {
   if (request.method === "OPTIONS") {
     response.writeHead(204, responseHeaders);
@@ -34,6 +59,12 @@ const server = createServer(async (request, response) => {
   }
 
   try {
+    const requestOptions =
+      request.method === "PUT" &&
+      new URL(request.url ?? "/", "http://catalogue.local").pathname ===
+        "/v1/profile"
+        ? await readProfileBody(request)
+        : {};
     const result = await handleRequest(
       request.method ?? "GET",
       request.url ?? "/",
@@ -42,6 +73,7 @@ const server = createServer(async (request, response) => {
         authorization: request.headers.authorization,
         ownerToken,
       },
+      { ...requestOptions, profiles },
     );
     response.writeHead(result.status, responseHeaders);
     response.end(JSON.stringify(result.body));
@@ -58,6 +90,7 @@ server.listen(port, "127.0.0.1", () => {
 function shutdown() {
   stopWatchScheduler();
   server.close(() => {
+    profiles.close();
     repository.close();
   });
 }
