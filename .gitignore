@@ -4,6 +4,7 @@ node_modules/
 dist/
 web-build/
 coverage/
+.superpowers/
 catalogue-service/data/
 *.log
 .DS_Store
