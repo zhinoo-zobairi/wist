@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -11,6 +10,7 @@ import {
 
 import { OccasionStylePicker } from "../components/OccasionStylePicker";
 import { saveStyleProfile } from "../services/catalogueClient";
+import { commitStyleProfile } from "../styleProfileCommit";
 import { useWistStore } from "../store/useWistStore";
 import { colors, fonts, radii } from "../theme";
 import {
@@ -24,7 +24,6 @@ export function OnboardingScreen() {
   const [step, setStep] = useState<"occasions" | "styles">("occasions");
   const [occasions, setOccasions] = useState<Occasion[]>([]);
   const [styles, setStyles] = useState<Style[]>([]);
-  const [saving, setSaving] = useState(false);
   const markProfileSkipped = useWistStore(
     (state) => state.markProfileSkipped,
   );
@@ -38,17 +37,20 @@ export function OnboardingScreen() {
       return;
     }
 
-    setSaving(true);
+    // Optimistic: the local answers are applied immediately (entering the app),
+    // so a catalogue outage never traps the user. Only surface a sync failure.
     try {
-      const profile = await saveStyleProfile(occasions, styles);
-      replaceStyleProfile(profile.occasions, profile.styles);
+      await commitStyleProfile({
+        occasions,
+        styles,
+        apply: replaceStyleProfile,
+        save: saveStyleProfile,
+      });
     } catch (error) {
       Alert.alert(
-        "Could not save your profile",
+        "Saved on this device",
         error instanceof Error ? error.message : "Unknown catalogue error",
       );
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -61,7 +63,7 @@ export function OnboardingScreen() {
     >
       <View style={screenStyles.topline}>
         <Text style={screenStyles.wordmark}>WIST</Text>
-        <Pressable disabled={saving} onPress={markProfileSkipped}>
+        <Pressable onPress={markProfileSkipped}>
           <Text style={screenStyles.skip}>SKIP</Text>
         </Pressable>
       </View>
@@ -107,17 +109,12 @@ export function OnboardingScreen() {
           />
         </View>
         <Pressable
-          disabled={saving}
           onPress={() => void continueOnboarding()}
           style={screenStyles.continueButton}
         >
-          {saving ? (
-            <ActivityIndicator color={colors.card} />
-          ) : (
-            <Text style={screenStyles.continueText}>
-              {isOccasionStep ? "CONTINUE" : "SAVE MY PROFILE"}
-            </Text>
-          )}
+          <Text style={screenStyles.continueText}>
+            {isOccasionStep ? "CONTINUE" : "SAVE MY PROFILE"}
+          </Text>
         </Pressable>
       </View>
     </ScrollView>
