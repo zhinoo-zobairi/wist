@@ -181,15 +181,17 @@ occasions: Occasion[];
 styles: Style[];
 profileStatus: "unknown" | "answered" | "skipped";
 markProfileSkipped: () => void;
-replaceStyleProfile: (occasions, styles) => void; // after GET or successful PUT
+replaceStyleProfile: (occasions, styles) => void; // local commit or synchronized response
 ```
 
 `profileStatus` is the entire gate:
 - `"unknown"` → never resolved → show wizard.
 - `"answered"` / `"skipped"` → never auto-show again.
 
-GET mapping: a returned profile → `"answered"`; `profile: null` leaves status as cached
-(`"unknown"`, unless the user already tapped skip → `"skipped"`).
+GET mapping: a returned profile → `"answered"`. When GET returns `profile: null`, a
+cached `"answered"` profile is PUT back to the backend and reconciled with the response;
+this repairs an onboarding write that previously failed offline. Cached `"unknown"` and
+`"skipped"` states remain unchanged.
 
 ### Gate wiring (App.tsx)
 An unpersisted `profileLookupComplete` flag prevents the wizard from racing the initial
@@ -208,15 +210,17 @@ shows onboarding, while a cached answer or skip continues into the app.
 ### Wizard (`src/screens/OnboardingScreen.tsx`, Layout A)
 Plus one reusable `OccasionStylePicker` chip component (the tap-grid), reused by the edit rows.
 ```
-STEP 1 occasions → STEP 2 styles → PUT /v1/profile succeeds → status "answered" → app
+STEP 1 occasions → STEP 2 styles → local status "answered" → app → PUT /v1/profile
    └── Skip ───────────────────────→ status "skipped" (no network call) → app
 ```
 - Continue is always enabled (empty selections are valid). Styles disables unselected
   chips once 3 are chosen.
 - Progress dots + Continue pill; garnet only on selected chips; tokens from `theme.ts`.
-- The picker owns draft selections. On PUT failure it keeps the draft visible and shows
-  `Alert.alert`; the user can retry or explicitly Skip. The persisted cache changes only
-  after backend success, preserving backend ownership without a dirty-sync state.
+- Completing onboarding persists the selections locally before PUT so an outage never
+  traps the user in the wizard. A successful PUT reconciles the canonical response; a
+  failure reports that the answers are saved on-device. On a later launch, GET `null`
+  plus a cached `"answered"` profile triggers another PUT, providing eventual consistency
+  without a background queue. The backend remains the durable consumer for outfit logic.
 
 ### Edit path (`ProfileScreen`)
 Two `EDIT` rows added **above** the `FOLLOWED HOUSES` section — occasions and styles,
@@ -233,6 +237,7 @@ and the "your taste" summary chosen as the consumer.
 - Store test — `profileStatus` transitions.
 - App gate tests — remote profile suppresses onboarding before first render; null and
   offline fresh-state results show it; cached answered/skipped state bypasses it.
+- Synchronization policy test — a cached answer is PUT when the backend returns null.
 
 No new dependencies. No changes to the drop engine, watch scheduler, or catalogue repository.
 
