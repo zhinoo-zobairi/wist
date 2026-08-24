@@ -18,6 +18,7 @@ import {
   loadPriceDropAlerts,
   loadStyleProfile,
   loadWatchedItemIds,
+  saveStyleProfile,
   setCatalogueWatch,
   type Catalogue,
 } from "./src/services/catalogueClient";
@@ -29,6 +30,7 @@ import { SavedScreen } from "./src/screens/SavedScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { resolveProfileGate } from "./src/profileGate";
+import { synchronizeStyleProfile } from "./src/styleProfileCommit";
 import { colors } from "./src/theme";
 import { useWistStore } from "./src/store/useWistStore";
 import type { Item } from "./src/types";
@@ -114,12 +116,19 @@ export default function App() {
   useEffect(() => {
     if (!storeHydrated) return;
     let cancelled = false;
-    void loadStyleProfile()
-      .then((profile) => {
-        if (!cancelled && profile) {
-          replaceStyleProfile(profile.occasions, profile.styles);
-        }
-      })
+    void synchronizeStyleProfile({
+      apply: (occasions, styles) => {
+        if (!cancelled) replaceStyleProfile(occasions, styles);
+      },
+      getLocal: () => {
+        const state = useWistStore.getState();
+        return state.profileStatus === "answered"
+          ? { occasions: state.occasions, styles: state.styles }
+          : null;
+      },
+      load: loadStyleProfile,
+      save: saveStyleProfile,
+    })
       .catch((error: unknown) => {
         console.warn(
           `Profile synchronization unavailable: ${error instanceof Error ? error.message : "Unknown error"}`,

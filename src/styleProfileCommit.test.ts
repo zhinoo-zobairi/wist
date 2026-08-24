@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { commitStyleProfile } from "./styleProfileCommit";
+import {
+  commitStyleProfile,
+  synchronizeStyleProfile,
+} from "./styleProfileCommit";
 import type { Occasion, Style, StyleProfile } from "./types";
 
 describe("commitStyleProfile", () => {
@@ -46,5 +49,46 @@ describe("commitStyleProfile", () => {
       [["evening", "work"], ["bold"]],
       [["work", "evening"], ["bold"]],
     ]);
+  });
+
+  it("uploads a cached answer when the backend profile is missing", async () => {
+    const apply = vi.fn();
+    const save = vi.fn(async (): Promise<StyleProfile> => ({
+      occasions: ["work", "travel"],
+      styles: ["minimal", "bold"],
+      updatedAt: "2026-08-23T00:00:00.000Z",
+    }));
+
+    await synchronizeStyleProfile({
+      apply,
+      getLocal: () => ({
+        occasions: ["travel", "work"],
+        styles: ["bold", "minimal"],
+      }),
+      load: async () => null,
+      save,
+    });
+
+    expect(save).toHaveBeenCalledWith(
+      ["travel", "work"],
+      ["bold", "minimal"],
+    );
+    expect(apply).toHaveBeenCalledWith(
+      ["work", "travel"],
+      ["minimal", "bold"],
+    );
+  });
+
+  it("does not create a profile when there is no local answer", async () => {
+    const save = vi.fn();
+
+    await synchronizeStyleProfile({
+      apply: vi.fn(),
+      getLocal: () => null,
+      load: async () => null,
+      save,
+    });
+
+    expect(save).not.toHaveBeenCalled();
   });
 });
