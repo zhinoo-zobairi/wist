@@ -126,6 +126,64 @@ describe("catalogue API", () => {
     });
   });
 
+  it("imports a product URL directly into the watch list", async () => {
+    const importProduct = async (productUrl: string) => {
+      expect(productUrl).toBe(
+        "https://de.sandro-paris.com/de/p/tweed-kleid/SFPRO00001.html",
+      );
+      const item = await repository.getItem("sandro-tweed-dress");
+      if (!item) throw new Error("Test product missing");
+      return item;
+    };
+
+    await expect(
+      handleRequest("POST", "/v1/watches", repository, auth, {
+        body: JSON.stringify({
+          url: " https://de.sandro-paris.com/de/p/tweed-kleid/SFPRO00001.html ",
+        }),
+        importProduct,
+      }),
+    ).resolves.toEqual({
+      status: 201,
+      body: { itemId: "sandro-tweed-dress", watched: true },
+    });
+    await expect(
+      handleRequest("GET", "/v1/watches", repository, auth),
+    ).resolves.toEqual({
+      status: 200,
+      body: { itemIds: ["sandro-tweed-dress"] },
+    });
+  });
+
+  it("returns useful errors for invalid or unsupported product imports", async () => {
+    await expect(
+      handleRequest("POST", "/v1/watches", repository, auth, {
+        body: JSON.stringify({ url: "" }),
+        importProduct: async () => {
+          throw new Error("should not run");
+        },
+      }),
+    ).resolves.toEqual({
+      status: 400,
+      body: { error: "invalid_product_url" },
+    });
+
+    await expect(
+      handleRequest("POST", "/v1/watches", repository, auth, {
+        body: JSON.stringify({ url: "https://example.com/product" }),
+        importProduct: async () => {
+          throw new Error("Only Bobbies and Sandro product URLs are supported");
+        },
+      }),
+    ).resolves.toEqual({
+      status: 422,
+      body: {
+        error: "product_import_failed",
+        message: "Only Bobbies and Sandro product URLs are supported",
+      },
+    });
+  });
+
   it("reads and replaces the owner style profile", async () => {
     const profiles = new MemoryStyleProfileRepository();
     await expect(

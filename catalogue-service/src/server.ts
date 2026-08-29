@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { resolve } from "node:path";
 
 import { handleRequest } from "./app.js";
+import { importProduct } from "./productImport.js";
 import { SqliteCatalogueRepository } from "./sqliteRepository.js";
 import { SqliteStyleProfileRepository } from "./sqliteStyleProfileRepository.js";
 import { startWatchScheduler } from "./watchScheduler.js";
@@ -12,6 +13,7 @@ const repository = new SqliteCatalogueRepository(databasePath);
 const profiles = new SqliteStyleProfileRepository(databasePath);
 const port = Number.parseInt(process.env.PORT ?? "4000", 10);
 const ownerToken = process.env.CATALOGUE_OWNER_TOKEN;
+const host = process.env.CATALOGUE_HOST ?? "127.0.0.1";
 const watchIntervalMs = Number.parseInt(
   process.env.CATALOGUE_WATCH_INTERVAL_MS ?? String(6 * 60 * 60 * 1000),
   10,
@@ -23,14 +25,14 @@ const stopWatchScheduler = startWatchScheduler(repository, watchIntervalMs);
 
 const responseHeaders = {
   "access-control-allow-headers": "authorization, content-type",
-  "access-control-allow-methods": "GET, PUT, DELETE, OPTIONS",
+  "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
   "access-control-allow-origin": "*",
   "content-type": "application/json",
 };
 
-const MAX_PROFILE_BODY_BYTES = 8 * 1024;
+const MAX_REQUEST_BODY_BYTES = 8 * 1024;
 
-async function readProfileBody(request: AsyncIterable<unknown>) {
+async function readRequestBody(request: AsyncIterable<unknown>) {
   const chunks: Buffer[] = [];
   let bytesRead = 0;
   let bodyTooLarge = false;
@@ -38,7 +40,7 @@ async function readProfileBody(request: AsyncIterable<unknown>) {
   for await (const chunk of request) {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
     bytesRead += buffer.byteLength;
-    if (bytesRead > MAX_PROFILE_BODY_BYTES) {
+    if (bytesRead > MAX_REQUEST_BODY_BYTES) {
       bodyTooLarge = true;
       chunks.length = 0;
     } else if (!bodyTooLarge) {
@@ -59,12 +61,14 @@ const server = createServer(async (request, response) => {
   }
 
   try {
-    const requestOptions =
-      request.method === "PUT" &&
-      new URL(request.url ?? "/", "http://catalogue.local").pathname ===
-        "/v1/profile"
-        ? await readProfileBody(request)
-        : {};
+    const pathname = new URL(
+      request.url ?? "/",
+      "http://catalogue.local",
+    ).pathname;
+    const hasJsonBody =
+      (request.method === "PUT" && pathname === "/v1/profile") ||
+      (request.method === "POST" && pathname === "/v1/watches");
+    const requestOptions = hasJsonBody ? await readRequestBody(request) : {};
     const result = await handleRequest(
       request.method ?? "GET",
       request.url ?? "/",
@@ -73,7 +77,11 @@ const server = createServer(async (request, response) => {
         authorization: request.headers.authorization,
         ownerToken,
       },
-      { ...requestOptions, profiles },
+      {
+        ...requestOptions,
+        importProduct: (productUrl) => importProduct(repository, productUrl),
+        profiles,
+      },
     );
     response.writeHead(result.status, responseHeaders);
     response.end(JSON.stringify(result.body));
@@ -83,8 +91,8 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Wist catalogue listening on http://127.0.0.1:${port}`);
+server.listen(port, host, () => {
+  console.log(`Wist catalogue listening on http://${host}:${port}`);
 });
 
 function shutdown() {

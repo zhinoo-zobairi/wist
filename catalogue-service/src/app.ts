@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
+import type { CatalogueItem } from "./model.js";
 import type { CatalogueRepository } from "./repository.js";
 import { parseStyleProfile } from "./styleProfile.js";
 import type { StyleProfileRepository } from "./styleProfileRepository.js";
@@ -38,6 +39,7 @@ function ownerAuthError(
 export type RequestOptions = {
   body?: string;
   bodyTooLarge?: boolean;
+  importProduct?: (productUrl: string) => Promise<CatalogueItem>;
   profiles?: StyleProfileRepository;
 };
 
@@ -89,11 +91,53 @@ export async function handleRequest(
   }
 
   if (pathname === "/v1/watches") {
-    if (method !== "GET") {
+    if (method !== "GET" && method !== "POST") {
       return { status: 405, body: { error: "method_not_allowed" } };
     }
     const authError = ownerAuthError(auth, "watch_api_not_configured");
     if (authError) return authError;
+    if (method === "POST") {
+      if (!options.importProduct) {
+        return { status: 503, body: { error: "product_import_not_configured" } };
+      }
+      if (options.bodyTooLarge) {
+        return { status: 413, body: { error: "payload_too_large" } };
+      }
+
+      let value: unknown;
+      try {
+        value = JSON.parse(options.body ?? "");
+      } catch {
+        return { status: 400, body: { error: "invalid_product_url" } };
+      }
+      if (
+        typeof value !== "object" ||
+        value === null ||
+        !("url" in value) ||
+        typeof value.url !== "string" ||
+        value.url.trim().length === 0
+      ) {
+        return { status: 400, body: { error: "invalid_product_url" } };
+      }
+
+      try {
+        const item = await options.importProduct(value.url.trim());
+        await repository.watchItem(item.id);
+        return {
+          status: 201,
+          body: { itemId: item.id, watched: true },
+        };
+      } catch (error) {
+        return {
+          status: 422,
+          body: {
+            error: "product_import_failed",
+            message:
+              error instanceof Error ? error.message : "Could not import product",
+          },
+        };
+      }
+    }
     return {
       status: 200,
       body: { itemIds: await repository.listWatchedItemIds() },
