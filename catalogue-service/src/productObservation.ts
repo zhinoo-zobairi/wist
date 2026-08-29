@@ -1,6 +1,7 @@
 import { fetchBobbiesProduct } from "./bobbiesProduct.js";
 import type { CatalogueBrand, CatalogueItem } from "./model.js";
 import { fetchSandroProduct } from "./sandroProduct.js";
+import { fetchShopifyProduct } from "./shopifyProduct.js";
 
 type Fetch = typeof fetch;
 
@@ -35,5 +36,5 @@ export async function fetchProductObservation(
     };
   }
 
-  throw new Error("Only Bobbies and Sandro product URLs are supported");
+  return fetchShopifyProduct(productUrl, fetchImpl, observedAt);
 }

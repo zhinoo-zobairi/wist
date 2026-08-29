@@ -41,7 +41,35 @@ describe("product observation", () => {
 
     await expect(
       fetchProductObservation("https://example.com/product", fetchImpl),
-    ).rejects.toThrow("Only Bobbies and Sandro product URLs are supported");
+    ).rejects.toThrow("public HTTPS Shopify product page");
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("routes a Shopify product URL through the reusable storefront adapter", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          id: 8108275171504,
+          title: "100% Merino Wool Women H-Line Blazer",
+          vendor: "GOELIA",
+          price: 29900,
+          available: true,
+          featured_image: "//cdn.shopify.com/goelia/blazer.jpg",
+          variants: [],
+        }),
+        { headers: { "set-cookie": "cart_currency=EUR; path=/" } },
+      ),
+    );
+
+    await expect(
+      fetchProductObservation(
+        "https://www.goelia1995.com/en-eu/products/merino-blazer",
+        fetchImpl,
+        "2026-08-30T12:00:00.000Z",
+      ),
+    ).resolves.toMatchObject({
+      brand: { name: "GOELIA" },
+      item: { source: "shopify", currentPrice: 299 },
+    });
   });
 });
