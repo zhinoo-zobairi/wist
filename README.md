@@ -39,10 +39,11 @@ try the real workflow before creating a standalone App Store-style build.
    URL into **Watch a product**.
 
 For this local milestone, the Mac must remain awake and running the catalogue
-service. The app currently supports Bobbies English and Sandro Germany product
-pages. It synchronizes price-drop alerts while open and then creates a local
-iOS notification. A continuously hosted backend plus remote push delivery is
-the next step required for notifications while Wist is closed.
+service. The app currently supports Shopify product pages such as Goelia,
+Bobbies English, and Sandro Germany. It synchronizes price-drop alerts while
+open and then creates a local iOS notification. A continuously hosted backend
+plus remote push delivery is the next step required for notifications while
+Wist is closed.
 
 ## Catalogue backend
 
@@ -76,7 +77,8 @@ cp .env.example .env.local
 npm run catalogue:start
 ```
 
-Products can then be imported from the Coveted screen. The
+Products can then be imported from the Coveted screen. Shopify product pages,
+Bobbies English, and Sandro Germany are supported. The
 `catalogue:observe -- <product-url>` command remains available for direct
 backend testing.
 
@@ -142,7 +144,8 @@ URLs from its output. Never commit the key.
 ## Use the live catalogue
 
 1. Start the catalogue service and Expo app.
-2. Open **Coveted** and paste an explicit Bobbies or Sandro product URL.
+2. Open **Coveted** and paste a Shopify, Bobbies English, or Sandro Germany
+   product URL.
 3. Confirm the imported product appears in the collection.
 4. Open it to see its real image/video gallery and observation details.
 

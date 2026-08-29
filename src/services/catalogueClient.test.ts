@@ -178,7 +178,7 @@ describe("catalogue client", () => {
       new Response(
         JSON.stringify({
           error: "product_import_failed",
-          message: "Only Bobbies and Sandro product URLs are supported",
+          message: "URL must be a supported product page",
         }),
         { status: 422 },
       ),
@@ -191,7 +191,7 @@ describe("catalogue client", () => {
         "http://catalogue.test",
         "owner-token",
       ),
-    ).rejects.toThrow("Only Bobbies and Sandro product URLs are supported");
+    ).rejects.toThrow("URL must be a supported product page");
   });
 
   it("loads price-drop alerts with the owner bearer token", async () => {

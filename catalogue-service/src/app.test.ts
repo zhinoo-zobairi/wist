@@ -172,14 +172,14 @@ describe("catalogue API", () => {
       handleRequest("POST", "/v1/watches", repository, auth, {
         body: JSON.stringify({ url: "https://example.com/product" }),
         importProduct: async () => {
-          throw new Error("Only Bobbies and Sandro product URLs are supported");
+          throw new Error("URL must be a supported product page");
         },
       }),
     ).resolves.toEqual({
       status: 422,
       body: {
         error: "product_import_failed",
-        message: "Only Bobbies and Sandro product URLs are supported",
+        message: "URL must be a supported product page",
       },
     });
   });
