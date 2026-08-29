@@ -177,11 +177,16 @@ function toStyleProfile(value: unknown): StyleProfile {
 }
 
 async function responseJson(response: Response): Promise<JsonObject> {
-  if (!response.ok) {
-    throw new Error(`Catalogue request failed with HTTP ${response.status}`);
-  }
   const value: unknown = await response.json();
   if (!isObject(value)) throw new Error("Catalogue returned invalid JSON");
+  if (!response.ok) {
+    const message = value.message;
+    throw new Error(
+      typeof message === "string"
+        ? message
+        : `Catalogue request failed with HTTP ${response.status}`,
+    );
+  }
   return value;
 }
 
@@ -313,4 +318,27 @@ export async function setCatalogueWatch(
   if (body.itemId !== itemId || body.watched !== watched) {
     throw new Error("Catalogue returned an invalid watch result");
   }
+}
+
+export async function importCatalogueWatch(
+  productUrl: string,
+  fetchImpl: Fetch = fetch,
+  baseUrl = defaultBaseUrl,
+  ownerToken = defaultOwnerToken,
+): Promise<string> {
+  const root = baseUrl.replace(/\/$/, "");
+  const body = await responseJson(
+    await fetchImpl(`${root}/v1/watches`, {
+      body: JSON.stringify({ url: productUrl }),
+      headers: {
+        ...authorizationHeaders(ownerToken),
+        "content-type": "application/json",
+      },
+      method: "POST",
+    }),
+  );
+  if (typeof body.itemId !== "string" || body.watched !== true) {
+    throw new Error("Catalogue returned an invalid imported watch");
+  }
+  return body.itemId;
 }

@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 
 import { BottomTabBar, type TabId } from "./src/components/BottomTabBar";
 import {
+  importCatalogueWatch,
   loadCatalogue,
   loadPriceDropAlerts,
   loadStyleProfile,
@@ -228,6 +229,20 @@ export default function App() {
     }
   };
 
+  const importLiveProduct = async (productUrl: string) => {
+    await importCatalogueWatch(productUrl);
+    const [catalogue, itemIds] = await Promise.all([
+      loadCatalogue(),
+      loadWatchedItemIds(),
+    ]);
+    setLiveCatalogue(catalogue);
+    addFollowedBrands(catalogue.brands.map((brand) => brand.id));
+    replaceStarredItems(itemIds);
+    if (!selectedBrandId && catalogue.brands[0]) {
+      setSelectedBrandId(catalogue.brands[0].id);
+    }
+  };
+
   const renderScreen = () => {
     const selectedItem = selectedItemId ? itemsById[selectedItemId] : undefined;
     const selectedItemBrand = selectedItem
@@ -264,6 +279,7 @@ export default function App() {
           <SavedScreen
             brands={brands}
             items={items}
+            onImportProduct={importLiveProduct}
             onOpenItem={setSelectedItemId}
             onToggleCovet={(item) => void toggleLiveCovet(item)}
           />

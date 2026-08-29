@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  importCatalogueWatch,
   loadCatalogue,
   loadPriceDropAlerts,
   loadStyleProfile,
@@ -138,6 +139,59 @@ describe("catalogue client", () => {
         method: "PUT",
       },
     );
+  });
+
+  it("imports a product URL directly into the watch list", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          itemId: "sandro-SFPRO00001",
+          watched: true,
+        }),
+        { status: 201 },
+      ),
+    );
+
+    await expect(
+      importCatalogueWatch(
+        "https://de.sandro-paris.com/de/p/tweed-kleid/SFPRO00001.html",
+        fetchImpl,
+        "http://catalogue.test/",
+        "owner-token",
+      ),
+    ).resolves.toBe("sandro-SFPRO00001");
+    expect(fetchImpl).toHaveBeenCalledWith("http://catalogue.test/v1/watches", {
+      body: JSON.stringify({
+        url: "https://de.sandro-paris.com/de/p/tweed-kleid/SFPRO00001.html",
+      }),
+      headers: {
+        accept: "application/json",
+        authorization: "Bearer owner-token",
+        "content-type": "application/json",
+      },
+      method: "POST",
+    });
+  });
+
+  it("surfaces the backend explanation when product import fails", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          error: "product_import_failed",
+          message: "Only Bobbies and Sandro product URLs are supported",
+        }),
+        { status: 422 },
+      ),
+    );
+
+    await expect(
+      importCatalogueWatch(
+        "https://example.com/product",
+        fetchImpl,
+        "http://catalogue.test",
+        "owner-token",
+      ),
+    ).rejects.toThrow("Only Bobbies and Sandro product URLs are supported");
   });
 
   it("loads price-drop alerts with the owner bearer token", async () => {
