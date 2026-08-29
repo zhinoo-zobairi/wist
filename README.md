@@ -13,6 +13,37 @@ npm run ios
 
 Use `npm run android` for Android or `npm run web` for the browser preview. The in-app drop flow works on web, but browser previews intentionally skip native local notifications.
 
+### Run the first personal version on an iPhone
+
+This path runs Wist inside Expo Go. It is intentionally the smallest way to
+try the real workflow before creating a standalone App Store-style build.
+
+1. Install **Expo Go** on the iPhone and connect the iPhone and Mac to the same
+   Wi-Fi network.
+2. In macOS, open **System Settings → Wi-Fi → Details → TCP/IP** and note the
+   Mac's IPv4 address.
+3. Copy `.env.example` to `.env.local`, use the same random owner token for both
+   token variables, and set these device-specific values:
+
+   ```dotenv
+   CATALOGUE_HOST=0.0.0.0
+   EXPO_PUBLIC_CATALOGUE_URL=http://192.168.1.20:4000
+   ```
+
+   Replace `192.168.1.20` with the Mac's IPv4 address. The owner token is a
+   personal prototype secret; never commit `.env.local`.
+4. Start the backend in one terminal with `npm run catalogue:start`.
+5. Start Expo in another terminal with `npm start`, then scan its QR code with
+   the iPhone camera and open it in Expo Go.
+6. Finish the short onboarding, open **Coveted**, and paste a supported product
+   URL into **Watch a product**.
+
+For this local milestone, the Mac must remain awake and running the catalogue
+service. The app currently supports Bobbies English and Sandro Germany product
+pages. It synchronizes price-drop alerts while open and then creates a local
+iOS notification. A continuously hosted backend plus remote push delivery is
+the next step required for notifications while Wist is closed.
+
 ## Catalogue backend
 
 The first backend slice is a separate TypeScript catalogue service. It owns the
@@ -31,19 +62,23 @@ it. Available endpoints are:
 - `GET /v1/brands/:brandId/items`
 - `GET /v1/items/:itemId`
 - `GET /v1/watches` (owner token)
+- `POST /v1/watches` with `{ "url": "https://…" }` (owner token)
 - `PUT /v1/watches/:itemId` (owner token)
 - `DELETE /v1/watches/:itemId` (owner token)
 - `GET /v1/alerts` (owner token)
 
-The service uses a local SQLite database. Record an explicit supported product
-before starting it:
+The service uses a local SQLite database. Configure the owner token before
+starting it:
 
 ```bash
 cp .env.example .env.local
 # Replace both token placeholders with the same random owner value.
-npm run catalogue:observe -- https://www.bobbies.com/en/4000785248-opera-iridescent-champagne-3663902758263.html
 npm run catalogue:start
 ```
+
+Products can then be imported from the Coveted screen. The
+`catalogue:observe -- <product-url>` command remains available for direct
+backend testing.
 
 Set `CATALOGUE_DB_PATH` to choose another database location. Each observation
 stores an immutable price snapshot and reports a price drop when the new price
@@ -64,7 +99,8 @@ before Wist becomes a multi-user or publicly distributed service.
 
 The Expo app loads this catalogue at startup. Web and iOS Simulator use
 `http://127.0.0.1:4000` by default. Set `EXPO_PUBLIC_CATALOGUE_URL` to the
-public HTTPS service URL for a physical device or deployed backend.
+Mac's LAN URL for local iPhone development or to the public HTTPS URL for a
+deployed backend.
 
 ### Prove direct Sandro product access
 
@@ -105,11 +141,10 @@ URLs from its output. Never commit the key.
 
 ## Use the live catalogue
 
-1. Record an explicit Bobbies or Sandro product with `catalogue:observe`.
-2. Start the catalogue service.
-3. Start Expo and open **Home** or **Discover**.
-4. Open a product to see its real image/video gallery and observation details.
-5. Covet it and confirm it appears under **Coveted**.
+1. Start the catalogue service and Expo app.
+2. Open **Coveted** and paste an explicit Bobbies or Sandro product URL.
+3. Confirm the imported product appears in the collection.
+4. Open it to see its real image/video gallery and observation details.
 
 The rendered app no longer mixes placeholder products with the live catalogue.
 The backend owns the watch list; AsyncStorage caches it for responsive UI.
