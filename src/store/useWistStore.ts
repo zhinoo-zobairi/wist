@@ -19,6 +19,8 @@ type WistState = {
   priceOverrides: Record<string, number>;
   snapshots: PriceSnapshot[];
   alerts: Alert[];
+  notifiedAlertIds: string[];
+  alertBaselineEstablished: boolean;
   occasions: Occasion[];
   styles: Style[];
   profileStatus: ProfileStatus;
@@ -30,6 +32,7 @@ type WistState = {
   toggleStar: (itemId: string, currentPrice?: number) => void;
   triggerSeedDrop: () => Alert | null;
   markAlertRead: (alertId: string) => void;
+  markAlertsAnnounced: (alertIds: string[]) => void;
   restoreSeedPrices: () => void;
   markProfileSkipped: () => void;
   replaceStyleProfile: (occasions: Occasion[], styles: Style[]) => void;
@@ -49,6 +52,8 @@ export const useWistStore = create<WistState>()(
       priceOverrides: {},
       snapshots: [],
       alerts: [],
+      notifiedAlertIds: [],
+      alertBaselineEstablished: false,
       occasions: [],
       styles: [],
       profileStatus: "unknown",
@@ -169,6 +174,16 @@ export const useWistStore = create<WistState>()(
             alert.id === alertId ? { ...alert, read: true } : alert,
           ),
         })),
+      // Records the drops the device has already announced. The caller supplies
+      // the complete remembered set from selectPriceDropAnnouncements, so this
+      // replaces rather than appends and never grows past the catalogue's alert
+      // window. Recording it also establishes the baseline, which is why an
+      // empty batch still counts as a completed synchronization.
+      markAlertsAnnounced: (alertIds) =>
+        set({
+          alertBaselineEstablished: true,
+          notifiedAlertIds: [...alertIds],
+        }),
       restoreSeedPrices: () =>
         set((state) => {
           seedPriceSource.restorePrices(state.priceOverrides);
@@ -186,8 +201,10 @@ export const useWistStore = create<WistState>()(
       name: "wist-preferences",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: ({
+        alertBaselineEstablished,
         alerts,
         followedBrandIds,
+        notifiedAlertIds,
         occasions,
         priceOverrides,
         profileStatus,
@@ -195,8 +212,10 @@ export const useWistStore = create<WistState>()(
         starredItemIds,
         styles,
       }) => ({
+        alertBaselineEstablished,
         alerts,
         followedBrandIds,
+        notifiedAlertIds,
         occasions,
         priceOverrides,
         profileStatus,

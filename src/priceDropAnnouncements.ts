@@ -22,7 +22,13 @@ export type PriceDropAnnouncementPlan = {
 // accumulating forever. Every alert in a post-baseline batch has either been
 // announced before or is being announced now, so the window *is* the answer,
 // and identifiers the catalogue has dropped can be forgotten. That keeps the
-// persisted set naturally bounded without an arbitrary cap.
+// persisted set bounded without an arbitrary cap.
+//
+// Forgetting is only safe because the catalogue's window slides one way: it
+// returns its newest 100 alerts over immutable rows, so an alert that falls out
+// can never become recent again and reappear. Pass that response straight in —
+// never the store's merged alert list, which mixes in locally retained alerts
+// and would let a forgotten identifier resurface and announce twice.
 export function selectPriceDropAnnouncements({
   alerts,
   baselineEstablished,

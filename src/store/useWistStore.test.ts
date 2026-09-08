@@ -36,3 +36,54 @@ describe("Wist style profile store", () => {
     });
   });
 });
+
+describe("Wist announced drop store", () => {
+  beforeEach(() => {
+    useWistStore.setState({
+      alertBaselineEstablished: false,
+      notifiedAlertIds: [],
+    });
+  });
+
+  it("establishes the baseline once drops have been recorded", () => {
+    useWistStore.getState().markAlertsAnnounced(["b", "a"]);
+
+    expect(useWistStore.getState()).toMatchObject({
+      alertBaselineEstablished: true,
+      notifiedAlertIds: ["b", "a"],
+    });
+  });
+
+  it("establishes the baseline even when no drops exist yet", () => {
+    useWistStore.getState().markAlertsAnnounced([]);
+
+    expect(useWistStore.getState().alertBaselineEstablished).toBe(true);
+  });
+
+  it("replaces the remembered set instead of accumulating", () => {
+    useWistStore.setState({ notifiedAlertIds: ["a", "b"] });
+
+    useWistStore.getState().markAlertsAnnounced(["b"]);
+
+    expect(useWistStore.getState().notifiedAlertIds).toEqual(["b"]);
+  });
+
+  // Both fields must survive a cold start. If the baseline reset on every
+  // launch, the first synchronization would always be silent and a drop that
+  // landed while Wist was closed would never announce itself.
+  it("persists the baseline and the remembered set", () => {
+    useWistStore.setState({
+      alertBaselineEstablished: true,
+      notifiedAlertIds: ["a"],
+    });
+
+    const persisted = useWistStore.persist
+      .getOptions()
+      .partialize?.(useWistStore.getState());
+
+    expect(persisted).toMatchObject({
+      alertBaselineEstablished: true,
+      notifiedAlertIds: ["a"],
+    });
+  });
+});
