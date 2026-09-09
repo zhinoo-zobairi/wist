@@ -189,6 +189,9 @@ export default function App() {
       // Record before delivering: recording afterwards would replay the batch as
       // duplicate notifications on the next poll, and a duplicate burst is worse
       // than a missed banner — every drop stays visible in Your drops either way.
+      // So a batch counts as announced even if delivery then fails, including
+      // when notification permission is denied. Drops from that batch will not
+      // banner retroactively once permission is granted; later ones will.
       markAlertsAnnounced(plan.notifiedAlertIds);
 
       // Oldest first, so the newest drop is the banner sitting on top.
