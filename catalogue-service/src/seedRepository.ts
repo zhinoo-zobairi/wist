@@ -40,6 +40,7 @@ const items: CatalogueItem[] = [
 
 export class SeedCatalogueRepository implements CatalogueRepository {
   private readonly watchedItemIds = new Set<string>();
+  private readonly watchSizes = new Map<string, string[]>();
 
   async listBrands(): Promise<CatalogueBrand[]> {
     return brands.map((brand) => ({ ...brand }));
@@ -66,6 +67,17 @@ export class SeedCatalogueRepository implements CatalogueRepository {
 
   async unwatchItem(itemId: string): Promise<void> {
     this.watchedItemIds.delete(itemId);
+    // Mirrors the SQLite cascade from catalogue_watches, so a re-watched item
+    // does not resurrect a stale size selection.
+    this.watchSizes.delete(itemId);
+  }
+
+  async listWatchSizes(itemId: string): Promise<string[]> {
+    return [...(this.watchSizes.get(itemId) ?? [])];
+  }
+
+  async replaceWatchSizes(itemId: string, labels: string[]): Promise<void> {
+    this.watchSizes.set(itemId, [...new Set(labels)].sort());
   }
 
   async listPriceDropAlerts(): Promise<PriceDropAlert[]> {

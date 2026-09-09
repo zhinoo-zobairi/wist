@@ -105,4 +105,61 @@ describe("SQLite catalogue repository", () => {
     await repository.unwatchItem(item.id);
     await expect(repository.listWatchedItemIds()).resolves.toEqual([]);
   });
+
+  it("remembers the sizes chosen for a watch", async () => {
+    const repository = createRepository();
+    const item = itemAt(225, "2026-08-08T12:00:00.000Z");
+    await repository.recordObservation(brand, item);
+    await repository.watchItem(item.id);
+
+    await expect(repository.listWatchSizes(item.id)).resolves.toEqual([]);
+
+    await repository.replaceWatchSizes(item.id, ["40", "39"]);
+    await expect(repository.listWatchSizes(item.id)).resolves.toEqual([
+      "39",
+      "40",
+    ]);
+  });
+
+  it("replaces the chosen sizes rather than adding to them", async () => {
+    const repository = createRepository();
+    const item = itemAt(225, "2026-08-08T12:00:00.000Z");
+    await repository.recordObservation(brand, item);
+    await repository.watchItem(item.id);
+
+    await repository.replaceWatchSizes(item.id, ["39"]);
+    await repository.replaceWatchSizes(item.id, ["40"]);
+
+    await expect(repository.listWatchSizes(item.id)).resolves.toEqual(["40"]);
+  });
+
+  // Variant rows are deleted and reinserted on every observation. The chosen
+  // sizes must not be collateral damage, or a watch would quietly lose them
+  // every six hours.
+  it("keeps the chosen sizes when the product is observed again", async () => {
+    const repository = createRepository();
+    const item = itemAt(225, "2026-08-08T12:00:00.000Z");
+    await repository.recordObservation(brand, item);
+    await repository.watchItem(item.id);
+    await repository.replaceWatchSizes(item.id, ["40"]);
+
+    await repository.recordObservation(
+      brand,
+      itemAt(180, "2026-08-09T12:00:00.000Z"),
+    );
+
+    await expect(repository.listWatchSizes(item.id)).resolves.toEqual(["40"]);
+  });
+
+  it("forgets the chosen sizes once the item is no longer watched", async () => {
+    const repository = createRepository();
+    const item = itemAt(225, "2026-08-08T12:00:00.000Z");
+    await repository.recordObservation(brand, item);
+    await repository.watchItem(item.id);
+    await repository.replaceWatchSizes(item.id, ["40"]);
+
+    await repository.unwatchItem(item.id);
+
+    await expect(repository.listWatchSizes(item.id)).resolves.toEqual([]);
+  });
 });

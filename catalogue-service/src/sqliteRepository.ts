@@ -175,6 +175,17 @@ export class SqliteCatalogueRepository
         created_at TEXT NOT NULL
       );
 
+      -- The sizes the owner wants alerts for, held as the storefront's own label
+      -- for this product. Deliberately keyed to catalogue_watches and NOT to
+      -- catalogue_variants: variant rows are deleted and reinserted on every
+      -- observation, so cascading from there would erase these selections on
+      -- every check. Un-coveting an item is what should forget them.
+      CREATE TABLE IF NOT EXISTS catalogue_watch_sizes (
+        item_id TEXT NOT NULL REFERENCES catalogue_watches(item_id) ON DELETE CASCADE,
+        label TEXT NOT NULL,
+        PRIMARY KEY (item_id, label)
+      );
+
       CREATE TABLE IF NOT EXISTS price_drop_alerts (
         id INTEGER PRIMARY KEY,
         item_id TEXT NOT NULL REFERENCES catalogue_items(id) ON DELETE CASCADE,
@@ -245,6 +256,39 @@ export class SqliteCatalogueRepository
     this.database
       .prepare("DELETE FROM catalogue_watches WHERE item_id = ?")
       .run(itemId);
+  }
+
+  async listWatchSizes(itemId: string): Promise<string[]> {
+    const rows = this.database
+      .prepare(`
+        SELECT label
+        FROM catalogue_watch_sizes
+        WHERE item_id = ?
+        ORDER BY label
+      `)
+      .all(itemId) as unknown as Array<{ label: string }>;
+    return rows.map((row) => row.label);
+  }
+
+  async replaceWatchSizes(itemId: string, labels: string[]): Promise<void> {
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      this.database
+        .prepare("DELETE FROM catalogue_watch_sizes WHERE item_id = ?")
+        .run(itemId);
+      const insert = this.database.prepare(`
+        INSERT INTO catalogue_watch_sizes (item_id, label)
+        VALUES (?, ?)
+        ON CONFLICT (item_id, label) DO NOTHING
+      `);
+      for (const label of labels) {
+        insert.run(itemId, label);
+      }
+      this.database.exec("COMMIT");
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   async listPriceDropAlerts(): Promise<PriceDropAlert[]> {

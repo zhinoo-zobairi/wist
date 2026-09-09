@@ -7,6 +7,9 @@ export interface CatalogueRepository {
   listWatchedItemIds(): Promise<string[]>;
   watchItem(itemId: string): Promise<void>;
   unwatchItem(itemId: string): Promise<void>;
+  /** The storefront size labels the owner wants alerts for; empty means any. */
+  listWatchSizes(itemId: string): Promise<string[]>;
+  replaceWatchSizes(itemId: string, labels: string[]): Promise<void>;
   listPriceDropAlerts(): Promise<PriceDropAlert[]>;
 }
 
