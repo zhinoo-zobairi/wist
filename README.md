@@ -152,8 +152,16 @@ URLs from its output. Never commit the key.
 The rendered app no longer mixes placeholder products with the live catalogue.
 The backend owns the watch list; AsyncStorage caches it for responsive UI.
 The app synchronizes persisted price-drop alerts once per minute while it is
-active. Remote push is still a separate integration, so a terminated app shows
-a drop after it is reopened rather than receiving a background notification.
+active and raises a local notification for each newly detected drop. Remote push
+is still a separate integration, so a terminated app shows a drop after it is
+reopened rather than receiving a background notification.
+
+The device — not the catalogue — remembers which drops it has already announced,
+so a drop notifies exactly once no matter how often the app synchronizes. The
+first synchronization after a fresh install is deliberately silent: it records
+the alerts that already exist instead of announcing the whole stored history at
+once. Drops detected after that point notify normally, including ones that
+landed while Wist was closed.
 The cached field remains named `starredItemIds` for backward compatibility, but
 the product exposes one save verb: **Covet**.
 

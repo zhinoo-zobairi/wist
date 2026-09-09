@@ -9,6 +9,13 @@
 > observations. The mobile catalogue reads those products and synchronizes
 > single-user watches through an owner token; recurring collection and remote
 > push remain gated.
+>
+> **Alerts update (2026-09-09):** A synchronized price drop now raises a local
+> notification, closing the §9 loop against real observed products. The device
+> owns delivery state, so each drop announces exactly once and the first
+> synchronization after a fresh install stays silent. Remote push — needed for a
+> notification while Wist is closed — is still separate work and depends on a
+> continuously hosted backend.
 
 ---
 
