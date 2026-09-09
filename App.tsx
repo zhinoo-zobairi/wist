@@ -10,7 +10,7 @@ import { useFonts } from "expo-font";
 import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { BottomTabBar, type TabId } from "./src/components/BottomTabBar";
 import {
@@ -23,6 +23,8 @@ import {
   setCatalogueWatch,
   type Catalogue,
 } from "./src/services/catalogueClient";
+import { selectPriceDropAnnouncements } from "./src/priceDropAnnouncements";
+import { sendPriceDropNotification } from "./src/services/notifications";
 import { AlertsScreen } from "./src/screens/AlertsScreen";
 import { BrowseScreen } from "./src/screens/BrowseScreen";
 import { FeedScreen } from "./src/screens/FeedScreen";
@@ -34,7 +36,8 @@ import { resolveProfileGate } from "./src/profileGate";
 import { synchronizeStyleProfile } from "./src/styleProfileCommit";
 import { colors } from "./src/theme";
 import { useWistStore } from "./src/store/useWistStore";
-import type { Item } from "./src/types";
+// Aliased: the bare name Alert is React Native's dialog API in this file.
+import type { Alert as PriceDropAlert, Item } from "./src/types";
 
 export default function App() {
   const [liveCatalogue, setLiveCatalogue] = useState<Catalogue>({
@@ -49,6 +52,9 @@ export default function App() {
     useWistStore.persist.hasHydrated(),
   );
   const [profileLookupComplete, setProfileLookupComplete] = useState(false);
+  // The alert poll needs the newest catalogue to name a dropped product, but it
+  // must not restart every time a product is imported, so it reads a ref.
+  const catalogueRef = useRef<Catalogue>(liveCatalogue);
   const alerts = useWistStore((state) => state.alerts);
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const addFollowedBrands = useWistStore((state) => state.addFollowedBrands);
@@ -57,6 +63,9 @@ export default function App() {
   );
   const mergePriceDropAlerts = useWistStore(
     (state) => state.mergePriceDropAlerts,
+  );
+  const markAlertsAnnounced = useWistStore(
+    (state) => state.markAlertsAnnounced,
   );
   const setStarredItem = useWistStore((state) => state.setStarredItem);
   const profileStatus = useWistStore((state) => state.profileStatus);
@@ -144,14 +153,59 @@ export default function App() {
   }, [replaceStyleProfile, storeHydrated]);
 
   useEffect(() => {
+    catalogueRef.current = liveCatalogue;
+  }, [liveCatalogue]);
+
+  useEffect(() => {
     if (!storeHydrated) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
+    const announcePriceDrops = async (remoteAlerts: PriceDropAlert[]) => {
+      const { brands, items } = catalogueRef.current;
+      const brandsById = new Map(brands.map((brand) => [brand.id, brand]));
+      const itemsById = new Map(items.map((item) => [item.id, item]));
+
+      // Which drops can this build of the catalogue actually describe? The poll
+      // fires before loadCatalogue resolves, so on the first round that is often
+      // none. The selector keeps those eligible instead of burning them, so the
+      // full window is still what gets passed in for bookkeeping.
+      const describable = remoteAlerts.flatMap((alert) => {
+        const item = itemsById.get(alert.itemId);
+        const brand = item ? brandsById.get(item.brandId) : undefined;
+        return item && brand ? [{ alert, brand, item }] : [];
+      });
+
+      const { alertBaselineEstablished, notifiedAlertIds } =
+        useWistStore.getState();
+      const plan = selectPriceDropAnnouncements({
+        alerts: remoteAlerts,
+        announceableAlertIds: describable.map((entry) => entry.alert.id),
+        baselineEstablished: alertBaselineEstablished,
+        notifiedAlertIds,
+      });
+      const announcing = new Set(plan.announce.map((alert) => alert.id));
+
+      // Record before delivering: recording afterwards would replay the batch as
+      // duplicate notifications on the next poll, and a duplicate burst is worse
+      // than a missed banner — every drop stays visible in Your drops either way.
+      markAlertsAnnounced(plan.notifiedAlertIds);
+
+      // Oldest first, so the newest drop is the banner sitting on top.
+      for (const entry of [...describable].reverse()) {
+        if (cancelled) return;
+        if (!announcing.has(entry.alert.id)) continue;
+        await sendPriceDropNotification(entry.alert, entry.item, entry.brand);
+      }
+    };
+
     const synchronizeAlerts = async () => {
       try {
         const remoteAlerts = await loadPriceDropAlerts();
-        if (!cancelled) mergePriceDropAlerts(remoteAlerts);
+        if (!cancelled) {
+          mergePriceDropAlerts(remoteAlerts);
+          await announcePriceDrops(remoteAlerts);
+        }
       } catch (error) {
         console.warn(
           `Alert synchronization unavailable: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -165,7 +219,7 @@ export default function App() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [mergePriceDropAlerts, storeHydrated]);
+  }, [markAlertsAnnounced, mergePriceDropAlerts, storeHydrated]);
 
   const brands = liveCatalogue.brands;
   const items = liveCatalogue.items;

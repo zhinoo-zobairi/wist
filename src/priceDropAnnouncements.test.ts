@@ -26,6 +26,7 @@ describe("price drop announcements", () => {
   it("stays silent on the first synchronization but remembers what it saw", () => {
     const plan = selectPriceDropAnnouncements({
       alerts: [alert("b"), alert("a")],
+      announceableAlertIds: ["b", "a"],
       baselineEstablished: false,
       notifiedAlertIds: [],
     });
@@ -37,6 +38,7 @@ describe("price drop announcements", () => {
   it("announces a drop that arrives after the baseline", () => {
     const plan = selectPriceDropAnnouncements({
       alerts: [alert("b"), alert("a")],
+      announceableAlertIds: ["b", "a"],
       baselineEstablished: true,
       notifiedAlertIds: ["a"],
     });
@@ -48,6 +50,7 @@ describe("price drop announcements", () => {
   it("never announces the same drop twice", () => {
     const plan = selectPriceDropAnnouncements({
       alerts: [alert("a")],
+      announceableAlertIds: ["a"],
       baselineEstablished: true,
       notifiedAlertIds: ["a"],
     });
@@ -59,6 +62,7 @@ describe("price drop announcements", () => {
   it("announces every drop that landed while the app was closed", () => {
     const plan = selectPriceDropAnnouncements({
       alerts: [alert("d"), alert("c"), alert("b"), alert("a")],
+      announceableAlertIds: ["d", "c", "b", "a"],
       baselineEstablished: true,
       notifiedAlertIds: ["a"],
     });
@@ -69,10 +73,53 @@ describe("price drop announcements", () => {
   it("forgets identifiers the catalogue no longer reports", () => {
     const plan = selectPriceDropAnnouncements({
       alerts: [alert("b")],
+      announceableAlertIds: ["b"],
       baselineEstablished: true,
       notifiedAlertIds: ["a", "b"],
     });
 
     expect(plan.notifiedAlertIds).toEqual(["b"]);
+  });
+
+  // A drop whose product the catalogue cannot describe yet must stay eligible.
+  // Recording it would burn it: remembered as announced, never delivered.
+  it("keeps a drop it cannot describe eligible for a later round", () => {
+    const plan = selectPriceDropAnnouncements({
+      alerts: [alert("b"), alert("a")],
+      announceableAlertIds: ["a"],
+      baselineEstablished: true,
+      notifiedAlertIds: ["a"],
+    });
+
+    expect(plan.announce).toEqual([]);
+    expect(plan.notifiedAlertIds).toEqual(["a"]);
+  });
+
+  // Otherwise a product that briefly vanishes from the catalogue and returns
+  // would announce its already-delivered drop a second time.
+  it("keeps remembering an announced drop it can no longer describe", () => {
+    const plan = selectPriceDropAnnouncements({
+      alerts: [alert("b"), alert("a")],
+      announceableAlertIds: [],
+      baselineEstablished: true,
+      notifiedAlertIds: ["b", "a"],
+    });
+
+    expect(plan.announce).toEqual([]);
+    expect(plan.notifiedAlertIds).toEqual(["b", "a"]);
+  });
+
+  // The baseline must silence the whole existing history, including drops the
+  // catalogue cannot describe at that moment.
+  it("silences undescribable history on the first synchronization", () => {
+    const plan = selectPriceDropAnnouncements({
+      alerts: [alert("b"), alert("a")],
+      announceableAlertIds: [],
+      baselineEstablished: false,
+      notifiedAlertIds: [],
+    });
+
+    expect(plan.announce).toEqual([]);
+    expect(plan.notifiedAlertIds).toEqual(["b", "a"]);
   });
 });
