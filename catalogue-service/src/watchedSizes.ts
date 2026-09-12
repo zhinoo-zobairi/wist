@@ -36,3 +36,29 @@ export function reachesWatchedSize({
     (variant) => variant.available && watched.has(variant.label),
   );
 }
+
+// A watch may care about at most this many sizes, and each label is bounded, so
+// a hostile or buggy client cannot store an unbounded selection. There is no
+// taxonomy to validate against here — that a label is one the storefront really
+// published for this item is checked at the request layer against its variants.
+export const MAX_WATCH_SIZES = 24;
+export const MAX_WATCH_SIZE_LABEL_LENGTH = 32;
+
+// Parses the sizes a watch asks alerts for out of an untrusted request body into
+// a clean list of unique, trimmed, non-empty labels, or null when the shape is
+// wrong. An empty array is valid and means "clear the selection".
+export function parseWatchSizes(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length > MAX_WATCH_SIZES) return null;
+
+  const labels: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") return null;
+    const label = entry.trim();
+    if (label.length === 0 || label.length > MAX_WATCH_SIZE_LABEL_LENGTH) {
+      return null;
+    }
+    labels.push(label);
+  }
+
+  return [...new Set(labels)];
+}
