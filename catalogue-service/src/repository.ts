@@ -28,7 +28,10 @@ export type PriceDropAlert = PriceDrop & {
 
 export type RecordedObservation = {
   item: CatalogueItem;
+  /** The detected decrease, whether or not it was worth alerting about. */
   priceDrop: PriceDrop | null;
+  /** Whether the drop cleared the watch's size rule and became an alert. */
+  alerted: boolean;
 };
 
 export interface CatalogueObservationRepository extends CatalogueRepository {

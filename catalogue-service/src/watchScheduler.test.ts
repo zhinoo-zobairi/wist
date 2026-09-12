@@ -52,7 +52,12 @@ describe("watched product observation", () => {
 
     await expect(
       observeWatchedProducts(repository, observeProduct),
-    ).resolves.toEqual({ checked: 2, failed: 0, priceDrops: 1 });
+    ).resolves.toEqual({
+      checked: 2,
+      failed: 0,
+      priceDrops: 1,
+      silencedDrops: 0,
+    });
     expect(maximumActiveRequests).toBe(1);
     await expect(repository.listPriceDropAlerts()).resolves.toHaveLength(1);
     repository.close();
@@ -77,8 +82,46 @@ describe("watched product observation", () => {
 
     await expect(
       observeWatchedProducts(repository, observeProduct, reportError),
-    ).resolves.toEqual({ checked: 1, failed: 1, priceDrops: 0 });
+    ).resolves.toEqual({
+      checked: 1,
+      failed: 1,
+      priceDrops: 0,
+      silencedDrops: 0,
+    });
     expect(reportError).toHaveBeenCalledOnce();
+    repository.close();
+  });
+
+  // A drop that misses the owner's size is still a real observation worth
+  // counting, so the cycle reports it separately rather than pretending nothing
+  // was detected.
+  it("counts a drop that misses the chosen size as silenced", async () => {
+    const repository = new SqliteCatalogueRepository(":memory:");
+    const sized = (price: number, observedAt: string): CatalogueItem => ({
+      ...itemAt("bobbies-sized", price, observedAt),
+      variants: [
+        { id: "137", label: "39", available: false },
+        { id: "138", label: "40", available: true },
+      ],
+    });
+    await repository.recordObservation(brand, sized(200, "2026-08-14T00:00:00.000Z"));
+    await repository.watchItem("bobbies-sized");
+    await repository.replaceWatchSizes("bobbies-sized", ["39"]);
+
+    const observeProduct = vi.fn(async () => ({
+      brand,
+      item: sized(150, "2026-08-15T00:00:00.000Z"),
+    }));
+
+    await expect(
+      observeWatchedProducts(repository, observeProduct),
+    ).resolves.toEqual({
+      checked: 1,
+      failed: 0,
+      priceDrops: 1,
+      silencedDrops: 1,
+    });
+    await expect(repository.listPriceDropAlerts()).resolves.toEqual([]);
     repository.close();
   });
 });

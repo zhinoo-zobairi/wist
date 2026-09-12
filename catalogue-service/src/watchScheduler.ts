@@ -7,7 +7,10 @@ type ReportError = (message: string, error: unknown) => void;
 export type ObservationCycle = {
   checked: number;
   failed: number;
+  /** Price decreases detected, including ones no alert was raised for. */
   priceDrops: number;
+  /** Of those, the ones that missed every size the owner asked about. */
+  silencedDrops: number;
 };
 
 export async function observeWatchedProducts(
@@ -16,7 +19,7 @@ export async function observeWatchedProducts(
   reportError: ReportError = (message, error) => console.error(message, error),
 ): Promise<ObservationCycle> {
   const watchedItemIds = await repository.listWatchedItemIds();
-  const result = { checked: 0, failed: 0, priceDrops: 0 };
+  const result = { checked: 0, failed: 0, priceDrops: 0, silencedDrops: 0 };
 
   for (const itemId of watchedItemIds) {
     try {
@@ -36,6 +39,7 @@ export async function observeWatchedProducts(
       );
       result.checked += 1;
       if (recorded.priceDrop) result.priceDrops += 1;
+      if (recorded.priceDrop && !recorded.alerted) result.silencedDrops += 1;
     } catch (error) {
       result.failed += 1;
       reportError(`Could not observe watched item ${itemId}`, error);
@@ -61,7 +65,7 @@ export function startWatchScheduler(
         reportError,
       );
       console.log(
-        `Watch cycle complete: ${result.checked} checked, ${result.priceDrops} drops, ${result.failed} failed`,
+        `Watch cycle complete: ${result.checked} checked, ${result.priceDrops} drops (${result.silencedDrops} silenced), ${result.failed} failed`,
       );
     } catch (error) {
       (reportError ?? console.error)("Watch cycle failed", error);

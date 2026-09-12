@@ -26,7 +26,11 @@ describe("product import", () => {
       available: true,
       observedAt: "2026-08-30T12:00:00.000Z",
     };
-    const recordObservation = vi.fn(async () => ({ item, priceDrop: null }));
+    const recordObservation = vi.fn(async () => ({
+      item,
+      priceDrop: null,
+      alerted: false,
+    }));
     const repository = {
       recordObservation,
     } as unknown as CatalogueObservationRepository;

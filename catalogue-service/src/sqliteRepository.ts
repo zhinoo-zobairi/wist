@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
+import { reachesWatchedSize } from "./watchedSizes.js";
 import type {
   CatalogueBrand,
   CatalogueItem,
@@ -413,7 +414,20 @@ export class SqliteCatalogueRepository
         `)
         .run(item.id, item.currentPrice, item.currency, item.observedAt);
 
-      if (priceDrop) {
+      // A drop is only worth telling the owner about if it reaches a size they
+      // asked for. The rule reads the sizes stored against the watch and the
+      // variants from this very observation, so it judges current availability.
+      const watchedSizeRows = this.database
+        .prepare("SELECT label FROM catalogue_watch_sizes WHERE item_id = ?")
+        .all(item.id) as unknown as Array<{ label: string }>;
+      const alerted =
+        priceDrop !== null &&
+        reachesWatchedSize({
+          variants: item.variants,
+          watchedSizes: watchedSizeRows.map((row) => row.label),
+        });
+
+      if (priceDrop && alerted) {
         this.database
           .prepare(`
             INSERT INTO price_drop_alerts (
@@ -435,6 +449,7 @@ export class SqliteCatalogueRepository
       return {
         item: { ...item, previousPrice: previous?.price ?? null },
         priceDrop,
+        alerted,
       };
     } catch (error) {
       this.database.exec("ROLLBACK");
