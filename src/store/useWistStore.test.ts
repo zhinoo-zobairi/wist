@@ -87,3 +87,57 @@ describe("Wist announced drop store", () => {
     });
   });
 });
+
+describe("Wist watched sizes store", () => {
+  beforeEach(() => {
+    useWistStore.setState({
+      starredItemIds: [],
+      snapshots: [],
+      watchedSizesByItemId: {},
+    });
+  });
+
+  it("replaces the whole map from a synchronization", () => {
+    useWistStore.getState().replaceWatchedSizes({ "item-a": ["40", "40", "39"] });
+
+    expect(useWistStore.getState().watchedSizesByItemId).toEqual({
+      "item-a": ["40", "39"],
+    });
+  });
+
+  it("sets the sizes for one item and clears them with an empty list", () => {
+    useWistStore.getState().setWatchedSizes("item-a", ["40"]);
+    expect(useWistStore.getState().watchedSizesByItemId).toEqual({
+      "item-a": ["40"],
+    });
+
+    useWistStore.getState().setWatchedSizes("item-a", []);
+    expect(useWistStore.getState().watchedSizesByItemId).toEqual({});
+  });
+
+  // Un-coveting an item clears its watch on the backend by cascade, so the
+  // device must forget the sizes too or a re-covet would resurrect a stale
+  // selection the backend no longer holds.
+  it("forgets an item's sizes when it is no longer coveted", () => {
+    useWistStore.setState({
+      starredItemIds: ["item-a"],
+      watchedSizesByItemId: { "item-a": ["40"] },
+    });
+
+    useWistStore.getState().setStarredItem("item-a", false, 200);
+
+    expect(useWistStore.getState().watchedSizesByItemId).toEqual({});
+  });
+
+  it("persists the chosen sizes across a cold start", () => {
+    useWistStore.setState({ watchedSizesByItemId: { "item-a": ["40"] } });
+
+    const persisted = useWistStore.persist
+      .getOptions()
+      .partialize?.(useWistStore.getState());
+
+    expect(persisted).toMatchObject({
+      watchedSizesByItemId: { "item-a": ["40"] },
+    });
+  });
+});
