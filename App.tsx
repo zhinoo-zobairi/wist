@@ -18,7 +18,7 @@ import {
   loadCatalogue,
   loadPriceDropAlerts,
   loadStyleProfile,
-  loadWatchedItemIds,
+  loadWatches,
   saveStyleProfile,
   setCatalogueWatch,
   type Catalogue,
@@ -60,6 +60,9 @@ export default function App() {
   const addFollowedBrands = useWistStore((state) => state.addFollowedBrands);
   const replaceStarredItems = useWistStore(
     (state) => state.replaceStarredItems,
+  );
+  const replaceWatchedSizes = useWistStore(
+    (state) => state.replaceWatchedSizes,
   );
   const mergePriceDropAlerts = useWistStore(
     (state) => state.mergePriceDropAlerts,
@@ -109,9 +112,11 @@ export default function App() {
   useEffect(() => {
     if (!storeHydrated) return;
     let cancelled = false;
-    void loadWatchedItemIds()
-      .then((itemIds) => {
-        if (!cancelled) replaceStarredItems(itemIds);
+    void loadWatches()
+      .then(({ itemIds, sizes }) => {
+        if (cancelled) return;
+        replaceStarredItems(itemIds);
+        replaceWatchedSizes(sizes);
       })
       .catch((error: unknown) => {
         console.warn(
@@ -121,7 +126,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [replaceStarredItems, storeHydrated]);
+  }, [replaceStarredItems, replaceWatchedSizes, storeHydrated]);
 
   useEffect(() => {
     if (!storeHydrated) return;
@@ -288,13 +293,14 @@ export default function App() {
 
   const importLiveProduct = async (productUrl: string) => {
     await importCatalogueWatch(productUrl);
-    const [catalogue, itemIds] = await Promise.all([
+    const [catalogue, watches] = await Promise.all([
       loadCatalogue(),
-      loadWatchedItemIds(),
+      loadWatches(),
     ]);
     setLiveCatalogue(catalogue);
     addFollowedBrands(catalogue.brands.map((brand) => brand.id));
-    replaceStarredItems(itemIds);
+    replaceStarredItems(watches.itemIds);
+    replaceWatchedSizes(watches.sizes);
     if (!selectedBrandId && catalogue.brands[0]) {
       setSelectedBrandId(catalogue.brands[0].id);
     }

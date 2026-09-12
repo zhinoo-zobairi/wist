@@ -229,11 +229,36 @@ function authorizationHeaders(ownerToken: string | undefined) {
   };
 }
 
-export async function loadWatchedItemIds(
+export type Watches = {
+  itemIds: string[];
+  /** Chosen size labels per item; absent entries mean "alert on any drop". */
+  sizes: Record<string, string[]>;
+};
+
+function toWatchSizes(value: unknown): Record<string, string[]> {
+  // An older backend may not send the map at all; that is simply "no selections".
+  if (value === undefined) return {};
+  if (!isObject(value)) {
+    throw new Error("Catalogue response has an invalid watch sizes map");
+  }
+  const sizes: Record<string, string[]> = {};
+  for (const [itemId, labels] of Object.entries(value)) {
+    if (
+      !Array.isArray(labels) ||
+      !labels.every((label) => typeof label === "string")
+    ) {
+      throw new Error("Catalogue response has invalid watch sizes");
+    }
+    sizes[itemId] = labels;
+  }
+  return sizes;
+}
+
+export async function loadWatches(
   fetchImpl: Fetch = fetch,
   baseUrl = defaultBaseUrl,
   ownerToken = defaultOwnerToken,
-): Promise<string[]> {
+): Promise<Watches> {
   const root = baseUrl.replace(/\/$/, "");
   const body = await responseJson(
     await fetchImpl(`${root}/v1/watches`, {
@@ -246,7 +271,7 @@ export async function loadWatchedItemIds(
   ) {
     throw new Error("Catalogue response has invalid watch item IDs");
   }
-  return body.itemIds;
+  return { itemIds: body.itemIds, sizes: toWatchSizes(body.sizes) };
 }
 
 export async function loadPriceDropAlerts(
@@ -316,6 +341,33 @@ export async function setCatalogueWatch(
     }),
   );
   if (body.itemId !== itemId || body.watched !== watched) {
+    throw new Error("Catalogue returned an invalid watch result");
+  }
+}
+
+// Replaces the sizes an already-coveted item should alert on. Kept separate from
+// setCatalogueWatch on purpose: the covet toggle sends no body so it never
+// disturbs a selection, while this always sends an explicit sizes list (an empty
+// array clears it).
+export async function saveWatchSizes(
+  itemId: string,
+  sizes: string[],
+  fetchImpl: Fetch = fetch,
+  baseUrl = defaultBaseUrl,
+  ownerToken = defaultOwnerToken,
+): Promise<void> {
+  const root = baseUrl.replace(/\/$/, "");
+  const body = await responseJson(
+    await fetchImpl(`${root}/v1/watches/${encodeURIComponent(itemId)}`, {
+      body: JSON.stringify({ sizes }),
+      headers: {
+        ...authorizationHeaders(ownerToken),
+        "content-type": "application/json",
+      },
+      method: "PUT",
+    }),
+  );
+  if (body.itemId !== itemId || body.watched !== true) {
     throw new Error("Catalogue returned an invalid watch result");
   }
 }

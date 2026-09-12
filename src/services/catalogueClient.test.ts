@@ -5,8 +5,9 @@ import {
   loadCatalogue,
   loadPriceDropAlerts,
   loadStyleProfile,
-  loadWatchedItemIds,
+  loadWatches,
   saveStyleProfile,
+  saveWatchSizes,
   setCatalogueWatch,
 } from "./catalogueClient";
 
@@ -98,12 +99,15 @@ describe("catalogue client", () => {
     );
   });
 
-  it("loads and mutates watches with the owner bearer token", async () => {
+  it("loads watched items with their chosen sizes over the owner token", async () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(
         new Response(
-          JSON.stringify({ itemIds: ["bobbies-L-M24WO-OPE01"] }),
+          JSON.stringify({
+            itemIds: ["bobbies-L-M24WO-OPE01"],
+            sizes: { "bobbies-L-M24WO-OPE01": ["40"] },
+          }),
         ),
       )
       .mockResolvedValueOnce(
@@ -116,8 +120,11 @@ describe("catalogue client", () => {
       );
 
     await expect(
-      loadWatchedItemIds(fetchImpl, "http://catalogue.test", "owner-token"),
-    ).resolves.toEqual(["bobbies-L-M24WO-OPE01"]);
+      loadWatches(fetchImpl, "http://catalogue.test", "owner-token"),
+    ).resolves.toEqual({
+      itemIds: ["bobbies-L-M24WO-OPE01"],
+      sizes: { "bobbies-L-M24WO-OPE01": ["40"] },
+    });
     await expect(
       setCatalogueWatch(
         "bobbies-L-M24WO-OPE01",
@@ -135,6 +142,49 @@ describe("catalogue client", () => {
         headers: {
           accept: "application/json",
           authorization: "Bearer owner-token",
+        },
+        method: "PUT",
+      },
+    );
+  });
+
+  it("defaults to no sizes when the backend omits the map", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ itemIds: ["bobbies-L-M24WO-OPE01"] })),
+    );
+
+    await expect(
+      loadWatches(fetchImpl, "http://catalogue.test", "owner-token"),
+    ).resolves.toEqual({
+      itemIds: ["bobbies-L-M24WO-OPE01"],
+      sizes: {},
+    });
+  });
+
+  it("replaces the sizes a watch cares about", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ itemId: "bobbies-L-M24WO-OPE01", watched: true }),
+      ),
+    );
+
+    await expect(
+      saveWatchSizes(
+        "bobbies-L-M24WO-OPE01",
+        ["40"],
+        fetchImpl,
+        "http://catalogue.test",
+        "owner-token",
+      ),
+    ).resolves.toBeUndefined();
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "http://catalogue.test/v1/watches/bobbies-L-M24WO-OPE01",
+      {
+        body: JSON.stringify({ sizes: ["40"] }),
+        headers: {
+          accept: "application/json",
+          authorization: "Bearer owner-token",
+          "content-type": "application/json",
         },
         method: "PUT",
       },
