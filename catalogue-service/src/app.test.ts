@@ -10,6 +10,24 @@ import type { StyleProfileRepository } from "./styleProfileRepository.js";
 
 const repository = new SeedCatalogueRepository();
 
+// The seed items publish no variants, but label validation needs some to check
+// against. This subclass lends every item the same small size grid so the API
+// tests can exercise selecting, clearing, and rejecting sizes.
+class SizedSeedRepository extends SeedCatalogueRepository {
+  async getItem(itemId: string) {
+    const item = await super.getItem(itemId);
+    return item
+      ? {
+          ...item,
+          variants: [
+            { id: "137", label: "39", available: false },
+            { id: "138", label: "40", available: true },
+          ],
+        }
+      : null;
+  }
+}
+
 class MemoryStyleProfileRepository implements StyleProfileRepository {
   profile: StyleProfile | null = null;
 
@@ -111,7 +129,7 @@ describe("catalogue API", () => {
       handleRequest("GET", "/v1/watches", repository, auth),
     ).resolves.toEqual({
       status: 200,
-      body: { itemIds: ["sandro-tweed-dress"] },
+      body: { itemIds: ["sandro-tweed-dress"], sizes: {} },
     });
     await expect(
       handleRequest(
@@ -151,7 +169,7 @@ describe("catalogue API", () => {
       handleRequest("GET", "/v1/watches", repository, auth),
     ).resolves.toEqual({
       status: 200,
-      body: { itemIds: ["sandro-tweed-dress"] },
+      body: { itemIds: ["sandro-tweed-dress"], sizes: {} },
     });
   });
 
@@ -181,6 +199,91 @@ describe("catalogue API", () => {
         error: "product_import_failed",
         message: "URL must be a supported product page",
       },
+    });
+  });
+
+  it("stores the chosen sizes and returns them in the watch list", async () => {
+    const sized = new SizedSeedRepository();
+    await expect(
+      handleRequest("PUT", "/v1/watches/sandro-tweed-dress", sized, auth, {
+        body: JSON.stringify({ sizes: [" 40 ", "40"] }),
+      }),
+    ).resolves.toEqual({
+      status: 200,
+      body: { itemId: "sandro-tweed-dress", watched: true },
+    });
+    await expect(
+      handleRequest("GET", "/v1/watches", sized, auth),
+    ).resolves.toEqual({
+      status: 200,
+      body: {
+        itemIds: ["sandro-tweed-dress"],
+        sizes: { "sandro-tweed-dress": ["40"] },
+      },
+    });
+  });
+
+  // The covet toggle re-watches an item with no body. That must not be read as
+  // "clear my sizes", or a user would lose their selection every time they
+  // toggled covet off and on.
+  it("leaves an existing selection untouched when no sizes are sent", async () => {
+    const sized = new SizedSeedRepository();
+    await handleRequest("PUT", "/v1/watches/sandro-tweed-dress", sized, auth, {
+      body: JSON.stringify({ sizes: ["40"] }),
+    });
+    await expect(
+      handleRequest("PUT", "/v1/watches/sandro-tweed-dress", sized, auth),
+    ).resolves.toEqual({
+      status: 200,
+      body: { itemId: "sandro-tweed-dress", watched: true },
+    });
+    await expect(
+      sized.listWatchSizes("sandro-tweed-dress"),
+    ).resolves.toEqual(["40"]);
+  });
+
+  it("clears the selection when sent an explicit empty list", async () => {
+    const sized = new SizedSeedRepository();
+    await handleRequest("PUT", "/v1/watches/sandro-tweed-dress", sized, auth, {
+      body: JSON.stringify({ sizes: ["40"] }),
+    });
+    await handleRequest("PUT", "/v1/watches/sandro-tweed-dress", sized, auth, {
+      body: JSON.stringify({ sizes: [] }),
+    });
+    await expect(
+      sized.listWatchSizes("sandro-tweed-dress"),
+    ).resolves.toEqual([]);
+  });
+
+  it("rejects a size the item does not publish", async () => {
+    const sized = new SizedSeedRepository();
+    await expect(
+      handleRequest("PUT", "/v1/watches/sandro-tweed-dress", sized, auth, {
+        body: JSON.stringify({ sizes: ["99"] }),
+      }),
+    ).resolves.toEqual({
+      status: 400,
+      body: { error: "invalid_watch_sizes" },
+    });
+  });
+
+  it("rejects a malformed sizes body", async () => {
+    const sized = new SizedSeedRepository();
+    await expect(
+      handleRequest("PUT", "/v1/watches/sandro-tweed-dress", sized, auth, {
+        body: JSON.stringify({ sizes: "40" }),
+      }),
+    ).resolves.toEqual({
+      status: 400,
+      body: { error: "invalid_watch_sizes" },
+    });
+    await expect(
+      handleRequest("PUT", "/v1/watches/sandro-tweed-dress", sized, auth, {
+        bodyTooLarge: true,
+      }),
+    ).resolves.toEqual({
+      status: 413,
+      body: { error: "payload_too_large" },
     });
   });
 

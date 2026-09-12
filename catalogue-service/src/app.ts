@@ -4,6 +4,7 @@ import type { CatalogueItem } from "./model.js";
 import type { CatalogueRepository } from "./repository.js";
 import { parseStyleProfile } from "./styleProfile.js";
 import type { StyleProfileRepository } from "./styleProfileRepository.js";
+import { parseWatchSizes } from "./watchedSizes.js";
 
 export type ApiResponse = {
   status: number;
@@ -138,10 +139,15 @@ export async function handleRequest(
         };
       }
     }
-    return {
-      status: 200,
-      body: { itemIds: await repository.listWatchedItemIds() },
-    };
+    const itemIds = await repository.listWatchedItemIds();
+    const sizes: Record<string, string[]> = {};
+    for (const id of itemIds) {
+      const selected = await repository.listWatchSizes(id);
+      // Empty means "any drop", which the client already assumes, so only the
+      // items with an actual selection need to travel.
+      if (selected.length > 0) sizes[id] = selected;
+    }
+    return { status: 200, body: { itemIds, sizes } };
   }
 
   if (pathname === "/v1/alerts") {
@@ -165,11 +171,44 @@ export async function handleRequest(
     if (authError) return authError;
 
     const itemId = decodeURIComponent(watchMatch[1]);
-    if (!(await repository.getItem(itemId))) {
+    const item = await repository.getItem(itemId);
+    if (!item) {
       return { status: 404, body: { error: "item_not_found" } };
     }
     if (method === "PUT") {
+      if (options.bodyTooLarge) {
+        return { status: 413, body: { error: "payload_too_large" } };
+      }
+
+      // An absent or bodiless request touches only the watch, never the sizes:
+      // the covet toggle re-watches with no body and must not wipe a selection.
+      // An explicit "sizes" key — including [] — replaces the selection.
+      let sizes: string[] | null = null;
+      if (options.body !== undefined && options.body.trim().length > 0) {
+        let value: unknown;
+        try {
+          value = JSON.parse(options.body);
+        } catch {
+          return { status: 400, body: { error: "invalid_watch_sizes" } };
+        }
+        if (
+          typeof value === "object" &&
+          value !== null &&
+          "sizes" in value
+        ) {
+          sizes = parseWatchSizes((value as Record<string, unknown>).sizes);
+          if (sizes === null) {
+            return { status: 400, body: { error: "invalid_watch_sizes" } };
+          }
+          const published = new Set(item.variants.map((variant) => variant.label));
+          if (sizes.some((label) => !published.has(label))) {
+            return { status: 400, body: { error: "invalid_watch_sizes" } };
+          }
+        }
+      }
+
       await repository.watchItem(itemId);
+      if (sizes !== null) await repository.replaceWatchSizes(itemId, sizes);
       return { status: 200, body: { itemId, watched: true } };
     }
     await repository.unwatchItem(itemId);
