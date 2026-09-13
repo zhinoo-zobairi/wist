@@ -28,7 +28,11 @@ export type PriceDropAlert = PriceDrop & {
 
 export type RecordedObservation = {
   item: CatalogueItem;
-  /** The detected decrease, whether or not it was worth alerting about. */
+  /**
+   * A price below what the item was coveted at, and below anything already
+   * announced since — null when the observation is not news. A plain decrease
+   * from the previous observation is not enough.
+   */
   priceDrop: PriceDrop | null;
   /** Whether the drop cleared the watch's size rule and became an alert. */
   alerted: boolean;

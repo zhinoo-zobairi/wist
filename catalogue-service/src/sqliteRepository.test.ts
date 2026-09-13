@@ -54,12 +54,13 @@ describe("SQLite catalogue repository", () => {
     ]);
   });
 
-  it("detects a lower observation and exposes the previous price", async () => {
+  it("announces a drop below the coveted price and exposes the previous price", async () => {
     const repository = createRepository();
     await repository.recordObservation(
       brand,
       itemAt(225, "2026-08-08T12:00:00.000Z"),
     );
+    await repository.watchItem("bobbies-L-M24WO-OPE01");
 
     await expect(
       repository.recordObservation(
@@ -90,6 +91,173 @@ describe("SQLite catalogue repository", () => {
         observedAt: "2026-08-09T12:00:00.000Z",
       },
     ]);
+  });
+
+  // Alerts exist to tell the owner about pieces they asked for. An observation of
+  // something nobody coveted has no price the owner cared about to measure
+  // against, so it stays history rather than becoming a notification.
+  it("announces nothing for an item that was never coveted", async () => {
+    const repository = createRepository();
+    await repository.recordObservation(
+      brand,
+      itemAt(225, "2026-08-08T12:00:00.000Z"),
+    );
+
+    await expect(
+      repository.recordObservation(
+        brand,
+        itemAt(180, "2026-08-09T12:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({ alerted: false, priceDrop: null });
+    await expect(repository.listPriceDropAlerts()).resolves.toEqual([]);
+  });
+
+  // The false signal this baseline exists to kill: a real decrease that still
+  // leaves the piece dearer than it was when the owner wanted it.
+  it("stays quiet when a decrease is still above the coveted price", async () => {
+    const repository = createRepository();
+    await repository.recordObservation(
+      brand,
+      itemAt(225, "2026-08-08T12:00:00.000Z"),
+    );
+    await repository.watchItem("bobbies-L-M24WO-OPE01");
+    await repository.recordObservation(
+      brand,
+      itemAt(300, "2026-08-09T12:00:00.000Z"),
+    );
+
+    await expect(
+      repository.recordObservation(
+        brand,
+        itemAt(260, "2026-08-10T12:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({ priceDrop: null });
+    await expect(repository.listPriceDropAlerts()).resolves.toEqual([]);
+  });
+
+  it("announces a sale price once rather than on every later check", async () => {
+    const repository = createRepository();
+    await repository.recordObservation(
+      brand,
+      itemAt(225, "2026-08-08T12:00:00.000Z"),
+    );
+    await repository.watchItem("bobbies-L-M24WO-OPE01");
+    await repository.recordObservation(
+      brand,
+      itemAt(180, "2026-08-09T12:00:00.000Z"),
+    );
+
+    await expect(
+      repository.recordObservation(
+        brand,
+        itemAt(180, "2026-08-10T12:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({ priceDrop: null });
+    await expect(repository.listPriceDropAlerts()).resolves.toHaveLength(1);
+  });
+
+  it("announces a further drop under the price already announced", async () => {
+    const repository = createRepository();
+    await repository.recordObservation(
+      brand,
+      itemAt(225, "2026-08-08T12:00:00.000Z"),
+    );
+    await repository.watchItem("bobbies-L-M24WO-OPE01");
+    await repository.recordObservation(
+      brand,
+      itemAt(180, "2026-08-09T12:00:00.000Z"),
+    );
+
+    await expect(
+      repository.recordObservation(
+        brand,
+        itemAt(135, "2026-08-10T12:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({
+      priceDrop: { newPrice: 135, oldPrice: 225, pctOff: 40 },
+    });
+    await expect(repository.listPriceDropAlerts()).resolves.toHaveLength(2);
+  });
+
+  // The baseline is the price on the day the owner coveted the piece, not the
+  // first price the catalogue ever saw.
+  it("measures against the price at covet time, not the first observation", async () => {
+    const repository = createRepository();
+    await repository.recordObservation(
+      brand,
+      itemAt(300, "2026-08-07T12:00:00.000Z"),
+    );
+    await repository.recordObservation(
+      brand,
+      itemAt(225, "2026-08-08T12:00:00.000Z"),
+    );
+    await repository.watchItem("bobbies-L-M24WO-OPE01");
+
+    await expect(
+      repository.recordObservation(
+        brand,
+        itemAt(180, "2026-08-09T12:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({
+      priceDrop: { newPrice: 180, oldPrice: 225, pctOff: 20 },
+    });
+  });
+
+  // Coveting a piece again is the owner saying they want it at today's price, so
+  // it starts a fresh baseline and forgets what was already announced.
+  it("starts a fresh baseline when the item is coveted again", async () => {
+    const repository = createRepository();
+    await repository.recordObservation(
+      brand,
+      itemAt(225, "2026-08-08T12:00:00.000Z"),
+    );
+    await repository.watchItem("bobbies-L-M24WO-OPE01");
+    await repository.recordObservation(
+      brand,
+      itemAt(180, "2026-08-09T12:00:00.000Z"),
+    );
+
+    await repository.unwatchItem("bobbies-L-M24WO-OPE01");
+    await repository.watchItem("bobbies-L-M24WO-OPE01");
+
+    await expect(
+      repository.recordObservation(
+        brand,
+        itemAt(171, "2026-08-10T12:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({
+      priceDrop: { newPrice: 171, oldPrice: 180, pctOff: 5 },
+    });
+    await expect(repository.listPriceDropAlerts()).resolves.toHaveLength(2);
+  });
+
+  // A drop the owner never heard about because it missed their size must stay
+  // announceable, so a silenced drop does not count as already announced.
+  it("announces a silenced price once the chosen size is back in stock", async () => {
+    const repository = createRepository();
+    const soldOut = (price: number, observedAt: string): CatalogueItem => ({
+      ...itemAt(price, observedAt),
+      variants: [{ id: "137", label: "39", available: false }],
+    });
+    await repository.recordObservation(
+      brand,
+      soldOut(225, "2026-08-08T12:00:00.000Z"),
+    );
+    await repository.watchItem("bobbies-L-M24WO-OPE01");
+    await repository.replaceWatchSizes("bobbies-L-M24WO-OPE01", ["39"]);
+    await repository.recordObservation(
+      brand,
+      soldOut(180, "2026-08-09T12:00:00.000Z"),
+    );
+    await expect(repository.listPriceDropAlerts()).resolves.toEqual([]);
+
+    await expect(
+      repository.recordObservation(brand, {
+        ...itemAt(180, "2026-08-10T12:00:00.000Z"),
+        variants: [{ id: "137", label: "39", available: true }],
+      }),
+    ).resolves.toMatchObject({ alerted: true });
+    await expect(repository.listPriceDropAlerts()).resolves.toHaveLength(1);
   });
 
   it("persists one idempotent single-user watch per item", async () => {

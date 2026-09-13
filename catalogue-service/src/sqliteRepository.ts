@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
+import { detectCovetedPriceDrop } from "./covetedPriceDrop.js";
 import { reachesWatchedSize } from "./watchedSizes.js";
 import type {
   CatalogueBrand,
@@ -11,7 +12,6 @@ import type {
 } from "./model.js";
 import type {
   CatalogueObservationRepository,
-  PriceDrop,
   PriceDropAlert,
   RecordedObservation,
 } from "./repository.js";
@@ -34,6 +34,12 @@ type ItemRow = {
 type PriceRow = {
   price: number;
   currency: string;
+};
+
+type BaselineRow = {
+  coveted_price: number;
+  currency: string;
+  lowest_announced_price: number | null;
 };
 
 type PriceDropAlertRow = {
@@ -187,6 +193,18 @@ export class SqliteCatalogueRepository
         PRIMARY KEY (item_id, label)
       );
 
+      -- What the owner coveted this piece at, and the cheapest drop already
+      -- announced since. Every alert is measured against the coveted price, so
+      -- both are facts about this watch and cascade away with it: coveting the
+      -- piece again is the owner saying they want it at the price it stands at
+      -- now, which deliberately starts a fresh baseline.
+      CREATE TABLE IF NOT EXISTS catalogue_watch_prices (
+        item_id TEXT PRIMARY KEY REFERENCES catalogue_watches(item_id) ON DELETE CASCADE,
+        coveted_price REAL NOT NULL CHECK (coveted_price >= 0),
+        currency TEXT NOT NULL,
+        lowest_announced_price REAL CHECK (lowest_announced_price >= 0)
+      );
+
       CREATE TABLE IF NOT EXISTS price_drop_alerts (
         id INTEGER PRIMARY KEY,
         item_id TEXT NOT NULL REFERENCES catalogue_items(id) ON DELETE CASCADE,
@@ -244,13 +262,38 @@ export class SqliteCatalogueRepository
   }
 
   async watchItem(itemId: string): Promise<void> {
-    this.database
-      .prepare(`
-        INSERT INTO catalogue_watches (item_id, created_at)
-        VALUES (?, ?)
-        ON CONFLICT (item_id) DO NOTHING
-      `)
-      .run(itemId, new Date().toISOString());
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      this.database
+        .prepare(`
+          INSERT INTO catalogue_watches (item_id, created_at)
+          VALUES (?, ?)
+          ON CONFLICT (item_id) DO NOTHING
+        `)
+        .run(itemId, new Date().toISOString());
+
+      // The price standing when the owner coveted the piece becomes the baseline
+      // every later drop is measured against. An item can only be watched after
+      // it has been observed, so that price is always on record. DO NOTHING
+      // rather than an update, because re-watching something already watched —
+      // which the covet toggle does — must not quietly move the baseline; only
+      // un-coveting and coveting again starts a new one.
+      this.database
+        .prepare(`
+          INSERT INTO catalogue_watch_prices (item_id, coveted_price, currency)
+          SELECT item_id, price, currency
+          FROM price_observations
+          WHERE item_id = ?
+          ORDER BY observed_at DESC, id DESC
+          LIMIT 1
+          ON CONFLICT (item_id) DO NOTHING
+        `)
+        .run(itemId);
+      this.database.exec("COMMIT");
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   async unwatchItem(itemId: string): Promise<void> {
@@ -327,21 +370,49 @@ export class SqliteCatalogueRepository
           LIMIT 1
         `)
         .get(item.id) as unknown as PriceRow | undefined;
-      const priceDrop: PriceDrop | null =
-        previous &&
-        previous.currency === item.currency &&
-        item.currentPrice < previous.price
-          ? {
-              itemId: item.id,
-              oldPrice: previous.price,
-              newPrice: item.currentPrice,
-              currency: item.currency,
-              pctOff: Math.round(
-                ((previous.price - item.currentPrice) / previous.price) * 100,
-              ),
-              observedAt: item.observedAt,
-            }
-          : null;
+      // Adopt any watch made before baselines were recorded. What it was coveted
+      // at is simply not known, so it starts counting from the price standing
+      // now. Watches that already have a baseline are left untouched.
+      this.database
+        .prepare(`
+          INSERT INTO catalogue_watch_prices (item_id, coveted_price, currency)
+          SELECT item_id, ?, ?
+          FROM catalogue_watches
+          WHERE item_id = ?
+          ON CONFLICT (item_id) DO NOTHING
+        `)
+        .run(item.currentPrice, item.currency, item.id);
+
+      // A storefront that starts pricing in another currency makes the baseline
+      // incomparable. Rebase it rather than leave the watch permanently silent —
+      // there are no exchange rates here, so the new currency's price is the
+      // only honest thing to measure against from now on.
+      this.database
+        .prepare(`
+          UPDATE catalogue_watch_prices
+          SET coveted_price = ?, currency = ?, lowest_announced_price = NULL
+          WHERE item_id = ? AND currency <> ?
+        `)
+        .run(item.currentPrice, item.currency, item.id, item.currency);
+
+      const baseline = this.database
+        .prepare(`
+          SELECT coveted_price, currency, lowest_announced_price
+          FROM catalogue_watch_prices
+          WHERE item_id = ?
+        `)
+        .get(item.id) as unknown as BaselineRow | undefined;
+
+      const priceDrop = detectCovetedPriceDrop({
+        covetedPrice: baseline
+          ? { currency: baseline.currency, price: baseline.coveted_price }
+          : null,
+        currency: item.currency,
+        currentPrice: item.currentPrice,
+        itemId: item.id,
+        lowestAnnouncedPrice: baseline?.lowest_announced_price ?? null,
+        observedAt: item.observedAt,
+      });
 
       this.database
         .prepare(`
@@ -442,6 +513,18 @@ export class SqliteCatalogueRepository
             priceDrop.pctOff,
             priceDrop.observedAt,
           );
+
+        // Ratchet the baseline's floor so this sale is not announced again on
+        // every later check. Only an announced drop moves it: one the owner never
+        // heard about because it missed their size stays announceable, so the
+        // same price can still reach them once that size is back in stock.
+        this.database
+          .prepare(`
+            UPDATE catalogue_watch_prices
+            SET lowest_announced_price = ?
+            WHERE item_id = ?
+          `)
+          .run(priceDrop.newPrice, priceDrop.itemId);
       }
 
       this.database.exec("COMMIT");

@@ -7,7 +7,7 @@ type ReportError = (message: string, error: unknown) => void;
 export type ObservationCycle = {
   checked: number;
   failed: number;
-  /** Price decreases detected, including ones no alert was raised for. */
+  /** Drops below a coveted price, including ones no alert was raised for. */
   priceDrops: number;
   /** Of those, the ones that missed every size the owner asked about. */
   silencedDrops: number;
