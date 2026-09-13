@@ -16,6 +16,15 @@
 > synchronization after a fresh install stays silent. Remote push — needed for a
 > notification while Wist is closed — is still separate work and depends on a
 > continuously hosted backend.
+>
+> **Size-aware alerts update (2026-09-13):** The §1 "→ v1.5" size-aware row is now
+> built and no longer out of scope. A watch can carry chosen size labels, picked
+> from that item's own published variants at covet time — there is no cross-brand
+> size taxonomy on purpose. The backend evaluates the rule: a drop only becomes a
+> `price_drop_alerts` row when a selected size is available in the new observation,
+> so suppressed drops never reach the device. An empty selection keeps today's
+> "alert on any drop" behaviour, so existing watches are untouched. Restock alerts
+> and per-variant pricing remain out of scope.
 
 ---
 

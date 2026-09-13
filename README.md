@@ -62,9 +62,9 @@ it. Available endpoints are:
 - `GET /v1/brands`
 - `GET /v1/brands/:brandId/items`
 - `GET /v1/items/:itemId`
-- `GET /v1/watches` (owner token)
+- `GET /v1/watches` (owner token) — returns `itemIds` plus a `sizes` map of the labels each watch alerts on
 - `POST /v1/watches` with `{ "url": "https://…" }` (owner token)
-- `PUT /v1/watches/:itemId` (owner token)
+- `PUT /v1/watches/:itemId` (owner token) — optional `{ "sizes": ["38"] }` body; an absent key leaves the selection untouched, `[]` clears it
 - `DELETE /v1/watches/:itemId` (owner token)
 - `GET /v1/alerts` (owner token)
 
@@ -92,8 +92,13 @@ watched product and repeats the cycle every six hours. Set
 that cadence. Checks run sequentially, failed products do not stop the cycle,
 and detected drops persist for the app to synchronize. Bobbies observations
 also persist the size availability published by the product page, which the
-product detail screen displays. There is no product discovery, restock
-notification, remote push delivery, or automatic checkout yet.
+product detail screen displays and lets you tap to choose which sizes matter.
+A watch with chosen sizes only turns a drop into an alert when one of those
+labels is available in the new observation; a watch with no chosen sizes alerts
+on any drop, as before. Sizes are matched on the storefront's own published
+labels, so there is no cross-brand size normalization. There is no product
+discovery, restock notification, remote push delivery, or automatic checkout
+yet.
 
 This bearer token is a narrow personal-prototype gate. The Expo-prefixed copy
 is bundled into the client, so it must be replaced by real user authentication

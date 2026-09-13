@@ -28,6 +28,13 @@ A source is viable only if it reliably supplies:
 Size-level availability, restock signals, raw payload retention, and historical
 catalogue completeness are not required for the first integration.
 
+Update (2026-09-13): size-level availability is now observed and used for
+size-aware alerts. A watch may store chosen size labels, and a drop only becomes
+an alert when one of those labels is available in the new observation. Sizes are
+matched on the storefront's own published labels — there is no cross-brand size
+taxonomy — and stored per watch, never globally. Restock signals and raw payload
+retention remain out of scope.
+
 ## MVP evaluation order
 
 1. Official brand or commerce API offered for this use
