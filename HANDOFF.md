@@ -25,6 +25,17 @@
 > so suppressed drops never reach the device. An empty selection keeps today's
 > "alert on any drop" behaviour, so existing watches are untouched. Restock alerts
 > and per-variant pricing remain out of scope.
+>
+> **Anchored alerts update (2026-09-13):** The §5 price-drop rule no longer reads
+> "lower than the previous snapshot". A drop is measured against the price the
+> piece was coveted at, and must also be a new low — cheaper than anything already
+> announced since it was coveted. Comparing consecutive snapshots made the
+> reference point arbitrary: a piece coveted at 300 that climbed to 400 and eased
+> to 350 announced "13% off" for a price worse than the one the owner wanted, and
+> a lasting sale re-announced itself on every check. Coveting records the
+> baseline; un-coveting and coveting again re-baselines on purpose. A piece that
+> was never coveted now raises no alert at all, which the §5 model always implied
+> ("for each starred item") but the engine did not enforce.
 
 ---
 

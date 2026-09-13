@@ -35,6 +35,14 @@ matched on the storefront's own published labels — there is no cross-brand siz
 taxonomy — and stored per watch, never globally. Restock signals and raw payload
 retention remain out of scope.
 
+Update (2026-09-13): the price a watch is judged against is the one the product
+stood at when it was coveted, held per watch alongside the cheapest drop already
+announced for it. Both are derived from data the service already owns — the
+immutable observation history — so this adds no new ingestion requirement and no
+new source field. Question 4 below is therefore answered per watch rather than
+per observation: what must be reliable is the price at covet time, and it comes
+from the same snapshot the owner saw.
+
 ## MVP evaluation order
 
 1. Official brand or commerce API offered for this use
@@ -112,8 +120,9 @@ the remaining questions are:
 The owner approved recurring checks for explicitly observed and coveted
 products in the local single-user prototype. The catalogue service owns manual
 Bobbies/Sandro observations in SQLite, checks watched products sequentially
-every six hours by default, compares each new price with the preceding
-observation, and persists detected drops. It still has no queue, sitemap
+every six hours by default, compares each new price with the price the product
+was coveted at, and persists only the drops worth delivering. It still has no
+queue, sitemap
 crawler, distributed scheduler coordination, or push delivery. Single-user
 watches and alerts persist behind an owner bearer token.
 

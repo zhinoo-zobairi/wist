@@ -83,8 +83,17 @@ Bobbies English, and Sandro Germany are supported. The
 backend testing.
 
 Set `CATALOGUE_DB_PATH` to choose another database location. Each observation
-stores an immutable price snapshot and reports a price drop when the new price
-is lower than the previous observation in the same currency. Covet and Uncovet
+stores an immutable price snapshot. A drop is reported when the new price is
+below the price the piece was coveted at — not merely below the previous
+observation — and below anything already announced since. Comparing consecutive
+observations made the reference point arbitrary: a piece coveted at €300 that
+climbed to €400 and eased back to €350 showed a decrease, so it announced "13%
+off" for a price worse than the one the owner wanted. Requiring a new low also
+stops a sale being re-announced on every six-hour check while it lasts. A drop
+silenced by the size rule stays announceable, so the same price can still arrive
+once that size is back in stock. Coveting a piece records its baseline;
+un-coveting and coveting it again re-baselines to the price standing then. A
+piece that was never coveted raises no alert at all. Covet and Uncovet
 use owner-token-authenticated endpoints and persist one user's watches in the
 backend. While the catalogue service is running, it immediately checks every
 watched product and repeats the cycle every six hours. Set
