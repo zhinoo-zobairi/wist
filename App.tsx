@@ -20,6 +20,7 @@ import {
   loadStyleProfile,
   loadWatches,
   saveStyleProfile,
+  saveWatchSizes,
   setCatalogueWatch,
   type Catalogue,
 } from "./src/services/catalogueClient";
@@ -57,6 +58,10 @@ export default function App() {
   const catalogueRef = useRef<Catalogue>(liveCatalogue);
   const alerts = useWistStore((state) => state.alerts);
   const covetedIds = useWistStore((state) => state.starredItemIds);
+  const watchedSizesByItemId = useWistStore(
+    (state) => state.watchedSizesByItemId,
+  );
+  const setWatchedSizes = useWistStore((state) => state.setWatchedSizes);
   const addFollowedBrands = useWistStore((state) => state.addFollowedBrands);
   const replaceStarredItems = useWistStore(
     (state) => state.replaceStarredItems,
@@ -291,6 +296,26 @@ export default function App() {
     }
   };
 
+  // Optimistically flip one size, then persist the whole selection. The backend
+  // is the authority (it evaluates the alert rule), so on failure we roll back to
+  // the list we had before the tap, mirroring toggleLiveCovet.
+  const toggleLiveSize = async (item: Item, label: string) => {
+    const previous = useWistStore.getState().watchedSizesByItemId[item.id] ?? [];
+    const next = previous.includes(label)
+      ? previous.filter((size) => size !== label)
+      : [...previous, label];
+    setWatchedSizes(item.id, next);
+    try {
+      await saveWatchSizes(item.id, next);
+    } catch (error) {
+      setWatchedSizes(item.id, previous);
+      Alert.alert(
+        "Could not update alert sizes",
+        error instanceof Error ? error.message : "Unknown catalogue error",
+      );
+    }
+  };
+
   const importLiveProduct = async (productUrl: string) => {
     await importCatalogueWatch(productUrl);
     const [catalogue, watches] = await Promise.all([
@@ -319,6 +344,8 @@ export default function App() {
           item={selectedItem}
           onBack={() => setSelectedItemId(null)}
           onToggleCovet={() => void toggleLiveCovet(selectedItem)}
+          onToggleSize={(label) => void toggleLiveSize(selectedItem, label)}
+          selectedSizes={watchedSizesByItemId[selectedItem.id] ?? []}
         />
       );
     }

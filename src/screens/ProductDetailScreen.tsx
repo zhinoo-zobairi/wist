@@ -23,6 +23,8 @@ type Props = {
   item: Item;
   onBack: () => void;
   onToggleCovet: () => void;
+  selectedSizes: string[];
+  onToggleSize: (label: string) => void;
 };
 
 const observedOn = (value?: string) =>
@@ -57,6 +59,8 @@ export function ProductDetailScreen({
   item,
   onBack,
   onToggleCovet,
+  selectedSizes,
+  onToggleSize,
 }: Props) {
   const { width } = useWindowDimensions();
   const mediaWidth = Math.min(width, 480);
@@ -144,27 +148,39 @@ export function ProductDetailScreen({
           <View style={styles.variants}>
             <Text style={styles.variantsTitle}>OBSERVED SIZES</Text>
             <View style={styles.variantGrid}>
-              {item.variants.map((variant) => (
-                <View
-                  accessibilityLabel={`Size ${variant.label}, ${variant.available ? "available" : "unavailable"}`}
-                  key={variant.id}
-                  style={[
-                    styles.variant,
-                    !variant.available && styles.variantUnavailable,
-                  ]}
-                >
-                  <Text
+              {item.variants.map((variant) => {
+                const selected = selectedSizes.includes(variant.label);
+                return (
+                  <Pressable
+                    accessibilityLabel={`Size ${variant.label}, ${variant.available ? "available" : "unavailable"}`}
+                    accessibilityState={{ selected }}
+                    disabled={!coveted}
+                    key={variant.id}
+                    onPress={() => onToggleSize(variant.label)}
                     style={[
-                      styles.variantLabel,
-                      !variant.available && styles.variantLabelUnavailable,
+                      styles.variant,
+                      !variant.available && styles.variantUnavailable,
+                      selected && styles.variantSelected,
                     ]}
                   >
-                    {variant.label}
-                  </Text>
-                </View>
-              ))}
+                    <Text
+                      style={[
+                        styles.variantLabel,
+                        !variant.available && styles.variantLabelUnavailable,
+                        selected && styles.variantLabelSelected,
+                      ]}
+                    >
+                      {variant.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-            <Text style={styles.variantNote}>Faded sizes were unavailable at the last check.</Text>
+            <Text style={styles.variantNote}>
+              {coveted
+                ? "Tap the sizes you want. WIST only alerts you when a drop lands in a chosen size — pick sold-out ones too."
+                : "Faded sizes were unavailable at the last check."}
+            </Text>
           </View>
         ) : null}
 
@@ -221,8 +237,10 @@ const styles = StyleSheet.create({
   variantGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
   variant: { alignItems: "center", borderColor: colors.ink, borderWidth: 1, justifyContent: "center", minHeight: 38, minWidth: 44, paddingHorizontal: 10 },
   variantUnavailable: { borderColor: colors.line },
+  variantSelected: { backgroundColor: colors.wine, borderColor: colors.wine },
   variantLabel: { color: colors.ink, fontFamily: fonts.textMedium, fontSize: 11 },
   variantLabelUnavailable: { color: colors.muted, textDecorationLine: "line-through" },
+  variantLabelSelected: { color: colors.card },
   variantNote: { color: colors.muted, fontFamily: fonts.text, fontSize: 9, marginTop: 9 },
   facts: { borderTopColor: colors.line, borderTopWidth: 1, marginTop: 30 },
   fact: { borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingVertical: 14 },
