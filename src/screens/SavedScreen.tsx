@@ -37,6 +37,9 @@ export function SavedScreen({
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
   const ids = useWistStore((state) => state.starredItemIds);
+  const watchedSizesByItemId = useWistStore(
+    (state) => state.watchedSizesByItemId,
+  );
   const alerts = useWistStore((state) => state.alerts);
   const snapshots = useWistStore((state) => state.snapshots);
   useWistStore((state) => state.priceRevision);
@@ -115,6 +118,7 @@ export function SavedScreen({
             const brand = brandsById[item.brandId];
             const drop = alerts.find((alert) => alert.itemId === item.id);
             const snapshot = snapshots.find((candidate) => candidate.itemId === item.id);
+            const watchedSizes = watchedSizesByItemId[item.id] ?? [];
             return (
               <View key={item.id} style={styles.row}>
                 <Text style={styles.index}>0{index + 1}</Text>
@@ -131,6 +135,11 @@ export function SavedScreen({
                     {drop ? <Text style={styles.oldPrice}>€ {drop.oldPrice.toFixed(0)}</Text> : null}
                   </View>
                   <Text style={styles.since}>COVETED {covetedOn(snapshot?.capturedAt).toUpperCase()}</Text>
+                  {watchedSizes.length > 0 ? (
+                    <Text style={styles.sizes}>
+                      ALERTS ON {watchedSizes.join(" · ")}
+                    </Text>
+                  ) : null}
                   <Pressable onPress={() => onToggleCovet(item)} style={styles.remove}>
                     <Text style={styles.removeText}>REMOVE</Text>
                   </Pressable>
@@ -172,6 +181,7 @@ const styles = StyleSheet.create({
   sale: { color: colors.wine },
   oldPrice: { color: colors.muted, fontFamily: fonts.text, fontSize: 10, textDecorationLine: "line-through" },
   since: { color: colors.muted, fontFamily: fonts.textMedium, fontSize: 7.5, letterSpacing: 1, marginTop: 19 },
+  sizes: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 7.5, letterSpacing: 1, marginTop: 6 },
   remove: { marginTop: 12 },
   removeText: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2, textDecorationLine: "underline" },
   empty: { alignItems: "center", borderTopColor: colors.line, borderTopWidth: 1, marginHorizontal: 22, paddingHorizontal: 28, paddingTop: 100 },
