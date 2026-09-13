@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { CatalogueItem } from "./model.js";
@@ -27,13 +31,17 @@ const itemAt = (price: number, observedAt: string): CatalogueItem => ({
 
 describe("SQLite catalogue repository", () => {
   const repositories: SqliteCatalogueRepository[] = [];
+  const temporaryDirectories: string[] = [];
 
   afterEach(() => {
     repositories.splice(0).forEach((repository) => repository.close());
+    temporaryDirectories
+      .splice(0)
+      .forEach((directory) => rmSync(directory, { force: true, recursive: true }));
   });
 
-  const createRepository = () => {
-    const repository = new SqliteCatalogueRepository(":memory:");
+  const createRepository = (path = ":memory:") => {
+    const repository = new SqliteCatalogueRepository(path);
     repositories.push(repository);
     return repository;
   };
@@ -258,6 +266,42 @@ describe("SQLite catalogue repository", () => {
       }),
     ).resolves.toMatchObject({ alerted: true });
     await expect(repository.listPriceDropAlerts()).resolves.toHaveLength(1);
+  });
+
+  // The upgrade path for pieces coveted before baselines were recorded. What
+  // they were coveted at is unknowable, so such a watch adopts the next observed
+  // price. It must not read that adoption as a drop, or every existing watch
+  // would fire a false alert on the first check after the upgrade.
+  it("adopts a watch made before baselines were recorded", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "wist-catalogue-"));
+    temporaryDirectories.push(directory);
+    const repository = createRepository(join(directory, "catalogue.sqlite"));
+    await repository.recordObservation(
+      brand,
+      itemAt(225, "2026-08-08T12:00:00.000Z"),
+    );
+    await repository.watchItem("bobbies-L-M24WO-OPE01");
+
+    const database = new DatabaseSync(join(directory, "catalogue.sqlite"));
+    database.exec("DELETE FROM catalogue_watch_prices");
+    database.close();
+
+    await expect(
+      repository.recordObservation(
+        brand,
+        itemAt(180, "2026-08-09T12:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({ priceDrop: null });
+    await expect(repository.listPriceDropAlerts()).resolves.toEqual([]);
+
+    await expect(
+      repository.recordObservation(
+        brand,
+        itemAt(135, "2026-08-10T12:00:00.000Z"),
+      ),
+    ).resolves.toMatchObject({
+      priceDrop: { newPrice: 135, oldPrice: 180, pctOff: 25 },
+    });
   });
 
   it("persists one idempotent single-user watch per item", async () => {
