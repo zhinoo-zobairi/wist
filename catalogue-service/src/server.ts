@@ -5,12 +5,14 @@ import { handleRequest } from "./app.js";
 import { importProduct } from "./productImport.js";
 import { SqliteCatalogueRepository } from "./sqliteRepository.js";
 import { SqliteStyleProfileRepository } from "./sqliteStyleProfileRepository.js";
+import { SqliteWardrobeRepository } from "./sqliteWardrobeRepository.js";
 import { startWatchScheduler } from "./watchScheduler.js";
 
 const databasePath =
   process.env.CATALOGUE_DB_PATH ?? resolve("catalogue-service/data/wist.sqlite");
 const repository = new SqliteCatalogueRepository(databasePath);
 const profiles = new SqliteStyleProfileRepository(databasePath);
+const wardrobe = new SqliteWardrobeRepository(databasePath);
 const port = Number.parseInt(process.env.PORT ?? "4000", 10);
 const ownerToken = process.env.CATALOGUE_OWNER_TOKEN;
 const host = process.env.CATALOGUE_HOST ?? "127.0.0.1";
@@ -67,7 +69,9 @@ const server = createServer(async (request, response) => {
     ).pathname;
     const hasJsonBody =
       (request.method === "PUT" && pathname === "/v1/profile") ||
-      (request.method === "POST" && pathname === "/v1/watches");
+      (request.method === "POST" && pathname === "/v1/watches") ||
+      (request.method === "POST" && pathname === "/v1/wardrobe") ||
+      (request.method === "PUT" && /^\/v1\/wardrobe\/[^/]+$/.test(pathname));
     const requestOptions = hasJsonBody ? await readRequestBody(request) : {};
     const result = await handleRequest(
       request.method ?? "GET",
@@ -81,6 +85,7 @@ const server = createServer(async (request, response) => {
         ...requestOptions,
         importProduct: (productUrl) => importProduct(repository, productUrl),
         profiles,
+        wardrobe,
       },
     );
     response.writeHead(result.status, responseHeaders);
@@ -99,6 +104,7 @@ function shutdown() {
   stopWatchScheduler();
   server.close(() => {
     profiles.close();
+    wardrobe.close();
     repository.close();
   });
 }

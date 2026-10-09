@@ -1,10 +1,11 @@
-import { createHash, timingSafeEqual } from "node:crypto";
-
 import type { CatalogueItem } from "./model.js";
+import { ownerAuthError } from "./ownerAuth.js";
 import type { CatalogueRepository } from "./repository.js";
 import { parseStyleProfile } from "./styleProfile.js";
 import type { StyleProfileRepository } from "./styleProfileRepository.js";
 import { parseWatchSizes } from "./watchedSizes.js";
+import type { WardrobeRepository } from "./wardrobeRepository.js";
+import { handleWardrobeRequest } from "./wardrobeRoutes.js";
 
 export type ApiResponse = {
   status: number;
@@ -16,32 +17,12 @@ export type RequestAuth = {
   ownerToken?: string;
 };
 
-function authorized(auth: RequestAuth): boolean {
-  if (!auth.ownerToken || !auth.authorization) return false;
-  const expected = createHash("sha256")
-    .update(`Bearer ${auth.ownerToken}`)
-    .digest();
-  const actual = createHash("sha256").update(auth.authorization).digest();
-  return timingSafeEqual(actual, expected);
-}
-
-function ownerAuthError(
-  auth: RequestAuth,
-  notConfiguredError: string,
-): ApiResponse | null {
-  if (!auth.ownerToken) {
-    return { status: 503, body: { error: notConfiguredError } };
-  }
-  return authorized(auth)
-    ? null
-    : { status: 401, body: { error: "unauthorized" } };
-}
-
 export type RequestOptions = {
   body?: string;
   bodyTooLarge?: boolean;
   importProduct?: (productUrl: string) => Promise<CatalogueItem>;
   profiles?: StyleProfileRepository;
+  wardrobe?: WardrobeRepository;
 };
 
 export async function handleRequest(
@@ -52,6 +33,10 @@ export async function handleRequest(
   options: RequestOptions = {},
 ): Promise<ApiResponse> {
   const { pathname } = new URL(rawUrl, "http://catalogue.local");
+
+  if (pathname === "/v1/wardrobe" || pathname.startsWith("/v1/wardrobe/")) {
+    return handleWardrobeRequest(method, pathname, auth, options);
+  }
 
   if (pathname === "/v1/profile") {
     if (method !== "GET" && method !== "PUT") {
