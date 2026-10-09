@@ -90,4 +90,44 @@ export type StyleProfile = {
   updatedAt: string;
 };
 
+export const GARMENT_CATEGORY_OPTIONS = [
+  { id: "top", label: "Top" },
+  { id: "bottom", label: "Bottom" },
+  { id: "dress", label: "Dress" },
+  { id: "outerwear", label: "Outerwear" },
+  { id: "shoes", label: "Shoes" },
+  { id: "bag", label: "Bag" },
+  { id: "accessory", label: "Accessory" },
+] as const;
+export const FORMALITY_OPTIONS = [
+  { id: "casual", label: "Casual" },
+  { id: "smart_casual", label: "Smart casual" },
+  { id: "formal", label: "Formal" },
+] as const;
+export const WARMTH_OPTIONS = [
+  { id: "light", label: "Light" },
+  { id: "medium", label: "Medium" },
+  { id: "heavy", label: "Heavy" },
+] as const;
+export type GarmentCategory = (typeof GARMENT_CATEGORY_OPTIONS)[number]["id"];
+export type Formality = (typeof FORMALITY_OPTIONS)[number]["id"];
+export type Warmth = (typeof WARMTH_OPTIONS)[number]["id"];
+export type GarmentInput = {
+  name: string;
+  category: GarmentCategory;
+  colors: string[];
+  formality: Formality;
+  warmth: Warmth;
+  occasions: Occasion[];
+  notes: string | null;
+};
+export type Garment = GarmentInput & {
+  id: string;
+  source: "manual" | "photo";
+  photoUrl: string | null;
+  tagStatus: "untagged" | "tagged" | "failed";
+  createdAt: string;
+  updatedAt: string;
+};
+
 export const LOCAL_USER_ID = "local-user";

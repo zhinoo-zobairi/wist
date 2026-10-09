@@ -10,6 +10,11 @@ import {
   type Occasion,
   type Style,
   type StyleProfile,
+  GARMENT_CATEGORY_OPTIONS,
+  FORMALITY_OPTIONS,
+  WARMTH_OPTIONS,
+  type Garment,
+  type GarmentInput,
 } from "../types";
 
 type Fetch = typeof fetch;
@@ -188,6 +193,158 @@ async function responseJson(response: Response): Promise<JsonObject> {
     );
   }
   return value;
+}
+
+export class WardrobeApiError extends Error {
+  constructor(public readonly code: string, public readonly status: number) {
+    super(code);
+    this.name = "WardrobeApiError";
+  }
+}
+
+export class UncertainWardrobeRequestError extends Error {
+  constructor() {
+    super("The connection ended before a response arrived. Your garment may still be processing. Refresh your wardrobe before adding it again.");
+    this.name = "UncertainWardrobeRequestError";
+  }
+}
+
+async function wardrobeJson(response: Response): Promise<JsonObject> {
+  if (!response.ok) {
+    const value: unknown = await response.json().catch(() => null);
+    throw new WardrobeApiError(
+      isObject(value) && typeof value.error === "string" ? value.error : "wardrobe_request_failed",
+      response.status,
+    );
+  }
+  return responseJson(response);
+}
+
+function toGarment(value: unknown): Garment {
+  const invalid = () => new Error("Catalogue returned an invalid garment");
+  if (!isObject(value)) throw invalid();
+  const id = stringField(value, "id");
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ||
+    typeof value.name !== "string" || !value.name.trim() || value.name.length > 80 ||
+    !GARMENT_CATEGORY_OPTIONS.some((option) => option.id === value.category) ||
+    !FORMALITY_OPTIONS.some((option) => option.id === value.formality) ||
+    !WARMTH_OPTIONS.some((option) => option.id === value.warmth) ||
+    !Array.isArray(value.colors) || value.colors.length < 1 || value.colors.length > 3 ||
+    value.colors.some((color) => typeof color !== "string" || !color.trim() || color.length > 24 || color !== color.trim().toLowerCase()) ||
+    new Set(value.colors).size !== value.colors.length ||
+    !Array.isArray(value.occasions) ||
+    value.occasions.some((occasion) => !OCCASION_OPTIONS.some((option) => option.id === occasion)) ||
+    new Set(value.occasions).size !== value.occasions.length ||
+    (value.notes !== null && (typeof value.notes !== "string" || value.notes.length > 280)) ||
+    (value.source !== "manual" && value.source !== "photo") ||
+    (value.tagStatus !== "tagged" && value.tagStatus !== "untagged" && value.tagStatus !== "failed") ||
+    (value.photoUrl !== null && value.photoUrl !== `/v1/wardrobe/${id}/photo`) ||
+    typeof value.createdAt !== "string" || !Number.isFinite(Date.parse(value.createdAt)) ||
+    typeof value.updatedAt !== "string" || !Number.isFinite(Date.parse(value.updatedAt))
+  ) throw invalid();
+  return {
+    id, name: value.name, category: value.category as Garment["category"],
+    colors: value.colors as string[], formality: value.formality as Garment["formality"],
+    warmth: value.warmth as Garment["warmth"], occasions: value.occasions as Occasion[],
+    notes: value.notes as string | null, source: value.source, photoUrl: value.photoUrl as string | null,
+    tagStatus: value.tagStatus, createdAt: value.createdAt, updatedAt: value.updatedAt,
+  };
+}
+
+export async function loadWardrobe(
+  fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<Garment[]> {
+  const body = await wardrobeJson(await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/wardrobe`, {
+    headers: authorizationHeaders(ownerToken),
+  }));
+  if (!Array.isArray(body.garments)) throw new Error("Catalogue response is missing garments");
+  const garments = body.garments.map(toGarment);
+  if (new Set(garments.map((garment) => garment.id)).size !== garments.length) {
+    throw new Error("Catalogue returned duplicate garments");
+  }
+  return garments;
+}
+
+export async function uploadGarmentPhoto(
+  uri: string, fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<Garment> {
+  const headers = { ...authorizationHeaders(ownerToken), "content-type": "image/jpeg" };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90_000);
+  let uploading = false;
+  try {
+    const local = await fetchImpl(uri, { signal: controller.signal });
+    if (!local.ok) throw new Error("Could not read the selected photo");
+    const blob = await local.blob();
+    if (controller.signal.aborted) throw new Error("Photo preparation timed out");
+    uploading = true;
+    const body = await wardrobeJson(await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/wardrobe/photos`, {
+      method: "POST", headers, body: blob, signal: controller.signal,
+    }));
+    return toGarment(body.garment);
+  } catch (error) {
+    if (uploading && !(error instanceof WardrobeApiError)) throw new UncertainWardrobeRequestError();
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function saveGarment(
+  id: string, input: GarmentInput, fetchImpl: Fetch = fetch,
+  baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<Garment> {
+  const body = await wardrobeJson(await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/wardrobe/${encodeURIComponent(id)}`, {
+    method: "PUT", headers: { ...authorizationHeaders(ownerToken), "content-type": "application/json" },
+    body: JSON.stringify(input),
+  }));
+  const garment = toGarment(body.garment);
+  if (garment.id !== id) throw new Error("Catalogue returned a different garment");
+  return garment;
+}
+
+export async function deleteGarment(
+  id: string, fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<void> {
+  const body = await wardrobeJson(await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/wardrobe/${encodeURIComponent(id)}`, {
+    method: "DELETE", headers: authorizationHeaders(ownerToken),
+  }));
+  if (body.id !== id || body.deleted !== true) throw new Error("Catalogue returned an invalid deletion result");
+}
+
+export async function retagGarment(
+  id: string, force = false, fetchImpl: Fetch = fetch,
+  baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<Garment> {
+  const headers = { ...authorizationHeaders(ownerToken), "content-type": "application/json" };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90_000);
+  try {
+    const body = await wardrobeJson(await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/wardrobe/${encodeURIComponent(id)}/tag`, {
+      method: "POST", headers, body: JSON.stringify({ force }), signal: controller.signal,
+    }));
+    const garment = toGarment(body.garment);
+    if (garment.id !== id) throw new Error("Catalogue returned a different garment");
+    return garment;
+  } catch (error) {
+    if (!(error instanceof WardrobeApiError)) throw new UncertainWardrobeRequestError();
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function garmentPhotoSource(
+  garment: Garment, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): { uri: string; headers: { authorization: string } } | undefined {
+  if (!garment.photoUrl) return undefined;
+  if (garment.photoUrl !== `/v1/wardrobe/${encodeURIComponent(garment.id)}/photo`) {
+    throw new Error("Invalid garment photo URL");
+  }
+  return { uri: `${baseUrl.replace(/\/$/, "")}${garment.photoUrl}`, headers: {
+    authorization: authorizationHeaders(ownerToken).authorization,
+  } };
 }
 
 export async function loadCatalogue(
