@@ -131,7 +131,10 @@ unless the JSON body is `{ "force": true }`. A human edit during an ordinary
 tagging call is preserved, and that retag returns `409 already_tagged` too.
 Force allows overwriting the attributes, including notes, but only as they
 stood when the retag started: if the garment is edited while the model call
-runs, the edit is kept and the retag returns `409 garment_changed`. The existing HTTP
+runs, the edit is kept and the retag returns `409 garment_changed`. A failed
+retag never marks a tagged garment `failed`; it stays as it was and the retag
+returns `502 tagging_failed`. Colours the model repeats in another casing are
+merged before validation. The existing HTTP
 server accepts concurrent requests, so simultaneous uploads can run paid calls
 concurrently. An interrupted or timed-out call may have already incurred a
 charge; SDK retries or a later manual retry can repeat that processing. A

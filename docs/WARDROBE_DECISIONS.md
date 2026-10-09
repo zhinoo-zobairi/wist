@@ -20,7 +20,7 @@ the other modules. The mobile app never receives an API key or calls a model.
 | Formality | `casual`, `smart_casual`, `formal` |
 | Warmth | `light`, `medium`, `heavy` |
 | Occasions | Reuse `work`, `evening`, `weekend`, `celebration`, `travel`; unique; may be empty |
-| Colors | 1–3 unique labels, trimmed/lowercased, each 1–24 characters |
+| Colors | 1–3 unique labels, trimmed/lowercased, each 1–24 characters. Manual input with duplicates is rejected; colours from the tagger are de-duplicated first ("Navy", "navy" → "navy") |
 | Name | Trimmed, nonempty, at most 80 characters |
 | Notes | Optional, trimmed, at most 280 characters |
 | Capacity | 300 garments, including photo garments; creation then returns `409 wardrobe_full` |
@@ -100,8 +100,11 @@ from rerouting this integration.
   `409 already_tagged`, even if the model call incurred a charge. Explicit force
   allows overwriting current attributes and notes, but only if the garment is
   unchanged since the retag started; an edit saved mid-call is kept and the
-  retag returns `409 garment_changed`. A forced attempt that fails keeps
-  attributes but marks the garment `failed` (same unchanged-garment condition).
+  retag returns `409 garment_changed`. A failed attempt, forced or not, never
+  marks a tagged garment `failed`: its attributes and status are untouched and
+  the retag returns `502 tagging_failed`, so a later ordinary retag is still
+  refused with `409 already_tagged`. (Changed 2026-10-10; previously a failed
+  forced attempt marked the garment `failed`.)
 - Photos and garments remain single-owner. Multi-user auth, cloud storage,
   mobile wardrobe UI, outfit generation, and calendar processing are later work.
 - The live photo acceptance check remains pending: no backend
