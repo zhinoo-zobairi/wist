@@ -8,11 +8,21 @@ import {
   captureStarredPrices,
   retainLatestSnapshots,
 } from "../services/dropEngine";
-import type { Alert, Occasion, PriceSnapshot, Style } from "../types";
+import {
+  deleteGarment, loadWardrobe, retagGarment, saveGarment, uploadGarmentPhoto,
+} from "../services/catalogueClient";
+import type { Alert, Garment, GarmentInput, Occasion, PriceSnapshot, Style } from "../types";
 
 export type ProfileStatus = "unknown" | "answered" | "skipped";
 
 type WistState = {
+  wardrobe: Garment[];
+  wardrobeStatus: "idle" | "loading" | "error";
+  refreshWardrobe: () => Promise<void>;
+  addGarmentPhoto: (uri: string) => Promise<Garment>;
+  updateGarment: (id: string, input: GarmentInput) => Promise<Garment>;
+  removeGarment: (id: string) => Promise<void>;
+  tagGarment: (id: string, force?: boolean) => Promise<Garment>;
   followedBrandIds: string[];
   starredItemIds: string[];
   priceRevision: number;
@@ -41,6 +51,14 @@ type WistState = {
   replaceStyleProfile: (occasions: Occasion[], styles: Style[]) => void;
 };
 
+// A list read started before a write must not undo the newer server response.
+let wardrobeRevision = 0;
+let wardrobeRefresh: Promise<void> | undefined;
+const upsertGarment = (wardrobe: Garment[], garment: Garment) =>
+  wardrobe.some((entry) => entry.id === garment.id)
+    ? wardrobe.map((entry) => entry.id === garment.id ? garment : entry)
+    : [garment, ...wardrobe];
+
 const toggleId = (ids: string[], id: string) =>
   ids.includes(id) ? ids.filter((candidate) => candidate !== id) : [...ids, id];
 
@@ -60,6 +78,43 @@ const MAX_LOCAL_ALERTS = 100;
 export const useWistStore = create<WistState>()(
   persist(
     (set) => ({
+      wardrobe: [],
+      wardrobeStatus: "idle",
+      refreshWardrobe: () => {
+        if (wardrobeRefresh) return wardrobeRefresh;
+        const revision = wardrobeRevision;
+        set({ wardrobeStatus: "loading" });
+        wardrobeRefresh = loadWardrobe().then((wardrobe) => {
+          set({ ...(revision === wardrobeRevision ? { wardrobe } : {}), wardrobeStatus: "idle" });
+        }).catch((error: unknown) => {
+          set({ wardrobeStatus: "error" });
+          throw error;
+        }).finally(() => { wardrobeRefresh = undefined; });
+        return wardrobeRefresh;
+      },
+      addGarmentPhoto: async (uri) => {
+        const garment = await uploadGarmentPhoto(uri);
+        wardrobeRevision += 1;
+        set((state) => ({ wardrobe: upsertGarment(state.wardrobe, garment) }));
+        return garment;
+      },
+      updateGarment: async (id, input) => {
+        const garment = await saveGarment(id, input);
+        wardrobeRevision += 1;
+        set((state) => ({ wardrobe: upsertGarment(state.wardrobe, garment) }));
+        return garment;
+      },
+      removeGarment: async (id) => {
+        await deleteGarment(id);
+        wardrobeRevision += 1;
+        set((state) => ({ wardrobe: state.wardrobe.filter((garment) => garment.id !== id) }));
+      },
+      tagGarment: async (id, force) => {
+        const garment = await retagGarment(id, force);
+        wardrobeRevision += 1;
+        set((state) => ({ wardrobe: upsertGarment(state.wardrobe, garment) }));
+        return garment;
+      },
       followedBrandIds: seedBrands.map((brand) => brand.id),
       starredItemIds: [],
       priceRevision: 0,
