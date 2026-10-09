@@ -111,6 +111,23 @@ describe("SQLite wardrobe repository", () => {
     await expect(repository.getPhotoMediaType("missing")).resolves.toBeNull();
   });
 
+  it("applies tags atomically, records failures, and protects tagged garments unless forced", async () => {
+    const repository = createRepository();
+    const garment = await repository.createPhotoGarment("image/webp");
+    await expect(repository.markTagFailed(garment.id)).resolves.toMatchObject({ tagStatus: "failed" });
+    await expect(repository.applyTags(garment.id, input)).resolves.toMatchObject({
+      ...input, occasions: ["work", "travel"], source: "photo", tagStatus: "tagged", photoUrl: garment.photoUrl,
+    });
+    await expect(repository.applyTags(garment.id, { ...input, name: "Overwrite" })).resolves.toBeNull();
+    await expect(repository.markTagFailed(garment.id)).resolves.toBeNull();
+    await expect(repository.getGarment(garment.id)).resolves.toMatchObject({ name: input.name, tagStatus: "tagged" });
+    await expect(repository.applyTags(garment.id, { ...input, colors: ["cream"] }, true))
+      .resolves.toMatchObject({ colors: ["cream"], tagStatus: "tagged" });
+    await expect(repository.markTagFailed(garment.id, true)).resolves.toMatchObject({ colors: ["cream"], tagStatus: "failed" });
+    await expect(repository.applyTags("missing", input)).resolves.toBeNull();
+    await expect(repository.markTagFailed("missing")).resolves.toBeNull();
+  });
+
   it("upgrades the B1.1 schema without losing garments or child rows and can reopen it", async () => {
     const directory = mkdtempSync(join(tmpdir(), "wist-wardrobe-upgrade-"));
     directories.push(directory);

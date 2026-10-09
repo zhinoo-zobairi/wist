@@ -1,5 +1,6 @@
 import type { ApiResponse, RequestOptions } from "./app.js";
 import { MAX_PHOTO_BYTES, PHOTO_MEDIA_TYPES, type GarmentPhotoStore, type PhotoMediaType } from "./garmentPhotoStore.js";
+import type { GarmentTagger, TagResult } from "./garmentTagger.js";
 import { MAX_GARMENTS } from "./wardrobe.js";
 import { WardrobeFullError, type WardrobeRepository } from "./wardrobeRepository.js";
 
@@ -40,12 +41,75 @@ async function uploadPhoto(wardrobe: WardrobeRepository, options: RequestOptions
     console.error("Could not store garment photo", garment.id, error);
     return { status: 500, body: { error: "photo_store_failed" } };
   }
+  if (options.tagger) {
+    garment = await tagAndSave(wardrobe, options.tagger, garment.id, {
+      bytes: bodyBytes, mediaType: contentType as PhotoMediaType,
+    }, false) ?? await wardrobe.getGarment(garment.id);
+    if (!garment) return { status: 404, body: { error: "garment_not_found" } };
+  }
   return { status: 201, body: { garment } };
+}
+
+async function tagAndSave(
+  wardrobe: WardrobeRepository, tagger: GarmentTagger, id: string,
+  photo: Parameters<GarmentTagger["tag"]>[0], force: boolean,
+) {
+  let result: TagResult;
+  try {
+    result = await tagger.tag(photo);
+  } catch (error) {
+    console.error("Garment tagger failed", { errorClass: error instanceof Error ? error.name : "UnknownError" });
+    result = { ok: false, reason: "api_error" };
+  }
+  return result.ok
+    ? wardrobe.applyTags(id, result.tags, force)
+    : wardrobe.markTagFailed(id, force);
+}
+
+async function retagPhoto(id: string, wardrobe: WardrobeRepository, options: RequestOptions): Promise<ApiResponse> {
+  if (!options.tagger) return { status: 503, body: { error: "tagging_not_configured" } };
+  if (!options.photoStore) return { status: 503, body: { error: "photo_store_not_configured" } };
+  if (options.bodyTooLarge) return { status: 413, body: { error: "payload_too_large" } };
+  let force = false;
+  if (options.body?.trim()) {
+    try {
+      const value: unknown = JSON.parse(options.body);
+      if (typeof value !== "object" || value === null || Array.isArray(value) ||
+          ("force" in value && typeof value.force !== "boolean")) {
+        return { status: 400, body: { error: "invalid_tag_request" } };
+      }
+      force = "force" in value && value.force === true;
+    } catch {
+      return { status: 400, body: { error: "invalid_tag_request" } };
+    }
+  }
+  const garment = await wardrobe.getGarment(id);
+  if (!garment) return { status: 404, body: { error: "garment_not_found" } };
+  const mediaType = await wardrobe.getPhotoMediaType(garment.id);
+  if (!PHOTO_MEDIA_TYPES.includes(mediaType as PhotoMediaType)) {
+    return { status: 404, body: { error: "photo_not_found" } };
+  }
+  if (garment.tagStatus === "tagged" && !force) {
+    return { status: 409, body: { error: "already_tagged" } };
+  }
+  const bytes = await options.photoStore.read(garment.id, mediaType!);
+  if (!bytes) return { status: 404, body: { error: "photo_not_found" } };
+  const tagged = await tagAndSave(wardrobe, options.tagger, garment.id, { bytes, mediaType: mediaType as PhotoMediaType }, force);
+  if (tagged) return { status: 200, body: { garment: tagged } };
+  return await wardrobe.getGarment(garment.id)
+    ? { status: 409, body: { error: "already_tagged" } }
+    : { status: 404, body: { error: "garment_not_found" } };
 }
 
 export async function handleWardrobePhotoRequest(
   method: string, pathname: string, wardrobe: WardrobeRepository, options: RequestOptions,
 ): Promise<ApiResponse | null> {
+  const tagMatch = pathname.match(/^\/v1\/wardrobe\/([^/]+)\/tag$/);
+  if (tagMatch?.[1]) {
+    return method === "POST"
+      ? retagPhoto(tagMatch[1], wardrobe, options)
+      : { status: 405, body: { error: "method_not_allowed" } };
+  }
   if (pathname === "/v1/wardrobe/photos") {
     return method === "POST"
       ? uploadPhoto(wardrobe, options)

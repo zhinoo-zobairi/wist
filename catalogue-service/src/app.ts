@@ -1,6 +1,7 @@
 import type { CatalogueItem } from "./model.js";
 import { ownerAuthError } from "./ownerAuth.js";
 import type { GarmentPhotoStore } from "./garmentPhotoStore.js";
+import type { GarmentTagger } from "./garmentTagger.js";
 import type { CatalogueRepository } from "./repository.js";
 import { parseStyleProfile } from "./styleProfile.js";
 import type { StyleProfileRepository } from "./styleProfileRepository.js";
@@ -26,6 +27,7 @@ export type RequestOptions = {
   profiles?: StyleProfileRepository;
   wardrobe?: WardrobeRepository;
   photoStore?: GarmentPhotoStore;
+  tagger?: GarmentTagger;
   bodyBytes?: Buffer;
   contentType?: string;
 };

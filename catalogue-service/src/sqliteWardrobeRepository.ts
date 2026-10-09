@@ -179,12 +179,28 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
   }
 
   async replaceGarment(id: string, input: GarmentInput): Promise<Garment | null> {
+    return this.writeAttributes(id, input, true);
+  }
+
+  async applyTags(id: string, tags: GarmentInput, force = false): Promise<Garment | null> {
+    return this.writeAttributes(id, tags, force);
+  }
+
+  async markTagFailed(id: string, force = false): Promise<Garment | null> {
+    const result = this.database.prepare(`
+      UPDATE garments SET tag_status = 'failed', updated_at = ?
+      WHERE id = ? AND (? = 1 OR tag_status IN ('untagged','failed'))
+    `).run(new Date().toISOString(), id, force ? 1 : 0);
+    return result.changes > 0 ? this.getGarment(id) : null;
+  }
+
+  private async writeAttributes(id: string, input: GarmentInput, overwriteTagged: boolean): Promise<Garment | null> {
     this.database.exec("BEGIN IMMEDIATE");
     try {
       const result = this.database.prepare(`
         UPDATE garments SET name = ?, category = ?, formality = ?, warmth = ?, notes = ?, updated_at = ?, tag_status = 'tagged'
-        WHERE id = ?
-      `).run(input.name, input.category, input.formality, input.warmth, input.notes, new Date().toISOString(), id);
+        WHERE id = ? AND (? = 1 OR tag_status IN ('untagged','failed'))
+      `).run(input.name, input.category, input.formality, input.warmth, input.notes, new Date().toISOString(), id, overwriteTagged ? 1 : 0);
       if (result.changes > 0) this.writeChildSets(id, input);
       this.database.exec("COMMIT");
       return result.changes > 0 ? this.getGarment(id) : null;

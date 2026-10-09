@@ -1,7 +1,9 @@
 import { createServer } from "node:http";
 import { dirname, join, resolve } from "node:path";
+import Anthropic from "@anthropic-ai/sdk";
 
 import { handleRequest } from "./app.js";
+import { ClaudeGarmentTagger } from "./claudeGarmentTagger.js";
 import { DiskGarmentPhotoStore, MAX_PHOTO_BYTES } from "./garmentPhotoStore.js";
 import { MAX_JSON_BODY_BYTES, readRequestBody } from "./requestBody.js";
 import { importProduct } from "./productImport.js";
@@ -16,6 +18,15 @@ const repository = new SqliteCatalogueRepository(databasePath);
 const profiles = new SqliteStyleProfileRepository(databasePath);
 const wardrobe = new SqliteWardrobeRepository(databasePath);
 const photoStore = new DiskGarmentPhotoStore(join(dirname(databasePath), "wardrobe-photos"));
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      authToken: null,
+      baseURL: "https://api.anthropic.com",
+      logLevel: "off",
+    })
+  : undefined;
+const tagger = anthropic ? new ClaudeGarmentTagger(anthropic) : undefined;
 const port = Number.parseInt(process.env.PORT ?? "4000", 10);
 const ownerToken = process.env.CATALOGUE_OWNER_TOKEN;
 const host = process.env.CATALOGUE_HOST ?? "127.0.0.1";
@@ -51,6 +62,7 @@ const server = createServer(async (request, response) => {
       (request.method === "PUT" && pathname === "/v1/profile") ||
       (request.method === "POST" && pathname === "/v1/watches") ||
       (request.method === "POST" && pathname === "/v1/wardrobe") ||
+      (request.method === "POST" && /^\/v1\/wardrobe\/[^/]+\/tag$/.test(pathname)) ||
       (request.method === "PUT" && /^\/v1\/wardrobe\/[^/]+$/.test(pathname));
     const hasPhotoBody = request.method === "POST" && pathname === "/v1/wardrobe/photos";
     const requestOptions = hasJsonBody || hasPhotoBody
@@ -73,6 +85,7 @@ const server = createServer(async (request, response) => {
         profiles,
         wardrobe,
         photoStore,
+        tagger,
       },
     );
     response.writeHead(result.status, {

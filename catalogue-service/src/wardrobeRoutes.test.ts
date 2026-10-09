@@ -5,6 +5,7 @@ import { SqliteWardrobeRepository } from "./sqliteWardrobeRepository.js";
 import type { Garment, GarmentInput } from "./wardrobe.js";
 import { WardrobeFullError } from "./wardrobeRepository.js";
 import { MAX_PHOTO_BYTES, type GarmentPhotoStore } from "./garmentPhotoStore.js";
+import type { GarmentTagger } from "./garmentTagger.js";
 
 const input: GarmentInput = {
   name: "Navy shirt", category: "top", colors: ["navy"],
@@ -208,4 +209,122 @@ describe("wardrobe API", () => {
       await expect(request(method, path)).resolves.toEqual({ status: 405, body: { error: "method_not_allowed" } });
     },
   );
+
+  it("tags uploads synchronously and keeps the photo/source", async () => {
+    const { request, photoStore } = setup();
+    const tag = vi.fn<GarmentTagger["tag"]>().mockResolvedValue({ ok: true, tags: input });
+    const result = await request("POST", "/v1/wardrobe/photos", {
+      bodyBytes: photoBytes, contentType: "image/jpeg", tagger: { tag },
+    });
+    expect(result).toMatchObject({ status: 201, body: { garment: { ...input, source: "photo", tagStatus: "tagged" } } });
+    const { garment } = result.body as { garment: Garment };
+    expect(photoStore.photos.get(garment.id)).toEqual(photoBytes);
+    expect(tag).toHaveBeenCalledWith({ bytes: photoBytes, mediaType: "image/jpeg" });
+  });
+
+  it.each(["refused", "invalid_output", "api_error"] as const)("keeps an uploaded garment on %s and permits manual retry", async (reason) => {
+    const { request } = setup();
+    const tag = vi.fn<GarmentTagger["tag"]>().mockResolvedValue({ ok: false, reason });
+    const result = await request("POST", "/v1/wardrobe/photos", {
+      bodyBytes: photoBytes, contentType: "image/jpeg", tagger: { tag },
+    });
+    expect(result).toMatchObject({ status: 201, body: { garment: { tagStatus: "failed", source: "photo" } } });
+    const { garment } = result.body as { garment: Garment };
+    tag.mockResolvedValue({ ok: true, tags: input });
+    await expect(request("POST", `/v1/wardrobe/${garment.id}/tag`, { tagger: { tag } }))
+      .resolves.toMatchObject({ status: 200, body: { garment: { ...input, tagStatus: "tagged", source: "photo" } } });
+  });
+
+  it("protects tagged garments and permits an explicit force overwrite", async () => {
+    const { wardrobe, photoStore, request } = setup();
+    const garment = await wardrobe.createPhotoGarment("image/jpeg");
+    await photoStore.write(garment.id, "image/jpeg", photoBytes);
+    await wardrobe.replaceGarment(garment.id, { ...input, name: "My edited name" });
+    const tag = vi.fn<GarmentTagger["tag"]>().mockResolvedValue({ ok: true, tags: input });
+    await expect(request("POST", `/v1/wardrobe/${garment.id}/tag`, { tagger: { tag } }))
+      .resolves.toEqual({ status: 409, body: { error: "already_tagged" } });
+    expect(tag).not.toHaveBeenCalled();
+    await expect(request("POST", `/v1/wardrobe/${garment.id}/tag`, { tagger: { tag }, body: '{"force":true}' }))
+      .resolves.toMatchObject({ status: 200, body: { garment: { name: input.name, tagStatus: "tagged" } } });
+  });
+
+  it("preserves human edits made during a retag request", async () => {
+    const { wardrobe, photoStore, request } = setup();
+    const garment = await wardrobe.createPhotoGarment("image/jpeg");
+    await photoStore.write(garment.id, "image/jpeg", photoBytes);
+    const tagger: GarmentTagger = { tag: async () => {
+      await wardrobe.replaceGarment(garment.id, { ...input, name: "Human edit" });
+      return { ok: true, tags: { ...input, name: "Model edit" } };
+    } };
+    await expect(request("POST", `/v1/wardrobe/${garment.id}/tag`, { tagger }))
+      .resolves.toEqual({ status: 409, body: { error: "already_tagged" } });
+    await expect(wardrobe.getGarment(garment.id)).resolves.toMatchObject({ name: "Human edit", tagStatus: "tagged" });
+  });
+
+  it("does not mark a human edit failed when a tagging request later fails", async () => {
+    const { wardrobe, photoStore, request } = setup();
+    const garment = await wardrobe.createPhotoGarment("image/jpeg");
+    await photoStore.write(garment.id, "image/jpeg", photoBytes);
+    const tagger: GarmentTagger = { tag: async () => {
+      await wardrobe.replaceGarment(garment.id, { ...input, name: "Human edit" });
+      return { ok: false, reason: "api_error" };
+    } };
+    await expect(request("POST", `/v1/wardrobe/${garment.id}/tag`, { tagger }))
+      .resolves.toMatchObject({ status: 409 });
+    await expect(wardrobe.getGarment(garment.id)).resolves.toMatchObject({ name: "Human edit", tagStatus: "tagged" });
+  });
+
+  it("returns 404 if the garment is deleted while tagging is in flight", async () => {
+    const { wardrobe, photoStore, request } = setup();
+    const garment = await wardrobe.createPhotoGarment("image/jpeg");
+    await photoStore.write(garment.id, "image/jpeg", photoBytes);
+    const tagger: GarmentTagger = { tag: async () => {
+      await wardrobe.deleteGarment(garment.id);
+      return { ok: true, tags: input };
+    } };
+    await expect(request("POST", `/v1/wardrobe/${garment.id}/tag`, { tagger }))
+      .resolves.toEqual({ status: 404, body: { error: "garment_not_found" } });
+  });
+
+  it("keeps no-key uploads untagged and rejects manual retag without a tagger", async () => {
+    const { request } = setup();
+    const result = await request("POST", "/v1/wardrobe/photos", { bodyBytes: photoBytes, contentType: "image/jpeg" });
+    expect(result).toMatchObject({ status: 201, body: { garment: { tagStatus: "untagged" } } });
+    const { garment } = result.body as { garment: Garment };
+    await expect(request("POST", `/v1/wardrobe/${garment.id}/tag`))
+      .resolves.toEqual({ status: 503, body: { error: "tagging_not_configured" } });
+  });
+
+  it("keeps uploads when a tagger unexpectedly throws", async () => {
+    const { request } = setup();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const tagger: GarmentTagger = { tag: vi.fn().mockRejectedValue(new Error("Unexpected failure")) };
+    await expect(request("POST", "/v1/wardrobe/photos", { bodyBytes: photoBytes, contentType: "image/jpeg", tagger }))
+      .resolves.toMatchObject({ status: 201, body: { garment: { tagStatus: "failed" } } });
+  });
+
+  it.each(["{", "null", "[]", '{"force":"true"}'])("rejects invalid retag input %s", async (body) => {
+    const { request } = setup();
+    const tagger: GarmentTagger = { tag: vi.fn() };
+    await expect(request("POST", "/v1/wardrobe/missing/tag", { tagger, body }))
+      .resolves.toEqual({ status: 400, body: { error: "invalid_tag_request" } });
+    expect(tagger.tag).not.toHaveBeenCalled();
+  });
+
+  it("enforces retag auth, body size, method, and photo presence", async () => {
+    const { wardrobe, request } = setup();
+    const tagger: GarmentTagger = { tag: vi.fn() };
+    const manual = await wardrobe.createGarment(input, "manual");
+    await expect(handleRequest("POST", `/v1/wardrobe/${manual.id}/tag`, catalogue, { ownerToken: auth.ownerToken }))
+      .resolves.toMatchObject({ status: 401 });
+    await expect(request("GET", `/v1/wardrobe/${manual.id}/tag`, { tagger }))
+      .resolves.toMatchObject({ status: 405 });
+    await expect(request("POST", `/v1/wardrobe/${manual.id}/tag`, { tagger, bodyTooLarge: true }))
+      .resolves.toMatchObject({ status: 413 });
+    await expect(request("POST", `/v1/wardrobe/${manual.id}/tag`, { tagger }))
+      .resolves.toEqual({ status: 404, body: { error: "photo_not_found" } });
+    await expect(request("POST", "/v1/wardrobe/missing/tag", { tagger }))
+      .resolves.toEqual({ status: 404, body: { error: "garment_not_found" } });
+    expect(tagger.tag).not.toHaveBeenCalled();
+  });
 });
