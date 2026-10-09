@@ -2,6 +2,7 @@ import type { ApiResponse, RequestAuth, RequestOptions } from "./app.js";
 import { ownerAuthError } from "./ownerAuth.js";
 import { MAX_GARMENTS, parseGarmentInput } from "./wardrobe.js";
 import { WardrobeFullError } from "./wardrobeRepository.js";
+import { handleWardrobePhotoRequest, removeGarmentPhoto } from "./wardrobePhotoRoutes.js";
 
 function parseBody(body: string | undefined) {
   try {
@@ -21,6 +22,8 @@ export async function handleWardrobeRequest(
   if (authError) return authError;
   const wardrobe = options.wardrobe;
   if (!wardrobe) return { status: 503, body: { error: "wardrobe_api_not_configured" } };
+  const photoResponse = await handleWardrobePhotoRequest(method, pathname, wardrobe, options);
+  if (photoResponse) return photoResponse;
 
   if (pathname === "/v1/wardrobe") {
     if (method === "GET") {
@@ -59,9 +62,12 @@ export async function handleWardrobeRequest(
       : { status: 404, body: { error: "garment_not_found" } };
   }
   if (method === "DELETE") {
-    return await wardrobe.deleteGarment(id)
-      ? { status: 200, body: { id, deleted: true } }
-      : { status: 404, body: { error: "garment_not_found" } };
+    const garment = await wardrobe.getGarment(id);
+    if (!garment || !await wardrobe.deleteGarment(garment.id)) {
+      return { status: 404, body: { error: "garment_not_found" } };
+    }
+    if (garment.photoUrl) await removeGarmentPhoto(options.photoStore, garment.id);
+    return { status: 200, body: { id: garment.id, deleted: true } };
   }
   const garment = await wardrobe.getGarment(id);
   return garment
