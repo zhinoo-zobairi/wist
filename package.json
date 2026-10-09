@@ -21,6 +21,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@expo-google-fonts/cormorant-garamond": "^0.4.0",
     "@expo-google-fonts/inter": "^0.4.0",
     "@expo/metro-runtime": "~57.0.8",
@@ -37,6 +38,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4",
     "react-native-web": "~0.21.0",
+    "zod": "^4.6.5",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
