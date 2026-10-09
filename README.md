@@ -74,6 +74,7 @@ it. Available endpoints are:
 - `DELETE /v1/wardrobe/:id` (owner token) — permanently deletes the garment
 - `POST /v1/wardrobe/photos` (owner token) — uploads raw JPEG, PNG, or WebP bytes
 - `GET /v1/wardrobe/:id/photo` (owner token) — returns the stored image bytes
+- `POST /v1/wardrobe/:id/tag` (owner token) — retries photo tagging; optional `{ "force": true }` overwrites existing tags
 
 Wardrobe records belong to the same single owner as the style profile and are
 stored in their own SQLite tables. Garment input is `{ name, category, colors,
@@ -91,7 +92,7 @@ fails without automatic retry and rolls back its changes.
 Photo uploads use `Content-Type: image/jpeg`, `image/png`, or `image/webp` and a
 nonempty binary body, not JSON or base64. The limit is 5 MiB (5,242,880 bytes);
 larger bodies return `413 payload_too_large`, and unsupported types return
-`415 unsupported_media_type`. An upload creates a `source: "photo"` garment
+`415 unsupported_media_type`. Without a tagging key, an upload creates a `source: "photo"` garment
 with `tagStatus: "untagged"` and a relative `photoUrl`. Initial attributes are
 “Untitled garment”, `top`, `["unknown"]`, `casual`, `medium`, and no occasions;
 editing attributes marks it `tagged` and preserves its source and photo.
@@ -104,6 +105,58 @@ the new garment and returns `500 photo_store_failed`. Deletion removes the
 database record first; if file removal fails, the error is logged and deletion
 still succeeds, potentially leaving an inaccessible orphan file. Existing
 wardrobe databases upgrade in place, preserving their garments and child rows.
+
+To enable automatic garment tagging, set **`ANTHROPIC_API_KEY`** in the backend's
+`.env.local` or environment. Never use an `EXPO_PUBLIC_` prefix for this key;
+the mobile app never calls an LLM. This integration uses **direct Anthropic**
+at `https://api.anthropic.com`, explicitly ignoring the shell's LiteLLM
+`ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN`. Leaving the key empty keeps
+uploads working with `tagStatus: "untagged"`; manual tagging then returns
+`503 tagging_not_configured`.
+
+With the key configured, the upload saves the photo and synchronously asks
+`claude-opus-5-5` to tag it before responding. It uses low effort, a maximum of
+2,000 output tokens, a 60,000 ms timeout **per attempt**, and two SDK retries
+(up to three attempts plus backoff, not a 60-second overall deadline).
+Server-side refusal fallback is enabled with
+`server-side-fallback-2026-07-01` and `fallbacks: "default"`. The implementation
+uses `client.beta.messages.parse` and Zod structured output, followed by the
+same domain validator used for manual input. A refusal, invalid output, or API
+failure keeps the garment and photo and still returns `201` with
+`tagStatus: "failed"`.
+
+Retry failed or untagged photos with `POST /v1/wardrobe/:id/tag`. There is no
+background job or startup retry. Tagged garments return `409 already_tagged`
+unless the JSON body is `{ "force": true }`. A human edit during an ordinary
+tagging call is preserved, and that retag returns `409 already_tagged` too.
+Force allows overwriting the attributes, including notes. The existing HTTP
+server accepts concurrent requests, so simultaneous uploads can run paid calls
+concurrently. An interrupted or timed-out call may have already incurred a
+charge; SDK retries or a later manual retry can repeat that processing. A
+restart does not automatically resume unfinished tagging.
+
+**Privacy:** garment photos are sent to Anthropic, including its configured
+fallback model when used. Anthropic's API retention policy for the owner's
+account applies independently of Wist's local retention; check it in the
+Anthropic Console. SDK payload logging is disabled, and tagging errors log
+only error class/status or the failure reason, never image bytes or keys.
+Local photos remain until garment deletion. Backing up SQLite alone does not
+back up photos. The full approved policies and crash limitations are recorded
+in [Wardrobe decisions](docs/WARDROBE_DECISIONS.md).
+
+The backend wiring is:
+
+```text
+catalogue:start → server.ts → Anthropic client → ClaudeGarmentTagger
+                  └→ handleRequest → handleWardrobeRequest → photo/tag routes
+                                                             ├→ photoStore.write/read
+                                                             └→ tagger.tag → wardrobe.applyTags/markTagFailed
+```
+
+Tests use fake taggers and a stubbed SDK transport; they do not call Anthropic.
+A live tagging check requires a real backend key and a garment photo. Wardrobe
+capture/review in the mobile app is the next slice (#6); these endpoints can
+already be exercised by an HTTP client.
 
 The service uses a local SQLite database. Configure the owner token before
 starting it:

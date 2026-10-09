@@ -1,0 +1,107 @@
+# Wardrobe decisions — 2026-10-10
+
+The owner approved these decisions in the implementation session for
+[epic #1](https://github.com/zhinoo-zobairi/wist/issues/1) and issues
+[#3](https://github.com/zhinoo-zobairi/wist/issues/3),
+[#4](https://github.com/zhinoo-zobairi/wist/issues/4), and
+[#5](https://github.com/zhinoo-zobairi/wist/issues/5). This records agreement;
+the original unticked proposals on GitHub have not been edited.
+
+## Ownership and records (#3)
+
+The existing backend owns durable wardrobe records, photos, and model calls,
+alongside its existing owner style profile. Wardrobe has its own repository,
+tables, and routes; it shares the SQLite file, process, and owner token with
+the other modules. The mobile app never receives an API key or calls a model.
+
+| Rule | Approved value |
+|---|---|
+| Categories | `top`, `bottom`, `dress`, `outerwear`, `shoes`, `bag`, `accessory` |
+| Formality | `casual`, `smart_casual`, `formal` |
+| Warmth | `light`, `medium`, `heavy` |
+| Occasions | Reuse `work`, `evening`, `weekend`, `celebration`, `travel`; unique; may be empty |
+| Colors | 1–3 unique labels, trimmed/lowercased, each 1–24 characters |
+| Name | Trimmed, nonempty, at most 80 characters |
+| Notes | Optional, trimmed, at most 280 characters |
+| Capacity | 300 garments, including photo garments; creation then returns `409 wardrobe_full` |
+| Deletion | Permanent parent and child-row deletion; no undo |
+| SQLite | Existing WAL mode, foreign keys enabled, `busy_timeout = 5000` ms; transactional writes |
+
+The capacity check runs inside `BEGIN IMMEDIATE` to prevent races. A database
+lock lasting beyond the five-second wait fails the request; changes inside
+the transaction roll back, with no application retry. Vocabulary changes will
+need a data migration. The photo-source migration preserves existing manual
+garments, colors, occasions, and timestamps.
+
+## Photos (#4)
+
+| Rule | Approved value |
+|---|---|
+| Location | `<dirname(CATALOGUE_DB_PATH)>/wardrobe-photos/<server-generated UUID>.<ext>` |
+| Formats | `image/jpeg`, `image/png`, `image/webp` |
+| Upload cap | 5 MiB = 5,242,880 bytes; raw binary body |
+| Retention | Until garment deletion; no separate backup mechanism |
+| Initial attributes | `Untitled garment`, `top`, `["unknown"]`, `casual`, `medium`, `[]`, notes `null` |
+| Initial status | Photo garments `untagged`; manual garments `tagged` |
+| File-write failure | Remove the garment, attempt partial-file cleanup, return `500 photo_store_failed` |
+| File-delete failure | Log the garment id and keep the successful database deletion; an inaccessible orphan may remain |
+
+Paths use a stored server-generated UUID and fixed media-type extension map,
+never the raw request path. Photo reads require the owner token. Backups must
+include both the database and photo directory.
+
+## Tagging (#5)
+
+The owner selected the issue's direct Anthropic proposal over the offered
+Sonnet/LiteLLM alternative. This task-specific choice overrides the personal
+default for this integration only.
+
+| Rule | Approved value |
+|---|---|
+| Provider | Direct `https://api.anthropic.com`; backend-only `ANTHROPIC_API_KEY` |
+| Model | `claude-opus-5-5` |
+| Effort | `low` |
+| Output cap | `max_tokens = 2000` |
+| Timing | Synchronous after photo persistence, before the upload response |
+| Attempt timeout | 60,000 ms |
+| SDK retries | 2 (up to 3 attempts plus SDK backoff); includes connection failures/timeouts and retryable HTTP responses |
+| Refusal fallback | `betas: ["server-side-fallback-2026-07-01"]`, `fallbacks: "default"` |
+| Failure | Keep the garment/photo, set `failed`; upload still returns `201` |
+| Later retry | Manual `POST /v1/wardrobe/:id/tag`; no background or startup retry |
+| Overwrite | Only `untagged`/`failed` unless `{ "force": true }`; re-check status when applying the result |
+| No key | Upload stays `untagged`; retag returns `503 tagging_not_configured` |
+| Dependencies | `@anthropic-ai/sdk` and `zod` |
+| Provider privacy | Clothing photos are sent to Anthropic; the account's API retention policy applies |
+
+SDK 0.133.0 supports `client.beta.messages.parse`, so the implementation uses
+that single path with the beta fallback parameters. Zod checks structured
+output; `parseGarmentInput` checks vocabulary, lengths, counts, and uniqueness.
+The parser preserves refusals and malformed output for explicit classification.
+Errors log class/status, not provider payloads, photos, or keys. SDK logging
+is disabled. Explicit base URL and `authToken: null` keep shell LiteLLM settings
+from rerouting this integration.
+
+## Remaining limitations
+
+- No overall 60-second deadline: three attempts plus backoff can take longer.
+  A timeout can occur after the provider did paid work; retries may repeat it.
+  Provider fallback can also perform additional processing. Actual cost and
+  model/fallback access have not been verified against the owner's account.
+- Existing HTTP concurrency is unchanged. Concurrent uploads can run paid calls
+  concurrently; there is no new queue or request concurrency limit.
+- A normal shutdown waits for in-flight HTTP requests. Forced termination after
+  a photo is saved can leave tagging unfinished. A manual retry after restart
+  may repeat an already-paid call; no model results or checkpoints are stored.
+- SQLite and disk are separate stores. A crash between row insertion and file
+  write can leave a garment without a photo; its photo endpoint returns 404.
+  A crash after row deletion but before file removal can leave an orphan.
+  No reconciliation job or file garbage collector was added.
+- A human edit during an ordinary call is preserved; a retag then returns
+  `409 already_tagged`, even if the model call incurred a charge. Explicit force
+  allows overwriting current attributes and notes. A forced attempt that fails
+  keeps attributes but marks the garment `failed`.
+- Photos and garments remain single-owner. Multi-user auth, cloud storage,
+  mobile wardrobe UI, outfit generation, and calendar processing are later work.
+- The live photo acceptance check remains pending: no backend
+  `ANTHROPIC_API_KEY` is configured in the shell or `.env.local`. Automated tests
+  replace the tagger or SDK transport and make no Anthropic calls.
