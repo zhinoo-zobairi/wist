@@ -11,8 +11,10 @@ describe("bounded request bodies", () => {
   });
 
   it.each([MAX_JSON_BODY_BYTES, MAX_PHOTO_BYTES])("accepts exactly %d bytes and rejects one extra", async (limit) => {
-    await expect(readRequestBody(Readable.from([Buffer.alloc(limit)]), limit))
-      .resolves.toEqual({ bodyBytes: Buffer.alloc(limit) });
+    const bytes = Buffer.alloc(limit, 255);
+    const result = await readRequestBody(Readable.from([bytes]), limit);
+    expect(result.bodyTooLarge).toBeUndefined();
+    expect(result.bodyBytes?.equals(bytes)).toBe(true);
     await expect(readRequestBody(Readable.from([Buffer.alloc(limit), Buffer.from([1])]), limit))
       .resolves.toEqual({ bodyTooLarge: true });
   });
