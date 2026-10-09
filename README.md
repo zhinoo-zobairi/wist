@@ -47,6 +47,42 @@ Wist is closed.
 
 ## Catalogue backend
 
+### Build your wardrobe
+
+Open **Profile → Wardrobe → Add**, then take a photo or choose one from your
+library. Wist converts it to JPEG at quality 0.8, limiting the longest edge to
+1,568 pixels without enlarging smaller images. After “Reading your garment…”,
+the editor opens so you can check the name, category, colors, formality,
+warmth, occasions, and notes. Save sends the changes to the backend. Tap a
+garment later to edit it, re-read its photo, or permanently delete it after
+confirmation. Re-reading replaces saved details and notes and may incur
+another model charge.
+
+Run the backend using the same owner token as the phone. A backend-only
+`ANTHROPIC_API_KEY` enables automatic tagging; without it, photos remain
+**Not tagged · Retry** and can still be edited by hand. **Couldn't tag · Retry**
+means an attempted read failed. There is no background tagging job.
+
+Uploads and photo re-reading have a **90,000 ms phone timeout**, with no
+automatic client retries. The backend's retries can take longer. If the
+connection ends before an upload response arrives, the garment may already
+exist and still be processing: **Retry refreshes the wardrobe**. Explicitly
+adding the photo again can create a duplicate and repeat paid processing.
+Other wardrobe calls have no application-level timeout. Records update only
+from server responses; failed actions preserve the current list. Wardrobe
+records and pending actions are never saved in AsyncStorage or queued offline.
+
+Photos use authenticated native image requests. Browser previews may ignore
+image authorization headers and show **Photo unavailable**; the native app is
+the intended photo workflow. Camera and library permission copy is configured
+for native builds; no microphone permission is requested by wardrobe capture.
+
+```text
+App profileView → Profile → WardrobeScreen / GarmentEditScreen
+                              ├→ image picker → garmentPhoto → JPEG URI
+                              └→ useWistStore → catalogueClient → wardrobe API
+```
+
 The first backend slice is a separate TypeScript catalogue service. It owns the
 normalized brand/product API contract and the single-user watch list consumed
 by the mobile app.
@@ -159,9 +195,8 @@ catalogue:start → server.ts → Anthropic client → ClaudeGarmentTagger
 ```
 
 Tests use fake taggers and a stubbed SDK transport; they do not call Anthropic.
-A live tagging check requires a real backend key and a garment photo. Wardrobe
-capture/review in the mobile app is the next slice (#6); these endpoints can
-already be exercised by an HTTP client.
+A live tagging check requires a real backend key and a garment photo. Native
+capture/review is available through Profile → Wardrobe.
 
 The service uses a local SQLite database. Configure the owner token before
 starting it:

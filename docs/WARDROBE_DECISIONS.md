@@ -106,7 +106,50 @@ from rerouting this integration.
   refused with `409 already_tagged`. (Changed 2026-10-10; previously a failed
   forced attempt marked the garment `failed`.)
 - Photos and garments remain single-owner. Multi-user auth, cloud storage,
-  mobile wardrobe UI, outfit generation, and calendar processing are later work.
+  outfit generation and calendar processing are later work.
 - The live photo acceptance check remains pending: no backend
   `ANTHROPIC_API_KEY` is configured in the shell or `.env.local`. Automated tests
   replace the tagger or SDK transport and make no Anthropic calls.
+
+## Mobile wardrobe (#6)
+
+Approved in the same implementation session:
+
+| Rule | Approved value |
+|---|---|
+| Ownership | Backend remains authoritative; phone owns capture and draft editing only |
+| Navigation | Wardrobe row at the top of Profile; five tabs; existing state-based navigation |
+| Dependencies | SDK 57-compatible `expo-image-picker` and `expo-image-manipulator` |
+| Image policy | Long edge ≤1,568 px; no upscaling; JPEG quality 0.8 |
+| Camera copy | “Wist uses your camera to photograph clothes you own.” |
+| Library copy | “Wist reads the photos you choose to add clothes you own.” |
+| Capture | Photos only; `microphonePermission: false`; no microphone request |
+| Upload and retag timeout | 90,000 ms on the phone; no automatic client retry |
+| Other calls | Existing client behavior: no application-level timeout |
+| Updates | Server responses only; no optimistic changes; errors preserve records |
+| Offline | No action queue or wardrobe persistence in AsyncStorage |
+| Untagged copy | “Not tagged · Retry”; tagging does not run in the background |
+| Uncertain upload | Retry refreshes records; no automatic re-upload |
+
+The backend can continue processing after the phone disconnects or times out.
+Explicitly adding the photo again may duplicate both a garment and paid work.
+Re-reading requires explicit confirmation before sending `{force:true}`;
+it replaces saved attributes/notes and unsaved editor changes. Deletion requires
+an in-app confirmation and remains permanent. Leaving a screen does not cancel
+server work; late results update the store but cannot navigate that old screen.
+A list read started before a confirmed mutation cannot undo the newer response.
+
+Native image sources attach the owner token only to the garment's exact relative
+backend photo route. Web image elements may ignore authorization headers and
+show a placeholder; native is the intended photo workflow for this prototype.
+Permission plugin changes take effect in rebuilt native binaries, not in an
+already-installed Expo Go binary's own permission wording.
+
+Automated coverage verifies client transport/auth, strict response validation,
+90-second deadlines, uncertain outcomes, server-authoritative store updates,
+no device persistence, and the resize/JPEG/resource-release policy. Native
+camera/library/manual end-to-end verification remains pending: simulator access
+was blocked by the sandbox and its escalation could not run because automatic
+approval review returned 403 (reviewer model unavailable). No physical iPhone
+was available. This is a review infrastructure failure, not an unsafe-action
+finding. Live tagging also requires a backend key that is not configured here.
