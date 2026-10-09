@@ -129,7 +129,9 @@ Retry failed or untagged photos with `POST /v1/wardrobe/:id/tag`. There is no
 background job or startup retry. Tagged garments return `409 already_tagged`
 unless the JSON body is `{ "force": true }`. A human edit during an ordinary
 tagging call is preserved, and that retag returns `409 already_tagged` too.
-Force allows overwriting the attributes, including notes. The existing HTTP
+Force allows overwriting the attributes, including notes, but only as they
+stood when the retag started: if the garment is edited while the model call
+runs, the edit is kept and the retag returns `409 garment_changed`. The existing HTTP
 server accepts concurrent requests, so simultaneous uploads can run paid calls
 concurrently. An interrupted or timed-out call may have already incurred a
 charge; SDK retries or a later manual retry can repeat that processing. A

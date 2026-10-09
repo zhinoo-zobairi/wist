@@ -98,8 +98,10 @@ from rerouting this integration.
   No reconciliation job or file garbage collector was added.
 - A human edit during an ordinary call is preserved; a retag then returns
   `409 already_tagged`, even if the model call incurred a charge. Explicit force
-  allows overwriting current attributes and notes. A forced attempt that fails
-  keeps attributes but marks the garment `failed`.
+  allows overwriting current attributes and notes, but only if the garment is
+  unchanged since the retag started; an edit saved mid-call is kept and the
+  retag returns `409 garment_changed`. A forced attempt that fails keeps
+  attributes but marks the garment `failed` (same unchanged-garment condition).
 - Photos and garments remain single-owner. Multi-user auth, cloud storage,
   mobile wardrobe UI, outfit generation, and calendar processing are later work.
 - The live photo acceptance check remains pending: no backend
