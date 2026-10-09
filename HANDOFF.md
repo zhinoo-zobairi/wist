@@ -36,6 +36,15 @@
 > baseline; un-coveting and coveting again re-baselines on purpose. A piece that
 > was never coveted now raises no alert at all, which the §5 model always implied
 > ("for each starred item") but the engine did not enforce.
+>
+> **Wardrobe & outfits update (2026-10-10):** The owner moved wardrobe inventory
+> (slice B) and outfit suggestions (slice C) into scope; the slices are outlined in
+> `docs/superpowers/specs/2026-08-21-style-profile-onboarding-design.md` and tracked
+> in [epic #1](https://github.com/zhinoo-zobairi/wist/issues/1). Garments are captured
+> by photo and tagged by Claude in the backend; the mobile app never calls an LLM.
+> Outfit suggestions combine owned garments, the style profile, an occasion, and
+> later weather and calendar. Buy-through (slice D) stays out of scope; “I bought
+> this” on a coveted item is the interim path into the wardrobe.
 
 ---
 
@@ -51,13 +60,13 @@ alert is the entire point of v1. It is not a social network; the feed is a deliv
 
 | ✅ In v1 (build this) | ❌ Out of v1 (do NOT build) |
 |---|---|
-| Instagram-style **feed** of followed brands | Wardrobe scan / digital closet |
-| Per-brand **browse** (grid) | AI outfit generation / stylist |
+| Instagram-style **feed** of followed brands | ~~Wardrobe scan / digital closet~~ → in scope, see update |
+| Per-brand **browse** (grid) | ~~AI outfit generation / stylist~~ → in scope, see update |
 | **Follow** a brand | Google image / product matching |
 | **Star** an item → adds to watchlist | Restock / low-stock / new-drop alerts |
 | **Price-drop detection** on starred items | Size-aware alerts (→ v1.5) |
 | **Push notification** on a drop (the hero) | Non-clothing categories (electronics, etc.) |
-| **Alerts screen** (drop history) | Buy-through / purchase import |
+| **Alerts screen** (drop history) | Buy-through / purchase import (interim: “I bought this”, see update) |
 | Seeded/mock data layer behind a clean interface | **Live web scraping** (see §6 — gated on a pending decision) |
 
 **Hero signal: PRICE DROP only.** Everything else is a later chapter.
