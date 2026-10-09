@@ -99,12 +99,13 @@ backend. While the catalogue service is running, it immediately checks every
 watched product and repeats the cycle every six hours. Set
 `CATALOGUE_WATCH_INTERVAL_MS` to a positive number of milliseconds to change
 that cadence. Checks run sequentially, failed products do not stop the cycle,
-and detected drops persist for the app to synchronize. Bobbies observations
+and detected drops persist for the app to synchronize. Shopify and Bobbies observations
 also persist the size availability published by the product page, which the
 product detail screen displays and lets you tap to choose which sizes matter.
 A watch with chosen sizes only turns a drop into an alert when one of those
 labels is available in the new observation; a watch with no chosen sizes alerts
-on any drop, as before. Sizes are matched on the storefront's own published
+on any drop, as before. Sandro pages do not expose sizes yet, so a Sandro watch
+always alerts on any drop. Sizes are matched on the storefront's own published
 labels, so there is no cross-brand size normalization. There is no product
 discovery, restock notification, remote push delivery, or automatic checkout
 yet.
