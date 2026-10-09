@@ -274,6 +274,30 @@ describe("wardrobe API", () => {
     await expect(wardrobe.getGarment(garment.id)).resolves.toMatchObject({ name: "Human edit", tagStatus: "tagged" });
   });
 
+  it.each([
+    ["succeeds", { ok: true, tags: { ...input, name: "Model edit" } }],
+    ["fails", { ok: false, reason: "api_error" }],
+  ] as const)("keeps a human edit saved while a forced retag %s", async (_, outcome) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { wardrobe, photoStore, request } = setup();
+      vi.setSystemTime(new Date("2026-10-10T09:00:00.000Z"));
+      const garment = await wardrobe.createPhotoGarment("image/jpeg");
+      await photoStore.write(garment.id, "image/jpeg", photoBytes);
+      await wardrobe.replaceGarment(garment.id, { ...input, name: "Before" });
+      const tagger: GarmentTagger = { tag: async () => {
+        vi.setSystemTime(new Date("2026-10-10T09:00:30.000Z"));
+        await wardrobe.replaceGarment(garment.id, { ...input, name: "Human edit" });
+        return outcome;
+      } };
+      await expect(request("POST", `/v1/wardrobe/${garment.id}/tag`, { tagger, body: '{"force":true}' }))
+        .resolves.toEqual({ status: 409, body: { error: "garment_changed" } });
+      await expect(wardrobe.getGarment(garment.id)).resolves.toMatchObject({ name: "Human edit", tagStatus: "tagged" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it.each(["image/jpeg; charset=binary", "Image/JPEG", " image/jpeg "])(
     "accepts the photo content type %j", async (contentType) => {
       const { request } = setup();

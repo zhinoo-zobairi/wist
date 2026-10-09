@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SqliteWardrobeRepository } from "./sqliteWardrobeRepository.js";
 import type { GarmentInput } from "./wardrobe.js";
@@ -121,11 +121,33 @@ describe("SQLite wardrobe repository", () => {
     await expect(repository.applyTags(garment.id, { ...input, name: "Overwrite" })).resolves.toBeNull();
     await expect(repository.markTagFailed(garment.id)).resolves.toBeNull();
     await expect(repository.getGarment(garment.id)).resolves.toMatchObject({ name: input.name, tagStatus: "tagged" });
-    await expect(repository.applyTags(garment.id, { ...input, colors: ["cream"] }, true))
-      .resolves.toMatchObject({ colors: ["cream"], tagStatus: "tagged" });
-    await expect(repository.markTagFailed(garment.id, true)).resolves.toMatchObject({ colors: ["cream"], tagStatus: "failed" });
+    const tagged = (await repository.getGarment(garment.id))!;
+    const forced = await repository.applyTags(garment.id, { ...input, colors: ["cream"] }, tagged.updatedAt);
+    expect(forced).toMatchObject({ colors: ["cream"], tagStatus: "tagged" });
+    await expect(repository.markTagFailed(garment.id, forced!.updatedAt))
+      .resolves.toMatchObject({ colors: ["cream"], tagStatus: "failed" });
     await expect(repository.applyTags("missing", input)).resolves.toBeNull();
     await expect(repository.markTagFailed("missing")).resolves.toBeNull();
+  });
+
+  it("refuses forced tag writes once the garment changed after it was read", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const repository = createRepository();
+      vi.setSystemTime(new Date("2026-10-10T09:00:00.000Z"));
+      const garment = await repository.createPhotoGarment("image/jpeg");
+      const readBeforeTagging = (await repository.replaceGarment(garment.id, input))!;
+      vi.setSystemTime(new Date("2026-10-10T09:00:30.000Z")); // the owner saves while the model call runs
+      await repository.replaceGarment(garment.id, { ...input, name: "Edited mid-call" });
+
+      await expect(repository.applyTags(garment.id, { ...input, name: "Model" }, readBeforeTagging.updatedAt))
+        .resolves.toBeNull();
+      await expect(repository.markTagFailed(garment.id, readBeforeTagging.updatedAt)).resolves.toBeNull();
+      await expect(repository.getGarment(garment.id))
+        .resolves.toMatchObject({ name: "Edited mid-call", tagStatus: "tagged" });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("upgrades the B1.1 schema without losing garments or child rows and can reopen it", async () => {

@@ -46,7 +46,7 @@ async function uploadPhoto(wardrobe: WardrobeRepository, options: RequestOptions
   if (options.tagger) {
     garment = await tagAndSave(wardrobe, options.tagger, garment.id, {
       bytes: bodyBytes, mediaType: contentType as PhotoMediaType,
-    }, false) ?? await wardrobe.getGarment(garment.id);
+    }) ?? await wardrobe.getGarment(garment.id);
     if (!garment) return { status: 404, body: { error: "garment_not_found" } };
   }
   return { status: 201, body: { garment } };
@@ -54,7 +54,7 @@ async function uploadPhoto(wardrobe: WardrobeRepository, options: RequestOptions
 
 async function tagAndSave(
   wardrobe: WardrobeRepository, tagger: GarmentTagger, id: string,
-  photo: Parameters<GarmentTagger["tag"]>[0], force: boolean,
+  photo: Parameters<GarmentTagger["tag"]>[0], expectedUpdatedAt?: string,
 ) {
   let result: TagResult;
   try {
@@ -64,8 +64,8 @@ async function tagAndSave(
     result = { ok: false, reason: "api_error" };
   }
   return result.ok
-    ? wardrobe.applyTags(id, result.tags, force)
-    : wardrobe.markTagFailed(id, force);
+    ? wardrobe.applyTags(id, result.tags, expectedUpdatedAt)
+    : wardrobe.markTagFailed(id, expectedUpdatedAt);
 }
 
 async function retagPhoto(id: string, wardrobe: WardrobeRepository, options: RequestOptions): Promise<ApiResponse> {
@@ -96,11 +96,15 @@ async function retagPhoto(id: string, wardrobe: WardrobeRepository, options: Req
   }
   const bytes = await options.photoStore.read(garment.id, mediaType!);
   if (!bytes) return { status: 404, body: { error: "photo_not_found" } };
-  const tagged = await tagAndSave(wardrobe, options.tagger, garment.id, { bytes, mediaType: mediaType as PhotoMediaType }, force);
+  // A forced retag only overwrites the garment as it was read here, so an edit
+  // saved while the model call runs is never silently replaced.
+  const tagged = await tagAndSave(
+    wardrobe, options.tagger, garment.id, { bytes, mediaType: mediaType as PhotoMediaType },
+    force ? garment.updatedAt : undefined,
+  );
   if (tagged) return { status: 200, body: { garment: tagged } };
-  return await wardrobe.getGarment(garment.id)
-    ? { status: 409, body: { error: "already_tagged" } }
-    : { status: 404, body: { error: "garment_not_found" } };
+  if (!await wardrobe.getGarment(garment.id)) return { status: 404, body: { error: "garment_not_found" } };
+  return { status: 409, body: { error: force ? "garment_changed" : "already_tagged" } };
 }
 
 export async function handleWardrobePhotoRequest(
