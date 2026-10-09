@@ -72,6 +72,8 @@ it. Available endpoints are:
 - `GET /v1/wardrobe/:id` (owner token)
 - `PUT /v1/wardrobe/:id` (owner token) — replaces all editable attributes
 - `DELETE /v1/wardrobe/:id` (owner token) — permanently deletes the garment
+- `POST /v1/wardrobe/photos` (owner token) — uploads raw JPEG, PNG, or WebP bytes
+- `GET /v1/wardrobe/:id/photo` (owner token) — returns the stored image bytes
 
 Wardrobe records belong to the same single owner as the style profile and are
 stored in their own SQLite tables. Garment input is `{ name, category, colors,
@@ -85,6 +87,23 @@ are at most 280 characters. A wardrobe holds at most 300 garments; further
 creation returns `409 wardrobe_full`. Deletion has no undo. Writes use the
 existing SQLite WAL mode and a 5,000 ms lock wait; a write that remains blocked
 fails without automatic retry and rolls back its changes.
+
+Photo uploads use `Content-Type: image/jpeg`, `image/png`, or `image/webp` and a
+nonempty binary body, not JSON or base64. The limit is 5 MiB (5,242,880 bytes);
+larger bodies return `413 payload_too_large`, and unsupported types return
+`415 unsupported_media_type`. An upload creates a `source: "photo"` garment
+with `tagStatus: "untagged"` and a relative `photoUrl`. Initial attributes are
+“Untitled garment”, `top`, `["unknown"]`, `casual`, `medium`, and no occasions;
+editing attributes marks it `tagged` and preserves its source and photo.
+Manual garments are already `tagged` and have no photo URL.
+
+Photos live at `<database directory>/wardrobe-photos/<garment UUID>.<ext>` and
+are kept until the garment is deleted. Back up that directory together with
+SQLite; Wist adds no separate backup mechanism. A failed photo write removes
+the new garment and returns `500 photo_store_failed`. Deletion removes the
+database record first; if file removal fails, the error is logged and deletion
+still succeeds, potentially leaving an inaccessible orphan file. Existing
+wardrobe databases upgrade in place, preserving their garments and child rows.
 
 The service uses a local SQLite database. Configure the owner token before
 starting it:
