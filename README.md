@@ -67,6 +67,24 @@ it. Available endpoints are:
 - `PUT /v1/watches/:itemId` (owner token) — optional `{ "sizes": ["38"] }` body; an absent key leaves the selection untouched, `[]` clears it
 - `DELETE /v1/watches/:itemId` (owner token)
 - `GET /v1/alerts` (owner token)
+- `GET /v1/wardrobe` (owner token) — lists owned garments, newest first
+- `POST /v1/wardrobe` (owner token) — creates a garment from typed-in attributes
+- `GET /v1/wardrobe/:id` (owner token)
+- `PUT /v1/wardrobe/:id` (owner token) — replaces all editable attributes
+- `DELETE /v1/wardrobe/:id` (owner token) — permanently deletes the garment
+
+Wardrobe records belong to the same single owner as the style profile and are
+stored in their own SQLite tables. Garment input is `{ name, category, colors,
+formality, warmth, occasions, notes? }`. Categories are `top`, `bottom`, `dress`,
+`outerwear`, `shoes`, `bag`, and `accessory`; formality is `casual`,
+`smart_casual`, or `formal`; warmth is `light`, `medium`, or `heavy`. Occasions
+reuse `work`, `evening`, `weekend`, `celebration`, and `travel` (an empty selection
+is valid). Colors contain 1–3 unique labels, trimmed and lowercased, each at most
+24 characters; names are nonempty and at most 80 characters, and optional notes
+are at most 280 characters. A wardrobe holds at most 300 garments; further
+creation returns `409 wardrobe_full`. Deletion has no undo. Writes use the
+existing SQLite WAL mode and a 5,000 ms lock wait; a write that remains blocked
+fails without automatic retry and rolls back its changes.
 
 The service uses a local SQLite database. Configure the owner token before
 starting it:
