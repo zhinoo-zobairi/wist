@@ -195,8 +195,8 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
     return this.writeAttributes(id, tags, expectedUpdatedAt ?? "untagged");
   }
 
-  async markTagFailed(id: string, expectedUpdatedAt?: string): Promise<Garment | null> {
-    const guard = writeGuard(expectedUpdatedAt ?? "untagged");
+  async markTagFailed(id: string): Promise<Garment | null> {
+    const guard = writeGuard("untagged");
     const result = this.database.prepare(`
       UPDATE garments SET tag_status = 'failed', updated_at = ?
       WHERE id = ? AND ${guard.sql}

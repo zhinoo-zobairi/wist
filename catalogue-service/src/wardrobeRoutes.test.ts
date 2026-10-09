@@ -270,14 +270,28 @@ describe("wardrobe API", () => {
       return { ok: false, reason: "api_error" };
     } };
     await expect(request("POST", `/v1/wardrobe/${garment.id}/tag`, { tagger }))
-      .resolves.toMatchObject({ status: 409 });
+      .resolves.toEqual({ status: 502, body: { error: "tagging_failed" } });
     await expect(wardrobe.getGarment(garment.id)).resolves.toMatchObject({ name: "Human edit", tagStatus: "tagged" });
   });
 
+  it("leaves a tagged garment tagged when a forced retag fails", async () => {
+    const { wardrobe, photoStore, request } = setup();
+    const garment = await wardrobe.createPhotoGarment("image/jpeg");
+    await photoStore.write(garment.id, "image/jpeg", photoBytes);
+    await wardrobe.replaceGarment(garment.id, { ...input, name: "My edited name" });
+    const tag = vi.fn<GarmentTagger["tag"]>().mockResolvedValue({ ok: false, reason: "api_error" });
+    await expect(request("POST", `/v1/wardrobe/${garment.id}/tag`, { tagger: { tag }, body: '{"force":true}' }))
+      .resolves.toEqual({ status: 502, body: { error: "tagging_failed" } });
+    await expect(wardrobe.getGarment(garment.id)).resolves.toMatchObject({ name: "My edited name", tagStatus: "tagged" });
+    // An ordinary retag is therefore still refused, so a later call cannot replace the edit unasked.
+    await expect(request("POST", `/v1/wardrobe/${garment.id}/tag`, { tagger: { tag } }))
+      .resolves.toEqual({ status: 409, body: { error: "already_tagged" } });
+  });
+
   it.each([
-    ["succeeds", { ok: true, tags: { ...input, name: "Model edit" } }],
-    ["fails", { ok: false, reason: "api_error" }],
-  ] as const)("keeps a human edit saved while a forced retag %s", async (_, outcome) => {
+    ["succeeds", { ok: true, tags: { ...input, name: "Model edit" } }, { status: 409, body: { error: "garment_changed" } }],
+    ["fails", { ok: false, reason: "api_error" }, { status: 502, body: { error: "tagging_failed" } }],
+  ] as const)("keeps a human edit saved while a forced retag %s", async (_, outcome, expected) => {
     vi.useFakeTimers({ toFake: ["Date"] });
     try {
       const { wardrobe, photoStore, request } = setup();
@@ -291,7 +305,7 @@ describe("wardrobe API", () => {
         return outcome;
       } };
       await expect(request("POST", `/v1/wardrobe/${garment.id}/tag`, { tagger, body: '{"force":true}' }))
-        .resolves.toEqual({ status: 409, body: { error: "garment_changed" } });
+        .resolves.toEqual(expected);
       await expect(wardrobe.getGarment(garment.id)).resolves.toMatchObject({ name: "Human edit", tagStatus: "tagged" });
     } finally {
       vi.useRealTimers();

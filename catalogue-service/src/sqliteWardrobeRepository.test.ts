@@ -111,7 +111,7 @@ describe("SQLite wardrobe repository", () => {
     await expect(repository.getPhotoMediaType("missing")).resolves.toBeNull();
   });
 
-  it("applies tags atomically, records failures, and protects tagged garments unless forced", async () => {
+  it("applies tags atomically, records failures, and never marks a tagged garment failed", async () => {
     const repository = createRepository();
     const garment = await repository.createPhotoGarment("image/webp");
     await expect(repository.markTagFailed(garment.id)).resolves.toMatchObject({ tagStatus: "failed" });
@@ -124,8 +124,8 @@ describe("SQLite wardrobe repository", () => {
     const tagged = (await repository.getGarment(garment.id))!;
     const forced = await repository.applyTags(garment.id, { ...input, colors: ["cream"] }, tagged.updatedAt);
     expect(forced).toMatchObject({ colors: ["cream"], tagStatus: "tagged" });
-    await expect(repository.markTagFailed(garment.id, forced!.updatedAt))
-      .resolves.toMatchObject({ colors: ["cream"], tagStatus: "failed" });
+    await expect(repository.markTagFailed(garment.id)).resolves.toBeNull();
+    await expect(repository.getGarment(garment.id)).resolves.toMatchObject({ colors: ["cream"], tagStatus: "tagged" });
     await expect(repository.applyTags("missing", input)).resolves.toBeNull();
     await expect(repository.markTagFailed("missing")).resolves.toBeNull();
   });
@@ -142,7 +142,6 @@ describe("SQLite wardrobe repository", () => {
 
       await expect(repository.applyTags(garment.id, { ...input, name: "Model" }, readBeforeTagging.updatedAt))
         .resolves.toBeNull();
-      await expect(repository.markTagFailed(garment.id, readBeforeTagging.updatedAt)).resolves.toBeNull();
       await expect(repository.getGarment(garment.id))
         .resolves.toMatchObject({ name: "Edited mid-call", tagStatus: "tagged" });
     } finally {

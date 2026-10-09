@@ -44,9 +44,9 @@ async function uploadPhoto(wardrobe: WardrobeRepository, options: RequestOptions
     return { status: 500, body: { error: "photo_store_failed" } };
   }
   if (options.tagger) {
-    garment = await tagAndSave(wardrobe, options.tagger, garment.id, {
+    garment = (await tagAndSave(wardrobe, options.tagger, garment.id, {
       bytes: bodyBytes, mediaType: contentType as PhotoMediaType,
-    }) ?? await wardrobe.getGarment(garment.id);
+    })).garment ?? await wardrobe.getGarment(garment.id);
     if (!garment) return { status: 404, body: { error: "garment_not_found" } };
   }
   return { status: 201, body: { garment } };
@@ -63,9 +63,10 @@ async function tagAndSave(
     console.error("Garment tagger failed", { errorClass: error instanceof Error ? error.name : "UnknownError" });
     result = { ok: false, reason: "api_error" };
   }
-  return result.ok
-    ? wardrobe.applyTags(id, result.tags, expectedUpdatedAt)
-    : wardrobe.markTagFailed(id, expectedUpdatedAt);
+  const garment = result.ok
+    ? await wardrobe.applyTags(id, result.tags, expectedUpdatedAt)
+    : await wardrobe.markTagFailed(id);
+  return { ok: result.ok, garment };
 }
 
 async function retagPhoto(id: string, wardrobe: WardrobeRepository, options: RequestOptions): Promise<ApiResponse> {
@@ -98,12 +99,14 @@ async function retagPhoto(id: string, wardrobe: WardrobeRepository, options: Req
   if (!bytes) return { status: 404, body: { error: "photo_not_found" } };
   // A forced retag only overwrites the garment as it was read here, so an edit
   // saved while the model call runs is never silently replaced.
-  const tagged = await tagAndSave(
+  const { ok, garment: tagged } = await tagAndSave(
     wardrobe, options.tagger, garment.id, { bytes, mediaType: mediaType as PhotoMediaType },
     force ? garment.updatedAt : undefined,
   );
   if (tagged) return { status: 200, body: { garment: tagged } };
   if (!await wardrobe.getGarment(garment.id)) return { status: 404, body: { error: "garment_not_found" } };
+  // A failed call never downgrades a tagged garment, so its attributes are untouched.
+  if (!ok) return { status: 502, body: { error: "tagging_failed" } };
   return { status: 409, body: { error: force ? "garment_changed" : "already_tagged" } };
 }
 
