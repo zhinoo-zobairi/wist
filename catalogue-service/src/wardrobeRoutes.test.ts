@@ -274,6 +274,14 @@ describe("wardrobe API", () => {
     await expect(wardrobe.getGarment(garment.id)).resolves.toMatchObject({ name: "Human edit", tagStatus: "tagged" });
   });
 
+  it.each(["image/jpeg; charset=binary", "Image/JPEG", " image/jpeg "])(
+    "accepts the photo content type %j", async (contentType) => {
+      const { request } = setup();
+      await expect(request("POST", "/v1/wardrobe/photos", { bodyBytes: photoBytes, contentType }))
+        .resolves.toMatchObject({ status: 201, body: { garment: { source: "photo" } } });
+    },
+  );
+
   it("returns 404 if the garment is deleted while tagging is in flight", async () => {
     const { wardrobe, photoStore, request } = setup();
     const garment = await wardrobe.createPhotoGarment("image/jpeg");

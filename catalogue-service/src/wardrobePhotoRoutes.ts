@@ -14,8 +14,10 @@ export async function removeGarmentPhoto(store: GarmentPhotoStore | undefined, i
 }
 
 async function uploadPhoto(wardrobe: WardrobeRepository, options: RequestOptions): Promise<ApiResponse> {
-  const { photoStore, contentType, bodyBytes } = options;
+  const { photoStore, bodyBytes } = options;
   if (!photoStore) return { status: 503, body: { error: "photo_store_not_configured" } };
+  // Clients may send parameters or other casing, e.g. "Image/JPEG; charset=binary".
+  const contentType = options.contentType?.split(";")[0]?.trim().toLowerCase();
   if (!PHOTO_MEDIA_TYPES.includes(contentType as PhotoMediaType)) {
     return { status: 415, body: { error: "unsupported_media_type" } };
   }
