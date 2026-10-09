@@ -12,6 +12,9 @@ type OccasionStylePickerProps<Value extends string> = {
   onChange: (selected: Value[]) => void;
   options: readonly PickerOption<Value>[];
   selected: Value[];
+  selectionMode?: "single" | "multiple";
+  selectedColor?: string;
+  disabled?: boolean;
 };
 
 export function OccasionStylePicker<Value extends string>({
@@ -19,10 +22,13 @@ export function OccasionStylePicker<Value extends string>({
   onChange,
   options,
   selected,
+  selectionMode = "multiple",
+  selectedColor = colors.wine,
+  disabled = false,
 }: OccasionStylePickerProps<Value>) {
   const toggle = (value: Value) => {
     onChange(
-      selected.includes(value)
+      selectionMode === "single" ? [value] : selected.includes(value)
         ? selected.filter((candidate) => candidate !== value)
         : [...selected, value],
     );
@@ -33,19 +39,19 @@ export function OccasionStylePicker<Value extends string>({
       {options.map((option) => {
         const isSelected = selected.includes(option.id);
         const isDisabled =
-          !isSelected &&
+          disabled || (selectionMode !== "single" && !isSelected &&
           maxSelections !== undefined &&
-          selected.length >= maxSelections;
+          selected.length >= maxSelections);
         return (
           <Pressable
-            accessibilityRole="checkbox"
+            accessibilityRole={selectionMode === "single" ? "radio" : "checkbox"}
             accessibilityState={{ checked: isSelected, disabled: isDisabled }}
             disabled={isDisabled}
             key={option.id}
             onPress={() => toggle(option.id)}
             style={[
               styles.chip,
-              isSelected && styles.chipSelected,
+              isSelected && { backgroundColor: selectedColor, borderColor: selectedColor },
               isDisabled && styles.chipDisabled,
             ]}
           >
@@ -69,7 +75,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   chipDisabled: { opacity: 0.35 },
-  chipSelected: { backgroundColor: colors.wine, borderColor: colors.wine },
   label: {
     color: colors.ink,
     fontFamily: fonts.textMedium,

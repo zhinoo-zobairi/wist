@@ -32,6 +32,8 @@ import { FeedScreen } from "./src/screens/FeedScreen";
 import { ProductDetailScreen } from "./src/screens/ProductDetailScreen";
 import { SavedScreen } from "./src/screens/SavedScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
+import { WardrobeScreen } from "./src/screens/WardrobeScreen";
+import { GarmentEditScreen } from "./src/screens/GarmentEditScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { resolveProfileGate } from "./src/profileGate";
 import { synchronizeStyleProfile } from "./src/styleProfileCommit";
@@ -40,12 +42,16 @@ import { useWistStore } from "./src/store/useWistStore";
 // Aliased: the bare name Alert is React Native's dialog API in this file.
 import type { Alert as PriceDropAlert, Item } from "./src/types";
 
+type ProfileView = { screen: "profile" | "wardrobe" } | { screen: "edit"; id: string };
+
 export default function App() {
   const [liveCatalogue, setLiveCatalogue] = useState<Catalogue>({
     brands: [],
     items: [],
   });
   const [activeTab, setActiveTab] = useState<TabId>("feed");
+  const [profileView, setProfileView] = useState<ProfileView>({ screen: "profile" });
+  const wardrobe = useWistStore((state) => state.wardrobe);
   const [selectedBrandId, setSelectedBrandId] = useState("");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [syncingWatchIds, setSyncingWatchIds] = useState<string[]>([]);
@@ -375,7 +381,15 @@ export default function App() {
           />
         );
       case "profile":
-        return <ProfileScreen />;
+        if (profileView.screen === "edit") {
+          const garment = wardrobe.find((entry) => entry.id === profileView.id);
+          if (garment) return <GarmentEditScreen key={garment.id} garment={garment}
+            onBack={() => setProfileView({ screen: "wardrobe" })} />;
+        }
+        if (profileView.screen !== "profile") return <WardrobeScreen
+          onBack={() => setProfileView({ screen: "profile" })}
+          onEdit={(id) => setProfileView({ screen: "edit", id })} />;
+        return <ProfileScreen onOpenWardrobe={() => setProfileView({ screen: "wardrobe" })} />;
       case "feed":
       default:
         return (
@@ -401,7 +415,7 @@ export default function App() {
           <BottomTabBar
             activeTab={activeTab}
             hasUnreadAlerts={alerts.some((alert) => !alert.read)}
-            onChange={setActiveTab}
+            onChange={(tab) => { setProfileView({ screen: "profile" }); setActiveTab(tab); }}
           />
         </SafeAreaView> : null}
       </SafeAreaView>

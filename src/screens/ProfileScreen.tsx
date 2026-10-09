@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -35,7 +35,11 @@ function selectionLabels<Value extends string>(
   return labels.length > 0 ? labels.join(", ") : "Not set";
 }
 
-export function ProfileScreen() {
+export function ProfileScreen({ onOpenWardrobe }: { onOpenWardrobe: () => void }) {
+  const wardrobe = useWistStore((state) => state.wardrobe);
+  const wardrobeStatus = useWistStore((state) => state.wardrobeStatus);
+  const refreshWardrobe = useWistStore((state) => state.refreshWardrobe);
+  useEffect(() => { void refreshWardrobe().catch(() => undefined); }, [refreshWardrobe]);
   const followed = useWistStore((state) => state.followedBrandIds);
   const occasions = useWistStore((state) => state.occasions);
   const styles = useWistStore((state) => state.styles);
@@ -82,6 +86,16 @@ export function ProfileScreen() {
         </View>
 
         <View style={screenStyles.section}>
+          <Pressable accessibilityRole="button" onPress={onOpenWardrobe} style={screenStyles.tasteRow}>
+            <View style={screenStyles.tasteCopy}>
+              <Text style={screenStyles.tasteLabel}>WARDROBE</Text>
+              <Text style={screenStyles.tasteValue}>{wardrobeStatus === "loading" ? "Loading your pieces…" : wardrobeStatus === "error" ? "Open to reconnect" : `${wardrobe.length} pieces you own`}</Text>
+            </View>
+            <Text style={[screenStyles.action, { color: colors.moss }]}>OPEN</Text>
+          </Pressable>
+        </View>
+
+        <View style={[screenStyles.section, { marginTop: 28 }]}>
           <Text style={screenStyles.sectionLabel}>YOUR TASTE</Text>
           <TasteRow
             label="OCCASIONS"
