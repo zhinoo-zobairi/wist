@@ -21,7 +21,15 @@
     },
     "plugins": [
       "expo-notifications",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Wist uses your camera to photograph clothes you own.",
+          "photosPermission": "Wist reads the photos you choose to add clothes you own.",
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }
