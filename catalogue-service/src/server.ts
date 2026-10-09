@@ -1,7 +1,9 @@
 import { createServer } from "node:http";
-import { resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import { handleRequest } from "./app.js";
+import { DiskGarmentPhotoStore, MAX_PHOTO_BYTES } from "./garmentPhotoStore.js";
+import { MAX_JSON_BODY_BYTES, readRequestBody } from "./requestBody.js";
 import { importProduct } from "./productImport.js";
 import { SqliteCatalogueRepository } from "./sqliteRepository.js";
 import { SqliteStyleProfileRepository } from "./sqliteStyleProfileRepository.js";
@@ -13,6 +15,7 @@ const databasePath =
 const repository = new SqliteCatalogueRepository(databasePath);
 const profiles = new SqliteStyleProfileRepository(databasePath);
 const wardrobe = new SqliteWardrobeRepository(databasePath);
+const photoStore = new DiskGarmentPhotoStore(join(dirname(databasePath), "wardrobe-photos"));
 const port = Number.parseInt(process.env.PORT ?? "4000", 10);
 const ownerToken = process.env.CATALOGUE_OWNER_TOKEN;
 const host = process.env.CATALOGUE_HOST ?? "127.0.0.1";
@@ -32,29 +35,6 @@ const responseHeaders = {
   "content-type": "application/json",
 };
 
-const MAX_REQUEST_BODY_BYTES = 8 * 1024;
-
-async function readRequestBody(request: AsyncIterable<unknown>) {
-  const chunks: Buffer[] = [];
-  let bytesRead = 0;
-  let bodyTooLarge = false;
-
-  for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
-    bytesRead += buffer.byteLength;
-    if (bytesRead > MAX_REQUEST_BODY_BYTES) {
-      bodyTooLarge = true;
-      chunks.length = 0;
-    } else if (!bodyTooLarge) {
-      chunks.push(buffer);
-    }
-  }
-
-  return bodyTooLarge
-    ? { bodyTooLarge: true }
-    : { body: Buffer.concat(chunks).toString("utf8") };
-}
-
 const server = createServer(async (request, response) => {
   if (request.method === "OPTIONS") {
     response.writeHead(204, responseHeaders);
@@ -72,7 +52,11 @@ const server = createServer(async (request, response) => {
       (request.method === "POST" && pathname === "/v1/watches") ||
       (request.method === "POST" && pathname === "/v1/wardrobe") ||
       (request.method === "PUT" && /^\/v1\/wardrobe\/[^/]+$/.test(pathname));
-    const requestOptions = hasJsonBody ? await readRequestBody(request) : {};
+    const hasPhotoBody = request.method === "POST" && pathname === "/v1/wardrobe/photos";
+    const requestOptions = hasJsonBody || hasPhotoBody
+      ? await readRequestBody(request, hasPhotoBody ? MAX_PHOTO_BYTES : MAX_JSON_BODY_BYTES, request.headers["content-length"])
+      : {};
+    if (requestOptions.bodyTooLarge) request.resume();
     const result = await handleRequest(
       request.method ?? "GET",
       request.url ?? "/",
@@ -83,13 +67,19 @@ const server = createServer(async (request, response) => {
       },
       {
         ...requestOptions,
+        body: hasJsonBody ? requestOptions.bodyBytes?.toString("utf8") : undefined,
+        contentType: request.headers["content-type"],
         importProduct: (productUrl) => importProduct(repository, productUrl),
         profiles,
         wardrobe,
+        photoStore,
       },
     );
-    response.writeHead(result.status, responseHeaders);
-    response.end(JSON.stringify(result.body));
+    response.writeHead(result.status, {
+      ...responseHeaders,
+      "content-type": result.contentType ?? "application/json",
+    });
+    response.end(Buffer.isBuffer(result.body) ? result.body : JSON.stringify(result.body));
   } catch {
     response.writeHead(500, responseHeaders);
     response.end(JSON.stringify({ error: "internal_error" }));

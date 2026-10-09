@@ -1,5 +1,6 @@
 import type { CatalogueItem } from "./model.js";
 import { ownerAuthError } from "./ownerAuth.js";
+import type { GarmentPhotoStore } from "./garmentPhotoStore.js";
 import type { CatalogueRepository } from "./repository.js";
 import { parseStyleProfile } from "./styleProfile.js";
 import type { StyleProfileRepository } from "./styleProfileRepository.js";
@@ -10,6 +11,7 @@ import { handleWardrobeRequest } from "./wardrobeRoutes.js";
 export type ApiResponse = {
   status: number;
   body: unknown;
+  contentType?: string;
 };
 
 export type RequestAuth = {
@@ -23,6 +25,9 @@ export type RequestOptions = {
   importProduct?: (productUrl: string) => Promise<CatalogueItem>;
   profiles?: StyleProfileRepository;
   wardrobe?: WardrobeRepository;
+  photoStore?: GarmentPhotoStore;
+  bodyBytes?: Buffer;
+  contentType?: string;
 };
 
 export async function handleRequest(
