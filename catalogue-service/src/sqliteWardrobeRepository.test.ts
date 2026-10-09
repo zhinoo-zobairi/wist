@@ -95,4 +95,73 @@ describe("SQLite wardrobe repository", () => {
     await repository.deleteGarment(first.id);
     await expect(repository.createGarment(input, "manual")).resolves.toMatchObject({ name: input.name });
   });
+
+  it("creates a photo garment and preserves its source and photo after owner edits", async () => {
+    const repository = createRepository();
+    const garment = await repository.createPhotoGarment("image/jpeg");
+    expect(garment).toMatchObject({
+      name: "Untitled garment", category: "top", colors: ["unknown"],
+      formality: "casual", warmth: "medium", occasions: [], source: "photo",
+      tagStatus: "untagged", photoUrl: `/v1/wardrobe/${garment.id}/photo`,
+    });
+    await expect(repository.getPhotoMediaType(garment.id)).resolves.toBe("image/jpeg");
+    await expect(repository.replaceGarment(garment.id, input)).resolves.toMatchObject({
+      source: "photo", tagStatus: "tagged", photoUrl: garment.photoUrl,
+    });
+    await expect(repository.getPhotoMediaType("missing")).resolves.toBeNull();
+  });
+
+  it("upgrades the B1.1 schema without losing garments or child rows and can reopen it", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "wist-wardrobe-upgrade-"));
+    directories.push(directory);
+    const path = join(directory, "wardrobe.sqlite");
+    const database = new DatabaseSync(path);
+    database.exec(`
+      PRAGMA foreign_keys = ON;
+      CREATE TABLE garments (
+        id TEXT PRIMARY KEY, source TEXT NOT NULL CHECK (source IN ('manual')),
+        name TEXT NOT NULL,
+        category TEXT NOT NULL CHECK (category IN ('top','bottom','dress','outerwear','shoes','bag','accessory')),
+        formality TEXT NOT NULL CHECK (formality IN ('casual','smart_casual','formal')),
+        warmth TEXT NOT NULL CHECK (warmth IN ('light','medium','heavy')),
+        notes TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE garment_colors (
+        garment_id TEXT NOT NULL REFERENCES garments(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL, color TEXT NOT NULL, PRIMARY KEY (garment_id, position)
+      );
+      CREATE TABLE garment_occasions (
+        garment_id TEXT NOT NULL REFERENCES garments(id) ON DELETE CASCADE,
+        occasion TEXT NOT NULL CHECK (occasion IN ('work','evening','weekend','celebration','travel')),
+        PRIMARY KEY (garment_id, occasion)
+      );
+      INSERT INTO garments VALUES ('legacy', 'manual', 'Navy shirt', 'top', 'smart_casual', 'light', 'Keep me', '2026-10-01', '2026-10-02');
+      INSERT INTO garment_colors VALUES ('legacy', 0, 'navy'), ('legacy', 1, 'cream');
+      INSERT INTO garment_occasions VALUES ('legacy', 'travel'), ('legacy', 'work');
+    `);
+    database.close();
+    const repository = createRepository(path);
+    const expected = {
+      id: "legacy", name: "Navy shirt", category: "top", colors: ["navy", "cream"],
+      formality: "smart_casual", warmth: "light", occasions: ["work", "travel"],
+      notes: "Keep me", source: "manual", tagStatus: "tagged", photoUrl: null,
+      createdAt: "2026-10-01", updatedAt: "2026-10-02",
+    };
+    await expect(repository.getGarment("legacy")).resolves.toEqual(expected);
+    const photo = await repository.createPhotoGarment("image/png");
+    const reopened = createRepository(path);
+    await expect(reopened.getGarment("legacy")).resolves.toEqual(expected);
+    await expect(reopened.getGarment(photo.id)).resolves.toMatchObject({ source: "photo", tagStatus: "untagged" });
+    await reopened.deleteGarment("legacy");
+    const check = new DatabaseSync(path);
+    try {
+      expect(check.prepare("SELECT COUNT(*) AS count FROM garment_colors WHERE garment_id = 'legacy'").get())
+        .toMatchObject({ count: 0 });
+      expect(check.prepare("SELECT COUNT(*) AS count FROM garment_occasions WHERE garment_id = 'legacy'").get())
+        .toMatchObject({ count: 0 });
+      expect(check.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+    } finally {
+      check.close();
+    }
+  });
 });

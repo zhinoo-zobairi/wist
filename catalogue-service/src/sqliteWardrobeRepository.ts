@@ -4,13 +4,29 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import { OCCASIONS, type Occasion } from "./styleProfile.js";
-import { MAX_GARMENTS, type Garment, type GarmentInput } from "./wardrobe.js";
+import { MAX_GARMENTS, type Garment, type GarmentInput, type TagStatus } from "./wardrobe.js";
 import { WardrobeFullError, type WardrobeRepository } from "./wardrobeRepository.js";
 
-type GarmentRow = Omit<Garment, "colors" | "occasions" | "createdAt" | "updatedAt"> & {
+type GarmentRow = Omit<Garment, "colors" | "occasions" | "createdAt" | "updatedAt" | "photoUrl" | "tagStatus"> & {
   created_at: string;
   updated_at: string;
+  photo_media_type: string | null;
+  tag_status: TagStatus;
 };
+
+const GARMENT_COLUMNS = `
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL CHECK (source IN ('manual','photo','purchase')),
+  name TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('top','bottom','dress','outerwear','shoes','bag','accessory')),
+  formality TEXT NOT NULL CHECK (formality IN ('casual','smart_casual','formal')),
+  warmth TEXT NOT NULL CHECK (warmth IN ('light','medium','heavy')),
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  photo_media_type TEXT,
+  tag_status TEXT NOT NULL DEFAULT 'tagged' CHECK (tag_status IN ('untagged','tagged','failed'))
+`;
 
 export class SqliteWardrobeRepository implements WardrobeRepository {
   private readonly database: DatabaseSync;
@@ -22,17 +38,7 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
     this.database.exec("PRAGMA journal_mode = WAL");
     this.database.exec("PRAGMA busy_timeout = 5000");
     this.database.exec(`
-      CREATE TABLE IF NOT EXISTS garments (
-        id TEXT PRIMARY KEY,
-        source TEXT NOT NULL CHECK (source IN ('manual')),
-        name TEXT NOT NULL,
-        category TEXT NOT NULL CHECK (category IN ('top','bottom','dress','outerwear','shoes','bag','accessory')),
-        formality TEXT NOT NULL CHECK (formality IN ('casual','smart_casual','formal')),
-        warmth TEXT NOT NULL CHECK (warmth IN ('light','medium','heavy')),
-        notes TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
+      CREATE TABLE IF NOT EXISTS garments (${GARMENT_COLUMNS});
       CREATE TABLE IF NOT EXISTS garment_colors (
         garment_id TEXT NOT NULL REFERENCES garments(id) ON DELETE CASCADE,
         position INTEGER NOT NULL,
@@ -45,6 +51,56 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
         PRIMARY KEY (garment_id, occasion)
       );
     `);
+    try {
+      this.migratePhotoColumns();
+    } catch (error) {
+      this.database.close();
+      throw error;
+    }
+  }
+
+  private migratePhotoColumns(): void {
+    const columns = this.database.prepare("PRAGMA table_info(garments)")
+      .all() as unknown as Array<{ name: string }>;
+    const names = new Set(columns.map((column) => column.name));
+    const { sql } = this.database.prepare("SELECT sql FROM sqlite_master WHERE name = 'garments'")
+      .get() as unknown as { sql: string };
+    const rebuild = !sql.includes("'photo'") || !sql.includes("'purchase'");
+    if (names.has("photo_media_type") && names.has("tag_status") && !rebuild) return;
+
+    // Disable cascades before opening the transaction: rebuilding the parent
+    // must preserve its existing color and occasion rows.
+    this.database.exec("PRAGMA foreign_keys = OFF");
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      if (!names.has("photo_media_type")) {
+        this.database.exec("ALTER TABLE garments ADD COLUMN photo_media_type TEXT");
+      }
+      if (!names.has("tag_status")) {
+        this.database.exec(`ALTER TABLE garments ADD COLUMN tag_status TEXT NOT NULL
+          DEFAULT 'tagged' CHECK (tag_status IN ('untagged','tagged','failed'))`);
+      }
+      if (rebuild) {
+        this.database.exec(`
+          CREATE TABLE garments_new (${GARMENT_COLUMNS});
+          INSERT INTO garments_new
+            (id, source, name, category, formality, warmth, notes, created_at, updated_at, photo_media_type, tag_status)
+          SELECT id, source, name, category, formality, warmth, notes, created_at, updated_at, photo_media_type, tag_status
+          FROM garments;
+          DROP TABLE garments;
+          ALTER TABLE garments_new RENAME TO garments;
+        `);
+      }
+      if (this.database.prepare("PRAGMA foreign_key_check").all().length > 0) {
+        throw new Error("Wardrobe migration found invalid foreign keys");
+      }
+      this.database.exec("COMMIT");
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    } finally {
+      this.database.exec("PRAGMA foreign_keys = ON");
+    }
   }
 
   async listGarments(): Promise<Garment[]> {
@@ -74,10 +130,25 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
       colors: colorRows.map((entry) => entry.color),
       occasions: OCCASIONS.filter((occasion) => occasions.has(occasion)),
       createdAt: row.created_at, updatedAt: row.updated_at,
+      photoUrl: row.photo_media_type ? `/v1/wardrobe/${row.id}/photo` : null,
+      tagStatus: row.tag_status,
     };
   }
 
   async createGarment(input: GarmentInput, source: Garment["source"]): Promise<Garment> {
+    return this.insertGarment(input, source, null, "tagged");
+  }
+
+  async createPhotoGarment(mediaType: string): Promise<Garment> {
+    return this.insertGarment({
+      name: "Untitled garment", category: "top", colors: ["unknown"],
+      formality: "casual", warmth: "medium", occasions: [], notes: null,
+    }, "photo", mediaType, "untagged");
+  }
+
+  private insertGarment(
+    input: GarmentInput, source: Garment["source"], photoMediaType: string | null, tagStatus: TagStatus,
+  ): Garment {
     const id = randomUUID();
     const now = new Date().toISOString();
     this.database.exec("BEGIN IMMEDIATE");
@@ -86,23 +157,32 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
         .get() as unknown as { count: number };
       if (count >= MAX_GARMENTS) throw new WardrobeFullError();
       this.database.prepare(`
-        INSERT INTO garments (id, source, name, category, formality, warmth, notes, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(id, source, input.name, input.category, input.formality, input.warmth, input.notes, now, now);
+        INSERT INTO garments (id, source, name, category, formality, warmth, notes, created_at, updated_at, photo_media_type, tag_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, source, input.name, input.category, input.formality, input.warmth, input.notes, now, now, photoMediaType, tagStatus);
       this.writeChildSets(id, input);
       this.database.exec("COMMIT");
     } catch (error) {
       this.database.exec("ROLLBACK");
       throw error;
     }
-    return { ...input, id, source, createdAt: now, updatedAt: now };
+    return {
+      ...input, id, source, createdAt: now, updatedAt: now, tagStatus,
+      photoUrl: photoMediaType ? `/v1/wardrobe/${id}/photo` : null,
+    };
+  }
+
+  async getPhotoMediaType(id: string): Promise<string | null> {
+    const row = this.database.prepare("SELECT photo_media_type FROM garments WHERE id = ?")
+      .get(id) as unknown as { photo_media_type: string | null } | undefined;
+    return row?.photo_media_type ?? null;
   }
 
   async replaceGarment(id: string, input: GarmentInput): Promise<Garment | null> {
     this.database.exec("BEGIN IMMEDIATE");
     try {
       const result = this.database.prepare(`
-        UPDATE garments SET name = ?, category = ?, formality = ?, warmth = ?, notes = ?, updated_at = ?
+        UPDATE garments SET name = ?, category = ?, formality = ?, warmth = ?, notes = ?, updated_at = ?, tag_status = 'tagged'
         WHERE id = ?
       `).run(input.name, input.category, input.formality, input.warmth, input.notes, new Date().toISOString(), id);
       if (result.changes > 0) this.writeChildSets(id, input);

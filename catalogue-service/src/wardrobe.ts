@@ -21,9 +21,13 @@ export type GarmentInput = {
   notes: string | null;
 };
 
+export type TagStatus = "untagged" | "tagged" | "failed";
+
 export type Garment = GarmentInput & {
   id: string;
-  source: "manual";
+  source: "manual" | "photo";
+  photoUrl: string | null;
+  tagStatus: TagStatus;
   createdAt: string;
   updatedAt: string;
 };
