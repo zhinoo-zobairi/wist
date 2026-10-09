@@ -41,11 +41,17 @@ describe("Claude garment tagger", () => {
 
   it.each([
     null, { ...tags, colors: ["navy", "cream", "red", "olive", "black"] },
-    { ...tags, colors: ["navy", "NAVY"] }, { ...tags, name: "a".repeat(81) },
+    { ...tags, name: "a".repeat(81) },
     { ...tags, category: "unknown" }, { ...tags, occasions: ["work", "work"] },
   ])("rejects output that fails schema or domain validation: %j", async (parsed_output) => {
     await expect(stub({ stop_reason: "end_turn", parsed_output }).tagger.tag(photo))
       .resolves.toEqual({ ok: false, reason: "invalid_output" });
+  });
+
+  it("merges colours the model repeats in another casing before validating the count", async () => {
+    const parsed_output = { ...tags, colors: ["Navy", " navy", "Cream", "red"] };
+    await expect(stub({ stop_reason: "end_turn", parsed_output }).tagger.tag(photo))
+      .resolves.toMatchObject({ ok: true, tags: { colors: ["navy", "cream", "red"] } });
   });
 
   it("maps typed API errors without logging the image, key, or error payload", async () => {

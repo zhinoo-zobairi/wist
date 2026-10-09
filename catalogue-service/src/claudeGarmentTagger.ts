@@ -52,7 +52,11 @@ export class ClaudeGarmentTagger implements GarmentTagger {
         return { ok: false, reason: "refused" };
       }
       const parsed = TagSchema.safeParse(response.parsed_output);
-      const tags = parsed.success ? parseGarmentInput({ ...parsed.data, notes: null }) : null;
+      // The model may repeat a colour in another casing ("Navy", "navy"); keep the first.
+      const colors = parsed.success
+        ? [...new Set(parsed.data.colors.map((color) => color.trim().toLowerCase()))]
+        : [];
+      const tags = parsed.success ? parseGarmentInput({ ...parsed.data, colors, notes: null }) : null;
       if (!tags) {
         console.error("Invalid garment tagging output", { stopReason: response.stop_reason });
         return { ok: false, reason: "invalid_output" };
