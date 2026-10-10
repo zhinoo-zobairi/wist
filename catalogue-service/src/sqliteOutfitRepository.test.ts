@@ -38,6 +38,19 @@ describe("SQLite outfit repository", () => {
     expect(listed.some((s) => s.occasion === "travel")).toBe(true);
   });
 
+  it("never evicts saved outfits when a pool overflows", async () => {
+    const repository = createRepository();
+    await repository.storeSuggestions([work(["s", "t"], "Saved one.")]);
+    const [suggestion] = await repository.listSuggestions();
+    await repository.saveSuggestion(suggestion!.id);
+    const savedBefore = await repository.listSaved();
+    for (let index = 0; index < MAX_SUGGESTIONS_PER_OCCASION + 2; index += 1) {
+      await repository.storeSuggestions([work(["a", `g${index}`])]);
+    }
+    await expect(repository.listSaved()).resolves.toEqual(savedBefore);
+    expect(savedBefore).toHaveLength(1);
+  });
+
   it("moves a saved suggestion out of the pool and keeps it until removed (D6)", async () => {
     const repository = createRepository();
     await repository.storeSuggestions([work(["a", "b"], "Keep this.")]);
@@ -97,7 +110,10 @@ describe("SQLite outfit repository", () => {
     await repository.startRun("debounced", "2026-10-10T07:00:00.000Z");
 
     await repository.failInterruptedRuns();
+    const since = new Date("2026-10-01T00:00:00.000Z");
+    await expect(repository.runSummary(since)).resolves.toMatchObject({ runsThisCapDay: 3 });
     await repository.pruneRuns(new Date("2026-10-03T00:00:00.000Z"));
+    await expect(repository.runSummary(since)).resolves.toMatchObject({ runsThisCapDay: 2 });
     const summary = await repository.runSummary(new Date("2026-10-10T00:00:00.000Z"));
     expect(summary.running).toBe(false);
     expect(summary.lastSucceededChangedAt).toBe("2026-10-01T07:00:00.000Z");
