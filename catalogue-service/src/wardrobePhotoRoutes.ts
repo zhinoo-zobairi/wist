@@ -45,7 +45,7 @@ async function uploadPhoto(wardrobe: WardrobeRepository, options: RequestOptions
   }
   if (options.tagger) {
     garment = (await tagAndSave(wardrobe, options.tagger, garment.id, {
-      bytes: bodyBytes, mediaType: contentType as PhotoMediaType,
+      kind: "photo", bytes: bodyBytes, mediaType: contentType as PhotoMediaType,
     })).garment ?? await wardrobe.getGarment(garment.id);
     if (!garment) return { status: 404, body: { error: "garment_not_found" } };
   }
@@ -100,7 +100,7 @@ async function retagPhoto(id: string, wardrobe: WardrobeRepository, options: Req
   // A forced retag only overwrites the garment as it was read here, so an edit
   // saved while the model call runs is never silently replaced.
   const { ok, garment: tagged } = await tagAndSave(
-    wardrobe, options.tagger, garment.id, { bytes, mediaType: mediaType as PhotoMediaType },
+    wardrobe, options.tagger, garment.id, { kind: "photo", bytes, mediaType: mediaType as PhotoMediaType },
     force ? garment.updatedAt : undefined,
   );
   if (tagged) return { status: 200, body: { garment: tagged } };

@@ -219,7 +219,7 @@ describe("wardrobe API", () => {
     expect(result).toMatchObject({ status: 201, body: { garment: { ...input, source: "photo", tagStatus: "tagged" } } });
     const { garment } = result.body as { garment: Garment };
     expect(photoStore.photos.get(garment.id)).toEqual(photoBytes);
-    expect(tag).toHaveBeenCalledWith({ bytes: photoBytes, mediaType: "image/jpeg" });
+    expect(tag).toHaveBeenCalledWith({ kind: "photo", bytes: photoBytes, mediaType: "image/jpeg" });
   });
 
   it.each(["refused", "invalid_output", "api_error"] as const)("keeps an uploaded garment on %s and permits manual retry", async (reason) => {
