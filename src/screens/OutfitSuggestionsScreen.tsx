@@ -2,12 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { GarmentPhoto } from "../components/GarmentPhoto";
 import { OccasionStylePicker } from "../components/OccasionStylePicker";
+import { rankByWeather } from "../outfitRanking";
 import {
-  loadOutfits, removeSavedOutfit, requestMoreIdeas, saveOutfitIdea, type MoreIdeasResult,
+  loadOutfits, loadWeather, removeSavedOutfit, requestMoreIdeas, saveOutfitIdea, type MoreIdeasResult,
 } from "../services/catalogueClient";
+import { currentCoarseLocation } from "../services/location";
 import { useWistStore } from "../store/useWistStore";
 import { colors, fonts } from "../theme";
-import { OCCASION_OPTIONS, type Garment, type Occasion, type OutfitBoard } from "../types";
+import { OCCASION_OPTIONS, type Garment, type Occasion, type OutfitBoard, type WeatherSummary } from "../types";
+import { weatherLine } from "../weatherMessages";
 
 // D5: re-read stored outfits while a run is pending or running. GET is free; no Claude call.
 const REFRESH_MS = 15_000;
@@ -56,10 +59,12 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
   const [occasion, setOccasion] = useState<Occasion | null>(() =>
     profileStatus === "answered" ? profileOccasions[0] ?? null : null);
   const [state, setState] = useState<BoardState>({ status: "loading" });
+  const [weather, setWeather] = useState<WeatherSummary | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const alive = useRef(true);
   const loading = useRef(0);
+  const weatherRequested = useRef(false);
 
   const refresh = useCallback(async () => {
     loading.current += 1;
@@ -77,6 +82,17 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
   useEffect(() => {
     alive.current = true;
     void refresh();
+    // One lookup per visit, even if React repeats mount effects in development.
+    // It never delays the board, and the 15 s board refresh does not repeat it.
+    if (!weatherRequested.current) {
+      weatherRequested.current = true;
+      void (async () => {
+        const location = await currentCoarseLocation();
+        if (!location || !alive.current) return;
+        const today = await loadWeather(location);
+        if (alive.current) setWeather(today);
+      })();
+    }
     return () => { alive.current = false; };
   }, [refresh]);
 
@@ -114,6 +130,7 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Dress me</Text>
+        <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{weatherLine(weather)}</Text>
         <Text style={styles.subtitle}>Ideas prepared from the pieces you already own.</Text>
         <Text style={styles.label}>WHAT’S THE OCCASION?</Text>
         <OccasionStylePicker selectionMode="single" selectedColor={colors.moss} options={OCCASION_OPTIONS}
@@ -129,8 +146,8 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
 
         {state.status === "ready" && (() => {
           const { board } = state;
-          const ideas = board.suggestions.filter((idea) => matches(idea.occasion));
-          const saved = board.saved.filter((outfit) => matches(outfit.occasion));
+          const ideas = rankByWeather(board.suggestions.filter((idea) => matches(idea.occasion)), weather);
+          const saved = rankByWeather(board.saved.filter((outfit) => matches(outfit.occasion)), weather);
           return <>
             <Text style={styles.label}>IDEAS</Text>
             {ideas.length === 0 && <Text accessibilityLiveRegion="polite" style={styles.help}>
