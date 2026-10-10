@@ -75,7 +75,7 @@ const server = createServer(async (request, response) => {
     const hasJsonBody =
       (request.method === "PUT" && pathname === "/v1/profile") ||
       (request.method === "POST" && pathname === "/v1/watches") ||
-      (request.method === "POST" && pathname === "/v1/wardrobe") ||
+      (request.method === "POST" && (pathname === "/v1/wardrobe" || pathname === "/v1/wardrobe/from-item")) ||
       (request.method === "POST" && pathname === "/v1/outfits/saved") ||
       (request.method === "POST" && /^\/v1\/wardrobe\/[^/]+\/tag$/.test(pathname)) ||
       (request.method === "PUT" && /^\/v1\/wardrobe\/[^/]+$/.test(pathname));

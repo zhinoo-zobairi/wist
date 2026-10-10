@@ -47,7 +47,7 @@ export async function handleRequest(
   const { pathname } = new URL(rawUrl, "http://catalogue.local");
 
   if (pathname === "/v1/wardrobe" || pathname.startsWith("/v1/wardrobe/")) {
-    return handleWardrobeRequest(method, pathname, auth, options);
+    return handleWardrobeRequest(method, pathname, repository, auth, options);
   }
 
   if (pathname === "/v1/outfits" || pathname.startsWith("/v1/outfits/")) {

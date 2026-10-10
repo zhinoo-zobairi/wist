@@ -1,4 +1,6 @@
 import type { ApiResponse, RequestAuth, RequestOptions } from "./app.js";
+import type { CatalogueRepository } from "./repository.js";
+import { createPurchase } from "./wardrobePurchaseRoutes.js";
 import { ownerAuthError } from "./ownerAuth.js";
 import { MAX_GARMENTS, parseGarmentInput } from "./wardrobe.js";
 import { WardrobeFullError } from "./wardrobeRepository.js";
@@ -15,6 +17,7 @@ function parseBody(body: string | undefined) {
 export async function handleWardrobeRequest(
   method: string,
   pathname: string,
+  catalogue: CatalogueRepository,
   auth: RequestAuth,
   options: RequestOptions,
 ): Promise<ApiResponse> {
@@ -22,7 +25,11 @@ export async function handleWardrobeRequest(
   if (authError) return authError;
   const wardrobe = options.wardrobe;
   if (!wardrobe) return { status: 503, body: { error: "wardrobe_api_not_configured" } };
-  const photoResponse = await handleWardrobePhotoRequest(method, pathname, wardrobe, options);
+  if (pathname === "/v1/wardrobe/from-item") {
+    if (method !== "POST") return { status: 405, body: { error: "method_not_allowed" } };
+    return createPurchase(catalogue, wardrobe, options);
+  }
+  const photoResponse = await handleWardrobePhotoRequest(method, pathname, wardrobe, catalogue, options);
   if (photoResponse) return photoResponse;
 
   if (pathname === "/v1/wardrobe") {
@@ -66,7 +73,7 @@ export async function handleWardrobeRequest(
     if (!garment || !await wardrobe.deleteGarment(garment.id)) {
       return { status: 404, body: { error: "garment_not_found" } };
     }
-    if (garment.photoUrl) await removeGarmentPhoto(options.photoStore, garment.id);
+    if (garment.source === "photo") await removeGarmentPhoto(options.photoStore, garment.id);
     return { status: 200, body: { id: garment.id, deleted: true } };
   }
   const garment = await wardrobe.getGarment(id);

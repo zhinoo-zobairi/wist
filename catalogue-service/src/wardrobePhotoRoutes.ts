@@ -1,6 +1,8 @@
 import type { ApiResponse, RequestOptions } from "./app.js";
 import { MAX_PHOTO_BYTES, PHOTO_MEDIA_TYPES, type GarmentPhotoStore, type PhotoMediaType } from "./garmentPhotoStore.js";
-import type { GarmentTagger, TagResult } from "./garmentTagger.js";
+import type { TagInput } from "./garmentTagger.js";
+import { productTagInput, tagAndSave } from "./garmentTagging.js";
+import type { CatalogueRepository } from "./repository.js";
 import { MAX_GARMENTS } from "./wardrobe.js";
 import { WardrobeFullError, type WardrobeRepository } from "./wardrobeRepository.js";
 
@@ -52,26 +54,8 @@ async function uploadPhoto(wardrobe: WardrobeRepository, options: RequestOptions
   return { status: 201, body: { garment } };
 }
 
-async function tagAndSave(
-  wardrobe: WardrobeRepository, tagger: GarmentTagger, id: string,
-  photo: Parameters<GarmentTagger["tag"]>[0], expectedUpdatedAt?: string,
-) {
-  let result: TagResult;
-  try {
-    result = await tagger.tag(photo);
-  } catch (error) {
-    console.error("Garment tagger failed", { errorClass: error instanceof Error ? error.name : "UnknownError" });
-    result = { ok: false, reason: "api_error" };
-  }
-  const garment = result.ok
-    ? await wardrobe.applyTags(id, result.tags, expectedUpdatedAt)
-    : await wardrobe.markTagFailed(id);
-  return { ok: result.ok, garment };
-}
-
-async function retagPhoto(id: string, wardrobe: WardrobeRepository, options: RequestOptions): Promise<ApiResponse> {
+async function retagGarment(id: string, wardrobe: WardrobeRepository, catalogue: CatalogueRepository, options: RequestOptions): Promise<ApiResponse> {
   if (!options.tagger) return { status: 503, body: { error: "tagging_not_configured" } };
-  if (!options.photoStore) return { status: 503, body: { error: "photo_store_not_configured" } };
   if (options.bodyTooLarge) return { status: 413, body: { error: "payload_too_large" } };
   let force = false;
   if (options.body?.trim()) {
@@ -88,20 +72,34 @@ async function retagPhoto(id: string, wardrobe: WardrobeRepository, options: Req
   }
   const garment = await wardrobe.getGarment(id);
   if (!garment) return { status: 404, body: { error: "garment_not_found" } };
-  const mediaType = await wardrobe.getPhotoMediaType(garment.id);
-  if (!PHOTO_MEDIA_TYPES.includes(mediaType as PhotoMediaType)) {
-    return { status: 404, body: { error: "photo_not_found" } };
+  let mediaType: string | null = null;
+  if (garment.source !== "purchase") {
+    if (!options.photoStore) return { status: 503, body: { error: "photo_store_not_configured" } };
+    mediaType = await wardrobe.getPhotoMediaType(garment.id);
+    if (!PHOTO_MEDIA_TYPES.includes(mediaType as PhotoMediaType)) {
+      return { status: 404, body: { error: "photo_not_found" } };
+    }
   }
   if (garment.tagStatus === "tagged" && !force) {
     return { status: 409, body: { error: "already_tagged" } };
   }
-  const bytes = await options.photoStore.read(garment.id, mediaType!);
-  if (!bytes) return { status: 404, body: { error: "photo_not_found" } };
+  let input: TagInput;
+  if (garment.source === "purchase") {
+    const item = garment.catalogueItemId ? await catalogue.getItem(garment.catalogueItemId) : null;
+    if (!item) return { status: 404, body: { error: "item_not_found" } };
+    if (!garment.photoUrl) return { status: 404, body: { error: "photo_not_found" } };
+    input = await productTagInput(item, garment.photoUrl, catalogue);
+  } else {
+    const bytes = await options.photoStore!.read(garment.id, mediaType!);
+    if (!bytes) return { status: 404, body: { error: "photo_not_found" } };
+    input = { kind: "photo", bytes, mediaType: mediaType as PhotoMediaType };
+  }
   // A forced retag only overwrites the garment as it was read here, so an edit
   // saved while the model call runs is never silently replaced.
   const { ok, garment: tagged } = await tagAndSave(
-    wardrobe, options.tagger, garment.id, { kind: "photo", bytes, mediaType: mediaType as PhotoMediaType },
+    wardrobe, options.tagger, garment.id, input,
     force ? garment.updatedAt : undefined,
+    garment.source === "purchase" && !force ? garment.notes : undefined,
   );
   if (tagged) return { status: 200, body: { garment: tagged } };
   if (!await wardrobe.getGarment(garment.id)) return { status: 404, body: { error: "garment_not_found" } };
@@ -111,12 +109,12 @@ async function retagPhoto(id: string, wardrobe: WardrobeRepository, options: Req
 }
 
 export async function handleWardrobePhotoRequest(
-  method: string, pathname: string, wardrobe: WardrobeRepository, options: RequestOptions,
+  method: string, pathname: string, wardrobe: WardrobeRepository, catalogue: CatalogueRepository, options: RequestOptions,
 ): Promise<ApiResponse | null> {
   const tagMatch = pathname.match(/^\/v1\/wardrobe\/([^/]+)\/tag$/);
   if (tagMatch?.[1]) {
     return method === "POST"
-      ? retagPhoto(tagMatch[1], wardrobe, options)
+      ? retagGarment(tagMatch[1], wardrobe, catalogue, options)
       : { status: 405, body: { error: "method_not_allowed" } };
   }
   if (pathname === "/v1/wardrobe/photos") {
