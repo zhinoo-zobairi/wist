@@ -4,7 +4,7 @@ import type { Garment } from "./wardrobe.js";
 
 export type SuggestionResult =
   | { ok: true; outfits: Outfit[] }
-  | { ok: false; reason: "refused" | "invalid_output" | "api_error" };
+  | { ok: false; reason: "refused" | "truncated" | "invalid_output" | "api_error" };
 
 export interface OutfitSuggester {
   suggest(input: { garments: Garment[]; profile: StyleProfile | null; context: OutfitContext }): Promise<SuggestionResult>;

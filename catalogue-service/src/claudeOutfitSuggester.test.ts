@@ -25,7 +25,7 @@ describe("Claude outfit suggester", () => {
     const { suggester, parse } = stub({ stop_reason: "end_turn", parsed_output: { outfits } });
     await expect(suggester.suggest(input)).resolves.toEqual({ ok: true, outfits });
     expect(parse).toHaveBeenCalledWith(expect.objectContaining({
-      model: "claude-opus-5-5", max_tokens: 2000, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
+      model: "claude-opus-5-5", max_tokens: 16_000, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
       output_config: expect.objectContaining({ effort: "medium", format: expect.objectContaining({ type: "json_schema" }) }),
     }), { timeout: 90_000, maxRetries: 2 });
     const request = parse.mock.calls[0]![0];
@@ -74,6 +74,7 @@ describe("Claude outfit suggester", () => {
   });
   it.each([
     ["refusal", "I cannot help.", "refused"], ["end_turn", "invalid JSON", "invalid_output"],
+    ["max_tokens", '{"outfits":[{"garmentIds":["a",', "truncated"],
   ])("handles %s through the real SDK parser with fake transport", async (stop_reason, text, reason) => {
     const fetch = vi.fn().mockResolvedValue(Response.json({
       id: "test", type: "message", role: "assistant", model: "claude-opus-5-5", stop_reason, stop_sequence: null,

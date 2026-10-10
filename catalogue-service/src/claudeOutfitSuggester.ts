@@ -35,7 +35,9 @@ export class ClaudeOutfitSuggester implements OutfitSuggester {
       }).join("\n");
       const profile = input.profile ? { occasions: input.profile.occasions, styles: input.profile.styles } : null;
       const response = await this.client.beta.messages.parse({
-        model: "claude-opus-5-5", max_tokens: 2000,
+        // Thinking is always on for this model and counts toward max_tokens, so the cap
+        // must leave room to reason over a large wardrobe, not just for the JSON answer.
+        model: "claude-opus-5-5", max_tokens: 16_000,
         betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
         output_config: { effort: "medium", format: safeOutputFormat },
         system: OUTFIT_SYSTEM_PROMPT,
@@ -49,6 +51,10 @@ export class ClaudeOutfitSuggester implements OutfitSuggester {
       if (response.stop_reason === "refusal") {
         console.error("Outfit suggestion refused", { stopReason: response.stop_reason });
         return { ok: false, reason: "refused" };
+      }
+      if (response.stop_reason === "max_tokens") {
+        console.error("Outfit suggestion ran out of output tokens", { stopReason: response.stop_reason });
+        return { ok: false, reason: "truncated" };
       }
       const parsed = OutfitSchema.safeParse(response.parsed_output);
       if (!parsed.success) {
