@@ -1,16 +1,50 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { GarmentPhoto } from "../components/GarmentPhoto";
 import { OccasionStylePicker } from "../components/OccasionStylePicker";
-import { suggestOutfits } from "../services/catalogueClient";
+import {
+  loadOutfits, removeSavedOutfit, requestMoreIdeas, saveOutfitIdea, type MoreIdeasResult,
+} from "../services/catalogueClient";
 import { useWistStore } from "../store/useWistStore";
 import { colors, fonts } from "../theme";
-import { OCCASION_OPTIONS, type Garment, type Occasion, type SuggestedOutfit } from "../types";
+import { OCCASION_OPTIONS, type Garment, type Occasion, type OutfitBoard } from "../types";
 
-type RequestState =
-  | { status: "idle" | "loading" }
-  | { status: "ready"; outfits: SuggestedOutfit[] }
-  | { status: "error"; reason: "wardrobe_too_small" | "unavailable" };
+// D5: re-read stored outfits while a run is pending or running. GET is free; no Claude call.
+const REFRESH_MS = 15_000;
+
+const MORE_IDEAS_COPY: Record<MoreIdeasResult, string> = {
+  queued: "New ideas are on their way. You can leave this screen.",
+  daily_limit_reached: "You've reached today's limit of new ideas.",
+  wardrobe_too_small: "Add at least 3 tagged pieces to get outfit ideas.",
+  unavailable: "Couldn't ask for new ideas right now.",
+};
+
+type BoardState = { status: "loading" } | { status: "ready"; board: OutfitBoard } | { status: "error" };
+
+function OutfitCard({ label, garments, reason, missing, action, onEdit, disabled }: {
+  label: string; garments: Garment[]; reason: string; missing: number;
+  action: { text: string; onPress: () => void }; onEdit: (garment: Garment) => void; disabled: boolean;
+}) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardLabel}>{label}</Text>
+      <View style={styles.collage}>
+        {garments.map((garment) => <Pressable key={garment.id} accessibilityRole="button"
+          accessibilityLabel={`Edit ${garment.name}`} onPress={() => onEdit(garment)}
+          style={garments.length === 3 || garments.length >= 5 ? styles.third : styles.half}>
+          <GarmentPhoto garment={garment} />
+          <Text style={styles.garmentName}>{garment.name}</Text>
+        </Pressable>)}
+      </View>
+      {missing > 0 && <Text style={styles.help}>Missing a piece</Text>}
+      <Text style={styles.reason}>{reason}</Text>
+      <Pressable accessibilityRole="button" disabled={disabled} onPress={action.onPress}
+        style={[styles.secondary, disabled && styles.disabled]}>
+        <Text style={styles.secondaryText}>{action.text}</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 export function OutfitSuggestionsScreen({ onBack, onEdit }: {
   onBack: () => void;
@@ -20,90 +54,107 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
   const profileOccasions = useWistStore((state) => state.occasions);
   const [occasion, setOccasion] = useState<Occasion | null>(() =>
     profileStatus === "answered" ? profileOccasions[0] ?? null : null);
-  const [request, setRequest] = useState<RequestState>({ status: "idle" });
-  const pending = useRef<AbortController | null>(null);
+  const [state, setState] = useState<BoardState>({ status: "loading" });
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const alive = useRef(true);
+
+  const refresh = useCallback(async () => {
+    try {
+      const board = await loadOutfits();
+      if (alive.current) setState({ status: "ready", board });
+    } catch {
+      // Keep showing the last good board; only an initial failure becomes an error screen.
+      if (alive.current) setState((previous) => previous.status === "ready" ? previous : { status: "error" });
+    }
+  }, []);
 
   useEffect(() => {
     alive.current = true;
-    return () => {
-      alive.current = false;
-      pending.current?.abort();
-    };
-  }, []);
+    void refresh();
+    return () => { alive.current = false; };
+  }, [refresh]);
 
-  const suggest = async () => {
-    if (!occasion || pending.current) return;
-    const controller = new AbortController();
-    pending.current = controller;
-    setRequest({ status: "loading" });
+  const waiting = state.status === "ready" && (state.board.status.pending || state.board.status.running);
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = setInterval(() => void refresh(), REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [waiting, refresh]);
+
+  const act = async (action: () => Promise<string | null>) => {
+    if (busy) return;
+    setBusy(true);
+    setNotice(null);
     try {
-      const result = await suggestOutfits({ occasion }, controller.signal);
-      if (!alive.current || controller.signal.aborted || pending.current !== controller) return;
-      if (result.ok) setRequest({ status: "ready", outfits: result.outfits });
-      else if (result.reason !== "cancelled") setRequest({ status: "error", reason: result.reason });
+      const message = await action();
+      if (alive.current) setNotice(message);
+      await refresh();
+    } catch {
+      if (alive.current) setNotice("Something went wrong. Please try again.");
     } finally {
-      if (pending.current === controller) pending.current = null;
+      if (alive.current) setBusy(false);
     }
   };
 
-  const leave = () => { pending.current?.abort(); onBack(); };
-  const loading = request.status === "loading";
-  const occasionLabel = OCCASION_OPTIONS.find((option) => option.id === occasion)?.label;
+  const matches = (candidate: Occasion) => occasion === null || candidate === occasion;
+  const labelFor = (candidate: Occasion) =>
+    OCCASION_OPTIONS.find((option) => option.id === candidate)?.label.toUpperCase() ?? "";
 
   return (
     <View style={styles.screen}>
       <View style={styles.topline}>
-        <Pressable accessibilityRole="button" onPress={leave}><Text style={styles.action}>‹ WARDROBE</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={onBack}><Text style={styles.action}>‹ WARDROBE</Text></Pressable>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Dress me</Text>
-        <Text style={styles.subtitle}>Outfit ideas from the pieces you already own.</Text>
+        <Text style={styles.subtitle}>Ideas prepared from the pieces you already own.</Text>
         <Text style={styles.label}>WHAT’S THE OCCASION?</Text>
-        <OccasionStylePicker disabled={loading} selectionMode="single" selectedColor={colors.moss}
-          options={OCCASION_OPTIONS} selected={occasion ? [occasion] : []} onChange={([next]) => {
-            if (!next || pending.current) return;
-            setOccasion(next);
-            if (next !== occasion) setRequest({ status: "idle" });
-          }} />
-        {!occasion && <Text style={styles.help}>Choose an occasion to get started.</Text>}
-        {(request.status === "idle" || loading) && <Pressable accessibilityRole="button"
-          disabled={!occasion || loading} onPress={() => void suggest()}
-          style={[styles.button, (!occasion || loading) && styles.disabled]}>
-          {loading ? <ActivityIndicator color={colors.card} /> : <Text style={styles.buttonText}>SUGGEST</Text>}
-        </Pressable>}
-        {loading && <Text accessibilityLiveRegion="polite" style={styles.help}>Putting outfits together…</Text>}
-        {request.status === "error" && <View style={styles.notice}>
-          <Text accessibilityRole="alert" style={styles.error}>
-            {request.reason === "wardrobe_too_small"
-              ? "Add at least 3 tagged pieces to get outfit ideas."
-              : "Couldn't put outfits together right now."}
-          </Text>
-          <Pressable accessibilityRole="button" style={styles.button}
-            onPress={request.reason === "wardrobe_too_small" ? leave : () => void suggest()}>
-            <Text style={styles.buttonText}>{request.reason === "wardrobe_too_small" ? "BACK TO WARDROBE" : "RETRY"}</Text>
+        <OccasionStylePicker selectionMode="single" selectedColor={colors.moss} options={OCCASION_OPTIONS}
+          selected={occasion ? [occasion] : []} onChange={([next]) => setOccasion(next ?? null)} />
+
+        {state.status === "loading" && <ActivityIndicator style={styles.loading} color={colors.moss} />}
+        {state.status === "error" && <View style={styles.notice}>
+          <Text accessibilityRole="alert" style={styles.error}>Couldn't load your outfits.</Text>
+          <Pressable accessibilityRole="button" style={styles.button} onPress={() => void refresh()}>
+            <Text style={styles.buttonText}>RETRY</Text>
           </Pressable>
         </View>}
-        {request.status === "ready" && <>
-          <View style={styles.results}>
-            {request.outfits.map((outfit, index) => <View key={index} style={styles.card}>
-              <Text style={styles.cardLabel}>OUTFIT {String(index + 1).padStart(2, "0")} · {occasionLabel?.toUpperCase()}</Text>
-              <View style={styles.collage}>
-                {outfit.garments.map((garment) => <Pressable key={garment.id} accessibilityRole="button"
-                  accessibilityLabel={`Edit ${garment.name}`} onPress={() => onEdit(garment)}
-                  style={outfit.garments.length === 3 || outfit.garments.length >= 5 ? styles.third : styles.half}>
-                  <GarmentPhoto garment={garment} />
-                  <Text style={styles.garmentName}>{garment.name}</Text>
-                </Pressable>)}
-              </View>
-              <Text style={styles.reason}>{outfit.reason}</Text>
-              <Pressable accessibilityRole="button" onPress={() => void suggest()} style={styles.button}>
-                <Text style={styles.buttonText}>TRY AGAIN</Text>
+
+        {state.status === "ready" && (() => {
+          const { board } = state;
+          const ideas = board.suggestions.filter((idea) => matches(idea.occasion));
+          const saved = board.saved.filter((outfit) => matches(outfit.occasion));
+          return <>
+            <Text style={styles.label}>IDEAS</Text>
+            {ideas.length === 0 && <Text accessibilityLiveRegion="polite" style={styles.help}>
+              {!board.status.generationEnabled ? "New ideas are switched off on the server. Your saved outfits are below."
+                : waiting ? "Preparing ideas…" : "No ideas yet."}
+            </Text>}
+            <View style={styles.results}>
+              {ideas.map((idea) => <OutfitCard key={idea.id} label={labelFor(idea.occasion)} garments={idea.garments}
+                reason={idea.reason} missing={0} onEdit={onEdit} disabled={busy}
+                action={{ text: "♡ SAVE", onPress: () => void act(async () => { await saveOutfitIdea(idea.id); return null; }) }} />)}
+            </View>
+            {board.status.generationEnabled && <>
+              <Pressable accessibilityRole="button" disabled={busy || waiting}
+                onPress={() => void act(async () => MORE_IDEAS_COPY[await requestMoreIdeas()])}
+                style={[styles.button, (busy || waiting) && styles.disabled]}>
+                <Text style={styles.buttonText}>{waiting ? "PREPARING IDEAS…" : "MORE IDEAS"}</Text>
               </Pressable>
-            </View>)}
-          </View>
-        </>}
-        <Text style={styles.footnote}>Each new request may incur a processing charge.</Text>
+              <Text style={styles.footnote}>Each new batch of ideas may incur a processing charge.</Text>
+            </>}
+            {notice && <Text accessibilityRole="alert" style={styles.help}>{notice}</Text>}
+            {saved.length > 0 && <>
+              <Text style={styles.label}>SAVED</Text>
+              <View style={styles.results}>
+                {saved.map((outfit) => <OutfitCard key={outfit.id} label={labelFor(outfit.occasion)} garments={outfit.garments}
+                  reason={outfit.reason} missing={outfit.missingGarmentIds.length} onEdit={onEdit} disabled={busy}
+                  action={{ text: "REMOVE", onPress: () => void act(async () => { await removeSavedOutfit(outfit.id); return null; }) }} />)}
+              </View>
+            </>}
+          </>;
+        })()}
       </ScrollView>
     </View>
   );
@@ -117,13 +168,16 @@ const styles = StyleSheet.create({
   title: { color: colors.ink, fontFamily: fonts.display, fontSize: 40 },
   subtitle: { color: colors.muted, fontFamily: fonts.text, fontSize: 12, lineHeight: 19, marginTop: 4 },
   label: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 10, letterSpacing: 1, marginTop: 28, marginBottom: 14 },
+  loading: { marginTop: 32 },
   help: { color: colors.muted, fontFamily: fonts.text, fontSize: 12, lineHeight: 19, marginTop: 16, textAlign: "center" },
   button: { backgroundColor: colors.moss, borderRadius: 999, padding: 18, alignItems: "center", marginTop: 24, minHeight: 50 },
   buttonText: { color: colors.card, fontFamily: fonts.textSemibold, fontSize: 11, letterSpacing: 1 },
+  secondary: { borderColor: colors.moss, borderWidth: 1, borderRadius: 999, padding: 14, alignItems: "center", marginTop: 20 },
+  secondaryText: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 11, letterSpacing: 1 },
   disabled: { opacity: 0.45 },
   notice: { marginTop: 24 },
   error: { color: colors.ink, fontFamily: fonts.text, fontSize: 14, lineHeight: 21 },
-  results: { gap: 20, marginTop: 28 },
+  results: { gap: 20 },
   card: { backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.line, padding: 16 },
   cardLabel: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1, marginBottom: 16 },
   collage: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 14 },
