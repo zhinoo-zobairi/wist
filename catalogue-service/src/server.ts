@@ -4,6 +4,8 @@ import Anthropic from "@anthropic-ai/sdk";
 
 import { handleRequest } from "./app.js";
 import { ClaudeGarmentTagger } from "./claudeGarmentTagger.js";
+import { SqliteOutfitRepository } from "./sqliteOutfitRepository.js";
+import { startOutfitScheduler } from "./outfitScheduler.js";
 import { ClaudeOutfitSuggester } from "./claudeOutfitSuggester.js";
 import { DiskGarmentPhotoStore, MAX_PHOTO_BYTES } from "./garmentPhotoStore.js";
 import { MAX_JSON_BODY_BYTES, readRequestBody } from "./requestBody.js";
@@ -29,6 +31,11 @@ const anthropic = process.env.ANTHROPIC_API_KEY
   : undefined;
 const tagger = anthropic ? new ClaudeGarmentTagger(anthropic) : undefined;
 const suggester = anthropic ? new ClaudeOutfitSuggester(anthropic) : undefined;
+const outfits = new SqliteOutfitRepository(databasePath);
+// Without an API key there is no generator, so no background runs (decision 12).
+const stopOutfitScheduler = suggester
+  ? startOutfitScheduler({ wardrobe, outfits, profiles, suggester })
+  : () => {};
 const port = Number.parseInt(process.env.PORT ?? "4000", 10);
 const ownerToken = process.env.CATALOGUE_OWNER_TOKEN;
 const host = process.env.CATALOGUE_HOST ?? "127.0.0.1";
@@ -64,6 +71,7 @@ const server = createServer(async (request, response) => {
       (request.method === "PUT" && pathname === "/v1/profile") ||
       (request.method === "POST" && pathname === "/v1/watches") ||
       (request.method === "POST" && pathname === "/v1/wardrobe") ||
+      (request.method === "POST" && pathname === "/v1/outfits/saved") ||
       (request.method === "POST" && /^\/v1\/wardrobe\/[^/]+\/tag$/.test(pathname)) ||
       (request.method === "PUT" && /^\/v1\/wardrobe\/[^/]+$/.test(pathname));
     const hasPhotoBody = request.method === "POST" && pathname === "/v1/wardrobe/photos";
@@ -89,6 +97,7 @@ const server = createServer(async (request, response) => {
         photoStore,
         tagger,
         suggester,
+        outfits,
       },
     );
     response.writeHead(result.status, {
@@ -108,9 +117,11 @@ server.listen(port, host, () => {
 
 function shutdown() {
   stopWatchScheduler();
+  stopOutfitScheduler();
   server.close(() => {
     profiles.close();
     wardrobe.close();
+    outfits.close();
     repository.close();
   });
 }
