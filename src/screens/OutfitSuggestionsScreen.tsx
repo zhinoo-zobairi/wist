@@ -59,14 +59,18 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const alive = useRef(true);
+  const loading = useRef(0);
 
   const refresh = useCallback(async () => {
+    loading.current += 1;
     try {
       const board = await loadOutfits();
       if (alive.current) setState({ status: "ready", board });
     } catch {
       // Keep showing the last good board; only an initial failure becomes an error screen.
       if (alive.current) setState((previous) => previous.status === "ready" ? previous : { status: "error" });
+    } finally {
+      loading.current -= 1;
     }
   }, []);
 
@@ -79,7 +83,7 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
   const waiting = state.status === "ready" && (state.board.status.pending || state.board.status.running);
   useEffect(() => {
     if (!waiting) return;
-    const timer = setInterval(() => void refresh(), REFRESH_MS);
+    const timer = setInterval(() => { if (loading.current === 0) void refresh(); }, REFRESH_MS);
     return () => clearInterval(timer);
   }, [waiting, refresh]);
 
