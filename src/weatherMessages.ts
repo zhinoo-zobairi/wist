@@ -5,8 +5,8 @@ const CONDITIONS: Record<WeatherSummary["condition"], string> = {
   rain: "rain likely", snow: "snow likely", thunderstorm: "thunderstorms",
 };
 
-export function weatherLine(weather: WeatherSummary | null): string {
-  if (weather === null) return "Weather not included";
+export function weatherLine(weather: WeatherSummary | null, checking: boolean): string {
+  if (weather === null) return checking ? "Checking today's weather…" : "Weather not included";
   return `${weather.minC}–${weather.maxC} °C · ${CONDITIONS[weather.condition]} · ` +
     `${weather.precipitationChancePct}% chance of rain or snow · wind up to ${weather.maxWindKph} km/h · Open-Meteo`;
 }

@@ -60,6 +60,7 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
     profileStatus === "answered" ? profileOccasions[0] ?? null : null);
   const [state, setState] = useState<BoardState>({ status: "loading" });
   const [weather, setWeather] = useState<WeatherSummary | null>(null);
+  const [checkingWeather, setCheckingWeather] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const alive = useRef(true);
@@ -87,10 +88,14 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
     if (!weatherRequested.current) {
       weatherRequested.current = true;
       void (async () => {
-        const location = await currentCoarseLocation();
-        if (!location || !alive.current) return;
-        const today = await loadWeather(location);
-        if (alive.current) setWeather(today);
+        try {
+          const location = await currentCoarseLocation();
+          if (!location || !alive.current) return;
+          const today = await loadWeather(location);
+          if (alive.current) setWeather(today);
+        } finally {
+          if (alive.current) setCheckingWeather(false);
+        }
       })();
     }
     return () => { alive.current = false; };
@@ -130,7 +135,7 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Dress me</Text>
-        <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{weatherLine(weather)}</Text>
+        <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{weatherLine(weather, checkingWeather)}</Text>
         <Text style={styles.subtitle}>Ideas prepared from the pieces you already own.</Text>
         <Text style={styles.label}>WHAT’S THE OCCASION?</Text>
         <OccasionStylePicker selectionMode="single" selectedColor={colors.moss} options={OCCASION_OPTIONS}
