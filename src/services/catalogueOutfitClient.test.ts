@@ -5,7 +5,7 @@ import { loadOutfits, removeSavedOutfit, requestMoreIdeas, saveOutfitIdea } from
 const baseUrl = "http://catalogue.test/";
 const garment: Garment = {
   id: "01234567-1234-1234-1234-012345678901", name: "Navy shirt", category: "top", colors: ["navy"], formality: "smart_casual",
-  warmth: "light", occasions: ["work"], notes: null, source: "manual", tagStatus: "tagged", photoUrl: null,
+  warmth: "light", occasions: ["work"], notes: null, source: "manual", catalogueItemId: null, tagStatus: "tagged", photoUrl: null,
   createdAt: "2026-10-10T10:00:00.000Z", updatedAt: "2026-10-10T10:00:00.000Z",
 };
 const trousers: Garment = { ...garment, id: "01234567-1234-1234-1234-012345678902", name: "Cream trousers", category: "bottom" };

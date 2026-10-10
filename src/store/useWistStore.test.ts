@@ -20,7 +20,7 @@ vi.mock("../services/catalogueClient", () => ({
 describe("Wist wardrobe store", () => {
   const garment: Garment = {
     id: "a", name: "Shirt", category: "top", colors: ["navy"], formality: "casual",
-    warmth: "light", occasions: [], notes: null, source: "photo", tagStatus: "tagged",
+    warmth: "light", occasions: [], notes: null, source: "photo", catalogueItemId: null, tagStatus: "tagged",
     photoUrl: "/photo", createdAt: "2026-10-10T10:00:00Z", updatedAt: "2026-10-10T10:00:00Z",
   };
   beforeEach(() => {

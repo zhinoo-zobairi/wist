@@ -123,7 +123,9 @@ export type GarmentInput = {
 };
 export type Garment = GarmentInput & {
   id: string;
-  source: "manual" | "photo";
+  source: "manual" | "photo" | "purchase";
+  catalogueItemId: string | null;
+  /** Purchase: absolute public URL. Photo: relative, owner-protected API path. */
   photoUrl: string | null;
   tagStatus: "untagged" | "tagged" | "failed";
   createdAt: string;

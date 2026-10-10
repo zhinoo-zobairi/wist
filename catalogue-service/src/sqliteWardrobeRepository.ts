@@ -7,11 +7,13 @@ import { OCCASIONS, type Occasion } from "./styleProfile.js";
 import { MAX_GARMENTS, type Garment, type GarmentInput, type TagStatus } from "./wardrobe.js";
 import { WardrobeFullError, type WardrobeRepository } from "./wardrobeRepository.js";
 
-type GarmentRow = Omit<Garment, "colors" | "occasions" | "createdAt" | "updatedAt" | "photoUrl" | "tagStatus"> & {
+type GarmentRow = Omit<Garment, "colors" | "occasions" | "createdAt" | "updatedAt" | "photoUrl" | "tagStatus" | "catalogueItemId"> & {
   created_at: string;
   updated_at: string;
   photo_media_type: string | null;
   tag_status: TagStatus;
+  catalogue_item_id: string | null;
+  photo_url: string | null;
 };
 
 const GARMENT_COLUMNS = `
@@ -66,10 +68,11 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
     `);
     try {
       this.migratePhotoColumns();
+      this.migratePurchaseColumns();
       // Wardrobes that existed before the change log count as changed.
       this.database.prepare(`
         INSERT OR IGNORE INTO wardrobe_change_log (id, last_changed_at)
-        SELECT 1, ? WHERE EXISTS (SELECT 1 FROM garments)
+        SELECT 1, ? WHERE EXISTS (SELECT 1 FROM garments WHERE tag_status = 'tagged')
       `).run(new Date().toISOString());
     } catch (error) {
       this.database.close();
@@ -121,6 +124,18 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
     }
   }
 
+  private migratePurchaseColumns(): void {
+    const columns = this.database.prepare("PRAGMA table_info(garments)")
+      .all() as unknown as Array<{ name: string }>;
+    const names = new Set(columns.map((column) => column.name));
+    if (!names.has("catalogue_item_id")) {
+      this.database.exec("ALTER TABLE garments ADD COLUMN catalogue_item_id TEXT");
+    }
+    if (!names.has("photo_url")) {
+      this.database.exec("ALTER TABLE garments ADD COLUMN photo_url TEXT");
+    }
+  }
+
   async listGarments(): Promise<Garment[]> {
     const rows = this.database.prepare(
       "SELECT * FROM garments ORDER BY created_at DESC, rowid DESC",
@@ -148,7 +163,8 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
       colors: colorRows.map((entry) => entry.color),
       occasions: OCCASIONS.filter((occasion) => occasions.has(occasion)),
       createdAt: row.created_at, updatedAt: row.updated_at,
-      photoUrl: row.photo_media_type ? `/v1/wardrobe/${row.id}/photo` : null,
+      catalogueItemId: row.catalogue_item_id,
+      photoUrl: row.source === "purchase" ? row.photo_url : row.photo_media_type ? `/v1/wardrobe/${row.id}/photo` : null,
       tagStatus: row.tag_status,
     };
   }
@@ -164,8 +180,16 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
     }, "photo", mediaType, "untagged");
   }
 
+  async createPurchaseGarment(catalogueItemId: string, imageUrl: string, notes: string | null): Promise<Garment> {
+    return this.insertGarment({
+      name: "Untitled garment", category: "top", colors: ["unknown"],
+      formality: "casual", warmth: "medium", occasions: [], notes,
+    }, "purchase", null, "untagged", catalogueItemId, imageUrl);
+  }
+
   private insertGarment(
     input: GarmentInput, source: Garment["source"], photoMediaType: string | null, tagStatus: TagStatus,
+    catalogueItemId: string | null = null, imageUrl: string | null = null,
   ): Garment {
     const id = randomUUID();
     const now = new Date().toISOString();
@@ -175,9 +199,9 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
         .get() as unknown as { count: number };
       if (count >= MAX_GARMENTS) throw new WardrobeFullError();
       this.database.prepare(`
-        INSERT INTO garments (id, source, name, category, formality, warmth, notes, created_at, updated_at, photo_media_type, tag_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(id, source, input.name, input.category, input.formality, input.warmth, input.notes, now, now, photoMediaType, tagStatus);
+        INSERT INTO garments (id, source, name, category, formality, warmth, notes, created_at, updated_at, photo_media_type, tag_status, catalogue_item_id, photo_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, source, input.name, input.category, input.formality, input.warmth, input.notes, now, now, photoMediaType, tagStatus, catalogueItemId, imageUrl);
       this.writeChildSets(id, input);
       if (tagStatus === "tagged") this.recordChange(now);
       this.database.exec("COMMIT");
@@ -187,7 +211,8 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
     }
     return {
       ...input, id, source, createdAt: now, updatedAt: now, tagStatus,
-      photoUrl: photoMediaType ? `/v1/wardrobe/${id}/photo` : null,
+      catalogueItemId,
+      photoUrl: source === "purchase" ? imageUrl : photoMediaType ? `/v1/wardrobe/${id}/photo` : null,
     };
   }
 

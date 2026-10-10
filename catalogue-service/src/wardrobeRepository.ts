@@ -12,6 +12,7 @@ export interface WardrobeRepository {
   getGarment(id: string): Promise<Garment | null>;
   createGarment(input: GarmentInput, source: Garment["source"]): Promise<Garment>;
   createPhotoGarment(mediaType: string): Promise<Garment>;
+  createPurchaseGarment(catalogueItemId: string, imageUrl: string, notes: string | null): Promise<Garment>;
   getPhotoMediaType(id: string): Promise<string | null>;
   // null also means a human edit made the garment tagged while the LLM ran.
   /**

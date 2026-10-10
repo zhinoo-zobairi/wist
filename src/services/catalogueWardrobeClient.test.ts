@@ -8,7 +8,7 @@ import {
 const garment: Garment = {
   id: "01234567-1234-1234-1234-012345678901", name: "Navy shirt", category: "top",
   colors: ["navy"], formality: "smart_casual", warmth: "light", occasions: ["work"],
-  notes: null, source: "photo", tagStatus: "tagged",
+  notes: null, source: "photo", catalogueItemId: null, tagStatus: "tagged",
   photoUrl: "/v1/wardrobe/01234567-1234-1234-1234-012345678901/photo",
   createdAt: "2026-10-10T10:00:00.000Z", updatedAt: "2026-10-10T10:00:00.000Z",
 };

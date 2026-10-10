@@ -241,6 +241,7 @@ function toGarment(value: unknown): Garment {
     value.occasions.some((occasion) => !OCCASION_OPTIONS.some((option) => option.id === occasion)) ||
     new Set(value.occasions).size !== value.occasions.length ||
     (value.notes !== null && (typeof value.notes !== "string" || value.notes.length > 280)) ||
+    (value.catalogueItemId !== null && (typeof value.catalogueItemId !== "string" || !value.catalogueItemId)) ||
     (value.source !== "manual" && value.source !== "photo") ||
     (value.tagStatus !== "tagged" && value.tagStatus !== "untagged" && value.tagStatus !== "failed") ||
     (value.photoUrl !== null && value.photoUrl !== `/v1/wardrobe/${id}/photo`) ||
@@ -251,7 +252,7 @@ function toGarment(value: unknown): Garment {
     id, name: value.name, category: value.category as Garment["category"],
     colors: value.colors as string[], formality: value.formality as Garment["formality"],
     warmth: value.warmth as Garment["warmth"], occasions: value.occasions as Occasion[],
-    notes: value.notes as string | null, source: value.source, photoUrl: value.photoUrl as string | null,
+    notes: value.notes as string | null, catalogueItemId: value.catalogueItemId as string | null, source: value.source, photoUrl: value.photoUrl as string | null,
     tagStatus: value.tagStatus, createdAt: value.createdAt, updatedAt: value.updatedAt,
   };
 }
