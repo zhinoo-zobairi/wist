@@ -32,6 +32,11 @@ const anthropic = process.env.ANTHROPIC_API_KEY
 const tagger = anthropic ? new ClaudeGarmentTagger(anthropic) : undefined;
 const suggester = anthropic ? new ClaudeOutfitSuggester(anthropic) : undefined;
 const outfits = new SqliteOutfitRepository(databasePath);
+// A run cut short by a crash is marked failed at every start, with or without an API key.
+// (The sqlite write happens synchronously, so it is done before the scheduler's first tick.)
+outfits.failInterruptedRuns().catch((error) => {
+  console.error("Failing interrupted outfit runs failed", { errorClass: error instanceof Error ? error.name : "UnknownError" });
+});
 // Without an API key there is no generator, so no background runs (decision 12).
 const stopOutfitScheduler = suggester
   ? startOutfitScheduler({ wardrobe, outfits, profiles, suggester })

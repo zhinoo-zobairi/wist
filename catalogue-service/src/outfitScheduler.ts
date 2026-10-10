@@ -38,7 +38,7 @@ export function startOutfitScheduler(deps: GenerationDeps, tickMs = OUTFIT_TICK_
     // Ticks are sequential, so at most one run is ever in progress.
     if (!stopped) timer = setTimeout(tick, tickMs);
   };
-  void deps.outfits.failInterruptedRuns().then(tick, tick);
+  void tick();
   return () => {
     stopped = true;
     if (timer) clearTimeout(timer);
