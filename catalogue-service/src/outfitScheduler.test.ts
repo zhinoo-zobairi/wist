@@ -26,7 +26,7 @@ async function setup() {
     ok: true, outfits: [{ occasion: "work", garmentIds: [ids[0]!, ids[1]!], reason: "Good." }],
   });
   const deps: GenerationDeps = { wardrobe, outfits, profiles, suggester: { suggest } };
-  return { deps, suggest, outfits };
+  return { deps, suggest, outfits, wardrobe, ids };
 }
 
 describe("runDueOutfitGeneration", () => {
@@ -74,7 +74,36 @@ describe("runDueOutfitGeneration", () => {
   it("records the catch-up check for the new cap day", async () => {
     const { deps, outfits } = await setup();
     await outfits.setCatchUpCheckedDay("2026-10-08");
-    await runDueOutfitGeneration(deps, at(9, 5));
+    await expect(runDueOutfitGeneration(deps, at(9, 5))).resolves.toBe("catch_up");
     await expect(outfits.catchUpCheckedDay()).resolves.toBe(capDay(at(9, 5)));
+  });
+
+  it("starts nothing while a run is still in progress", async () => {
+    const { deps, outfits, suggest } = await setup();
+    await outfits.startRun("debounced", null);
+    await expect(runDueOutfitGeneration(deps, at(9, 30))).resolves.toBeNull();
+    expect(suggest).not.toHaveBeenCalled();
+  });
+
+  it("runs again for a garment edited during a run (D7)", async () => {
+    const { deps, suggest, wardrobe, ids } = await setup();
+    suggest.mockImplementationOnce(async () => {
+      vi.setSystemTime(at(9, 12));
+      await wardrobe.replaceGarment(ids[2]!, { ...input, name: "Edited" });
+      return { ok: true, outfits: [{ occasion: "work", garmentIds: [ids[0]!, ids[1]!], reason: "Good." }] };
+    });
+    vi.setSystemTime(at(9, 10));
+    await expect(runDueOutfitGeneration(deps, at(9, 10))).resolves.toBe("debounced");
+    await expect(runDueOutfitGeneration(deps, at(9, 21))).resolves.toBeNull();
+    await expect(runDueOutfitGeneration(deps, at(9, 22))).resolves.toBe("debounced");
+    expect(suggest).toHaveBeenCalledTimes(2);
+  });
+
+  it("ends a run as failed when the suggester throws", async () => {
+    const { deps, outfits, suggest } = await setup();
+    suggest.mockRejectedValue(new Error("boom"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(runDueOutfitGeneration(deps, at(9, 10))).resolves.toBe("debounced");
+    await expect(outfits.runSummary(new Date(0))).resolves.toMatchObject({ running: false, lastRun: { status: "failed" } });
   });
 });
