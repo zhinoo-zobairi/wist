@@ -17,6 +17,10 @@ import {
   type GarmentInput,
   type OutfitContext,
   type SuggestedOutfit,
+  type OutfitBoard,
+  type OutfitIdea,
+  type OutfitStatus,
+  type SavedOutfit,
 } from "../types";
 
 type Fetch = typeof fetch;
@@ -349,6 +353,7 @@ export function garmentPhotoSource(
   } };
 }
 
+// Used by the waiting Dress me screen until Task 10 replaces it.
 export type OutfitSuggestionResult =
   | { ok: true; outfits: SuggestedOutfit[] }
   | { ok: false; reason: "wardrobe_too_small" | "unavailable" | "cancelled" };
@@ -602,4 +607,87 @@ export async function importCatalogueWatch(
     throw new Error("Catalogue returned an invalid imported watch");
   }
   return body.itemId;
+}
+
+const outfitsUrl = (baseUrl: string, path = "") => `${baseUrl.replace(/\/$/, "")}/v1/outfits${path}`;
+const RUN_STATUSES = ["running", "succeeded", "failed", "skipped"];
+
+function outfitFields(value: unknown, minGarments: number) {
+  if (!isObject(value) || typeof value.id !== "string" || !value.id ||
+    !OCCASION_OPTIONS.some((option) => option.id === value.occasion) ||
+    typeof value.reason !== "string" || !value.reason.trim() || value.reason.length > 200 ||
+    !Array.isArray(value.garments) || value.garments.length < minGarments || value.garments.length > 6) {
+    throw new Error("Catalogue returned an invalid outfit");
+  }
+  return { id: value.id, occasion: value.occasion as Occasion, reason: value.reason, garments: value.garments.map(toGarment) };
+}
+
+function toOutfitIdea(value: unknown): OutfitIdea {
+  const fields = outfitFields(value, 2);
+  if (!isObject(value) || typeof value.createdAt !== "string") throw new Error("Catalogue returned an invalid outfit");
+  return { ...fields, createdAt: value.createdAt };
+}
+
+function toSavedOutfit(value: unknown): SavedOutfit {
+  // A saved outfit may have lost pieces, so it can hold fewer than two garments.
+  const fields = outfitFields(value, 0);
+  if (!isObject(value) || typeof value.savedAt !== "string" || !Array.isArray(value.missingGarmentIds) ||
+    value.missingGarmentIds.some((id) => typeof id !== "string")) {
+    throw new Error("Catalogue returned an invalid saved outfit");
+  }
+  return { ...fields, savedAt: value.savedAt, missingGarmentIds: value.missingGarmentIds as string[] };
+}
+
+function toOutfitStatus(value: unknown): OutfitStatus {
+  if (!isObject(value) || typeof value.pending !== "boolean" || typeof value.running !== "boolean" ||
+    typeof value.generationEnabled !== "boolean" || typeof value.runsLeftToday !== "number" ||
+    (value.lastRunAt !== null && typeof value.lastRunAt !== "string") ||
+    (value.lastRunStatus !== null && !RUN_STATUSES.includes(value.lastRunStatus as string))) {
+    throw new Error("Catalogue returned an invalid outfit status");
+  }
+  return value as unknown as OutfitStatus;
+}
+
+export async function loadOutfits(
+  fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<OutfitBoard> {
+  const body = await wardrobeJson(await fetchImpl(outfitsUrl(baseUrl), { headers: authorizationHeaders(ownerToken) }));
+  if (!Array.isArray(body.suggestions) || !Array.isArray(body.saved)) throw new Error("Catalogue returned an invalid outfit board");
+  return { suggestions: body.suggestions.map(toOutfitIdea), saved: body.saved.map(toSavedOutfit), status: toOutfitStatus(body.status) };
+}
+
+export async function saveOutfitIdea(
+  suggestionId: string, fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<SavedOutfit> {
+  const body = await wardrobeJson(await fetchImpl(outfitsUrl(baseUrl, "/saved"), {
+    method: "POST", body: JSON.stringify({ suggestionId }),
+    headers: { ...authorizationHeaders(ownerToken), "content-type": "application/json" },
+  }));
+  return toSavedOutfit(body.saved);
+}
+
+export async function removeSavedOutfit(
+  id: string, fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<void> {
+  const body = await wardrobeJson(await fetchImpl(outfitsUrl(baseUrl, `/saved/${encodeURIComponent(id)}`), {
+    method: "DELETE", headers: authorizationHeaders(ownerToken),
+  }));
+  if (body.id !== id || body.deleted !== true) throw new Error("Catalogue returned an invalid deletion result");
+}
+
+export type MoreIdeasResult = "queued" | "daily_limit_reached" | "wardrobe_too_small" | "unavailable";
+
+export async function requestMoreIdeas(
+  fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<MoreIdeasResult> {
+  try {
+    const body = await wardrobeJson(await fetchImpl(outfitsUrl(baseUrl, "/more"), {
+      method: "POST", headers: authorizationHeaders(ownerToken),
+    }));
+    return body.queued === true ? "queued" : "unavailable";
+  } catch (error) {
+    if (error instanceof WardrobeApiError &&
+      (error.code === "daily_limit_reached" || error.code === "wardrobe_too_small")) return error.code;
+    return "unavailable";
+  }
 }

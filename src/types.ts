@@ -130,7 +130,18 @@ export type Garment = GarmentInput & {
   updatedAt: string;
 };
 
+// Used by the waiting Dress me screen until Task 10 replaces them.
 export type OutfitContext = { occasion: Occasion };
 export type SuggestedOutfit = { garments: Garment[]; reason: string };
+export type OutfitIdea = { id: string; occasion: Occasion; reason: string; createdAt: string; garments: Garment[] };
+export type SavedOutfit = {
+  id: string; occasion: Occasion; reason: string; savedAt: string; garments: Garment[]; missingGarmentIds: string[];
+};
+export type OutfitRunStatus = "running" | "succeeded" | "failed" | "skipped";
+export type OutfitStatus = {
+  pending: boolean; running: boolean; lastRunAt: string | null; lastRunStatus: OutfitRunStatus | null;
+  runsLeftToday: number; generationEnabled: boolean;
+};
+export type OutfitBoard = { suggestions: OutfitIdea[]; saved: SavedOutfit[]; status: OutfitStatus };
 
 export const LOCAL_USER_ID = "local-user";
