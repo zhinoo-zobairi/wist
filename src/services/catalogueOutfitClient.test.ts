@@ -32,6 +32,17 @@ describe("outfit client", () => {
     await expect(loadOutfits(vi.fn<typeof fetch>().mockResolvedValueOnce(json(body)), baseUrl, "owner")).rejects.toThrow();
   });
 
+  it.each([-1, 1.5, null, "3"])("rejects runsLeftToday %j", async (runsLeftToday) => {
+    const body = { suggestions: [], saved: [], status: { ...status, runsLeftToday } };
+    await expect(loadOutfits(vi.fn<typeof fetch>().mockResolvedValueOnce(json(body)), baseUrl, "owner")).rejects.toThrow();
+  });
+
+  it("drops unknown status fields", async () => {
+    const body = { suggestions: [], saved: [], status: { ...status, extra: "x" } };
+    const board = await loadOutfits(vi.fn<typeof fetch>().mockResolvedValueOnce(json(body)), baseUrl, "owner");
+    expect(board.status).toEqual(status);
+  });
+
   it("saves an idea and removes a saved outfit", async () => {
     const fetchImpl = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(json({ saved }, 201))

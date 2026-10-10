@@ -588,11 +588,16 @@ function toSavedOutfit(value: unknown): SavedOutfit {
 function toOutfitStatus(value: unknown): OutfitStatus {
   if (!isObject(value) || typeof value.pending !== "boolean" || typeof value.running !== "boolean" ||
     typeof value.generationEnabled !== "boolean" || typeof value.runsLeftToday !== "number" ||
+    !Number.isFinite(value.runsLeftToday) || !Number.isInteger(value.runsLeftToday) || value.runsLeftToday < 0 ||
     (value.lastRunAt !== null && typeof value.lastRunAt !== "string") ||
     (value.lastRunStatus !== null && !RUN_STATUSES.includes(value.lastRunStatus as string))) {
     throw new Error("Catalogue returned an invalid outfit status");
   }
-  return value as unknown as OutfitStatus;
+  return {
+    pending: value.pending, running: value.running, lastRunAt: value.lastRunAt,
+    lastRunStatus: value.lastRunStatus as OutfitStatus["lastRunStatus"],
+    runsLeftToday: value.runsLeftToday, generationEnabled: value.generationEnabled,
+  };
 }
 
 export async function loadOutfits(
