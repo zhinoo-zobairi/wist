@@ -59,6 +59,18 @@ describe("runDueOutfitGeneration", () => {
     expect(suggest).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps a More ideas request when the run could not start", async () => {
+    const { deps, outfits, suggest } = await setup();
+    await runDueOutfitGeneration(deps, at(9, 10));
+    await outfits.requestMoreIdeas();
+    vi.spyOn(outfits, "pruneRuns").mockRejectedValueOnce(new Error("disk"));
+    await expect(runDueOutfitGeneration(deps, at(9, 20))).rejects.toThrow("disk");
+    await expect(outfits.moreIdeasRequested()).resolves.toBe(true);
+    await expect(runDueOutfitGeneration(deps, at(9, 21))).resolves.toBe("more_ideas");
+    await expect(outfits.moreIdeasRequested()).resolves.toBe(false);
+    expect(suggest).toHaveBeenCalledTimes(2);
+  });
+
   it("records the catch-up check for the new cap day", async () => {
     const { deps, outfits } = await setup();
     await outfits.setCatchUpCheckedDay("2026-10-08");

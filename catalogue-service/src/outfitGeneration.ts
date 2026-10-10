@@ -22,6 +22,8 @@ export async function runOutfitGeneration(deps: GenerationDeps, trigger: RunTrig
   const inputChangedAt = await deps.wardrobe.lastChangedAt();
   const lastSucceeded = (await deps.outfits.runSummary(new Date(0))).lastSucceededChangedAt;
   const runId = await deps.outfits.startRun(trigger, inputChangedAt);
+  // Cleared once the run row exists, whatever the outcome: one tap, one run.
+  if (trigger === "more_ideas") await deps.outfits.clearMoreIdeasRequest();
   const finish = async (outcome: GenerationOutcome, error: string | null = null) => {
     await deps.outfits.finishRun(runId, outcome.status, outcome.added, error);
     return outcome;

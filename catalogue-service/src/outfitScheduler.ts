@@ -18,8 +18,6 @@ export async function runDueOutfitGeneration(deps: GenerationDeps, now: Date): P
   }, now);
   if (checkCatchUp) await deps.outfits.setCatchUpCheckedDay(capDay(now));
   if (!trigger) return null;
-  // Cleared when the run starts, whatever its outcome: one tap, one run.
-  if (trigger === "more_ideas") await deps.outfits.clearMoreIdeasRequest();
   await deps.outfits.pruneRuns(new Date(now.getTime() - RUN_LOG_RETENTION_MS));
   await runOutfitGeneration(deps, trigger);
   return trigger;
