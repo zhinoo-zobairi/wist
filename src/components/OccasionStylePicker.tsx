@@ -45,6 +45,7 @@ export function OccasionStylePicker<Value extends string>({
         return (
           <Pressable
             accessibilityRole={selectionMode === "single" ? "radio" : "checkbox"}
+            aria-checked={isSelected}
             accessibilityState={{ checked: isSelected, disabled: isDisabled }}
             disabled={isDisabled}
             key={option.id}
