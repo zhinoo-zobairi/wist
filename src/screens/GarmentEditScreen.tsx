@@ -13,7 +13,9 @@ function editableFields(garment: Garment): GarmentInput {
   return { name, category, colors, formality, warmth, occasions, notes };
 }
 
-export function GarmentEditScreen({ garment, onBack }: { garment: Garment; onBack: () => void }) {
+export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE" }: {
+  garment: Garment; onBack: () => void; backLabel?: string;
+}) {
   const [draft, setDraft] = useState<GarmentInput>(() => editableFields(garment));
   const [colorsText, setColorsText] = useState(garment.colors.join(", "));
   const [busy, setBusy] = useState<string | null>(null);
@@ -72,7 +74,7 @@ export function GarmentEditScreen({ garment, onBack }: { garment: Garment; onBac
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
       <View style={styles.topline}>
-        <Pressable accessibilityRole="button" onPress={onBack}><Text style={styles.action}>‹ WARDROBE</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={onBack}><Text style={styles.action}>‹ {backLabel}</Text></Pressable>
         <Pressable accessibilityRole="button" disabled={!!busy || uncertain} onPress={save}><Text style={[styles.action, (!!busy || uncertain) && styles.disabled]}>SAVE</Text></Pressable>
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>

@@ -12,6 +12,7 @@ export const colors = {
 
 export const fonts = {
   display: "CormorantGaramond_600SemiBold",
+  displayItalic: "CormorantGaramond_600SemiBold_Italic",
   text: "Inter_400Regular",
   textMedium: "Inter_500Medium",
   textSemibold: "Inter_600SemiBold",

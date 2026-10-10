@@ -1,5 +1,6 @@
 import {
   CormorantGaramond_600SemiBold,
+  CormorantGaramond_600SemiBold_Italic,
 } from "@expo-google-fonts/cormorant-garamond";
 import {
   Inter_400Regular,
@@ -34,15 +35,17 @@ import { SavedScreen } from "./src/screens/SavedScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { WardrobeScreen } from "./src/screens/WardrobeScreen";
 import { GarmentEditScreen } from "./src/screens/GarmentEditScreen";
+import { OutfitSuggestionsScreen } from "./src/screens/OutfitSuggestionsScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { resolveProfileGate } from "./src/profileGate";
 import { synchronizeStyleProfile } from "./src/styleProfileCommit";
 import { colors } from "./src/theme";
 import { useWistStore } from "./src/store/useWistStore";
 // Aliased: the bare name Alert is React Native's dialog API in this file.
-import type { Alert as PriceDropAlert, Item } from "./src/types";
+import type { Alert as PriceDropAlert, Garment, Item } from "./src/types";
 
-type ProfileView = { screen: "profile" | "wardrobe" } | { screen: "edit"; id: string };
+type ProfileView = { screen: "profile" | "wardrobe" | "outfits" }
+  | { screen: "edit"; id: string; from?: "outfits"; initialGarment?: Garment };
 
 export default function App() {
   const [liveCatalogue, setLiveCatalogue] = useState<Catalogue>({
@@ -88,6 +91,7 @@ export default function App() {
   );
   const [fontsLoaded] = useFonts({
     CormorantGaramond_600SemiBold,
+    CormorantGaramond_600SemiBold_Italic,
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
@@ -381,13 +385,22 @@ export default function App() {
           />
         );
       case "profile":
+        if (profileView.screen === "outfits") return <OutfitSuggestionsScreen
+          onBack={() => setProfileView({ screen: "wardrobe" })}
+          onEdit={(garment) => setProfileView({ screen: "edit", id: garment.id, from: "outfits", initialGarment: garment })} />;
         if (profileView.screen === "edit") {
-          const garment = wardrobe.find((entry) => entry.id === profileView.id);
+          const stored = wardrobe.find((entry) => entry.id === profileView.id);
+          const initial = profileView.initialGarment;
+          // A suggestion can carry a newer server record than the last wardrobe refresh.
+          const garment = initial && (!stored || Date.parse(initial.updatedAt) > Date.parse(stored.updatedAt)) ? initial : stored;
+          const returnScreen = profileView.from === "outfits" ? "outfits" : "wardrobe";
           if (garment) return <GarmentEditScreen key={garment.id} garment={garment}
-            onBack={() => setProfileView({ screen: "wardrobe" })} />;
+            backLabel={returnScreen === "outfits" ? "DRESS ME" : "WARDROBE"}
+            onBack={() => setProfileView({ screen: returnScreen })} />;
         }
         if (profileView.screen !== "profile") return <WardrobeScreen
           onBack={() => setProfileView({ screen: "profile" })}
+          onDressMe={() => setProfileView({ screen: "outfits" })}
           onEdit={(id) => setProfileView({ screen: "edit", id })} />;
         return <ProfileScreen onOpenWardrobe={() => setProfileView({ screen: "wardrobe" })} />;
       case "feed":

@@ -9,7 +9,11 @@ import { colors, fonts } from "../theme";
 import type { Garment } from "../types";
 import { WardrobeNotice, captureErrorMessage } from "../wardrobeMessages";
 
-export function WardrobeScreen({ onBack, onEdit }: { onBack: () => void; onEdit: (id: string) => void }) {
+export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
+  onBack: () => void;
+  onEdit: (id: string) => void;
+  onDressMe: () => void;
+}) {
   const wardrobe = useWistStore((state) => state.wardrobe);
   const status = useWistStore((state) => state.wardrobeStatus);
   const refresh = useWistStore((state) => state.refreshWardrobe);
@@ -91,6 +95,10 @@ export function WardrobeScreen({ onBack, onEdit }: { onBack: () => void; onEdit:
       <View style={styles.heading}>
         <Text style={styles.title}>Your wardrobe</Text>
         <Text style={styles.subtitle}>{wardrobe.length} pieces you own.</Text>
+        <Pressable accessibilityRole="button" disabled={!!busy} onPress={onDressMe}
+          style={[styles.dressMe, !!busy && styles.disabled]}>
+          <Text style={styles.dressMeText}>DRESS ME</Text>
+        </Pressable>
       </View>
       {chooser && <View style={styles.chooser}>
         <Pressable accessibilityRole="button" onPress={() => void capture("camera")}><Text style={styles.choice}>Take a photo</Text></Pressable>
@@ -130,6 +138,8 @@ const styles = StyleSheet.create({
   action: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 11, letterSpacing: 1 },
   disabled: { opacity: 0.4 },
   heading: { paddingHorizontal: 22, paddingBottom: 20 },
+  dressMe: { backgroundColor: colors.moss, borderRadius: 999, padding: 16, alignItems: "center", marginTop: 18 },
+  dressMeText: { color: colors.card, fontFamily: fonts.textSemibold, fontSize: 11, letterSpacing: 1 },
   title: { color: colors.ink, fontFamily: fonts.display, fontSize: 40 },
   subtitle: { color: colors.muted, fontFamily: fonts.text, fontSize: 12, lineHeight: 19 },
   chooser: { backgroundColor: colors.wash, paddingHorizontal: 22, marginHorizontal: 22, borderRadius: 20 },
