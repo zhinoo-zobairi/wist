@@ -9,7 +9,8 @@ import {
   retainLatestSnapshots,
 } from "../services/dropEngine";
 import {
-  deleteGarment, loadWardrobe, retagGarment, saveGarment, uploadGarmentPhoto,
+  addGarmentFromItem as purchaseCatalogueItem, deleteGarment, loadWardrobe, loadWatches,
+  retagGarment, saveGarment, uploadGarmentPhoto, type AddGarmentFromItemResult, type Watches,
 } from "../services/catalogueClient";
 import type { Alert, Garment, GarmentInput, Occasion, PriceSnapshot, Style } from "../types";
 
@@ -19,6 +20,9 @@ type WistState = {
   wardrobe: Garment[];
   wardrobeStatus: "idle" | "loading" | "error";
   refreshWardrobe: () => Promise<void>;
+  refreshPurchaseState: () => Promise<void>;
+  refreshWatches: () => Promise<void>;
+  addGarmentFromItem: (itemId: string) => Promise<AddGarmentFromItemResult>;
   addGarmentPhoto: (uri: string) => Promise<Garment>;
   updateGarment: (id: string, input: GarmentInput) => Promise<Garment>;
   removeGarment: (id: string) => Promise<void>;
@@ -53,11 +57,22 @@ type WistState = {
 
 // A list read started before a write must not undo the newer server response.
 let wardrobeRevision = 0;
+let watchRevision = 0;
 let wardrobeRefresh: Promise<void> | undefined;
 const upsertGarment = (wardrobe: Garment[], garment: Garment) =>
   wardrobe.some((entry) => entry.id === garment.id)
     ? wardrobe.map((entry) => entry.id === garment.id ? garment : entry)
     : [garment, ...wardrobe];
+
+const watchFields = (watches: Watches, snapshots: PriceSnapshot[]) => {
+  const itemIds = [...new Set(watches.itemIds)];
+  return {
+    starredItemIds: itemIds,
+    watchedSizesByItemId: Object.fromEntries(Object.entries(watches.sizes)
+      .map(([itemId, sizes]) => [itemId, [...new Set(sizes)]])),
+    snapshots: snapshots.filter((snapshot) => itemIds.includes(snapshot.itemId)),
+  };
+};
 
 const toggleId = (ids: string[], id: string) =>
   ids.includes(id) ? ids.filter((candidate) => candidate !== id) : [...ids, id];
@@ -91,6 +106,47 @@ export const useWistStore = create<WistState>()(
           throw error;
         }).finally(() => { wardrobeRefresh = undefined; });
         return wardrobeRefresh;
+      },
+      refreshPurchaseState: async () => {
+        const wardrobeReadRevision = wardrobeRevision;
+        const watchReadRevision = watchRevision;
+        set({ wardrobeStatus: "loading" });
+        try {
+          const [wardrobe, watches] = await Promise.all([loadWardrobe(), loadWatches()]);
+          // Keep newer writes in each domain without dropping the other read.
+          const applyWardrobe = wardrobeReadRevision === wardrobeRevision;
+          const applyWatches = watchReadRevision === watchRevision;
+          if (applyWardrobe) wardrobeRevision += 1;
+          if (applyWatches) watchRevision += 1;
+          set((state) => ({
+            ...(applyWardrobe ? { wardrobe } : {}),
+            ...(applyWatches ? watchFields(watches, state.snapshots) : {}),
+            wardrobeStatus: "idle",
+          }));
+        } catch (error) {
+          set({ wardrobeStatus: "error" });
+          throw error;
+        }
+      },
+      refreshWatches: async () => {
+        const revision = watchRevision;
+        const watches = await loadWatches();
+        if (revision !== watchRevision) return;
+        watchRevision += 1;
+        set((state) => watchFields(watches, state.snapshots));
+      },
+      addGarmentFromItem: async (itemId) => {
+        const result = await purchaseCatalogueItem(itemId);
+        wardrobeRevision += 1;
+        if (result.unwatched) watchRevision += 1;
+        set((state) => ({
+          wardrobe: upsertGarment(state.wardrobe, result.garment),
+          ...(result.unwatched ? {
+            starredItemIds: state.starredItemIds.filter((id) => id !== itemId),
+            watchedSizesByItemId: dropSizes(state.watchedSizesByItemId, itemId),
+          } : {}),
+        }));
+        return result;
       },
       addGarmentPhoto: async (uri) => {
         const garment = await uploadGarmentPhoto(uri);
@@ -137,6 +193,7 @@ export const useWistStore = create<WistState>()(
         })),
       replaceStarredItems: (itemIds) =>
         set((state) => {
+          watchRevision += 1;
           const uniqueItemIds = [...new Set(itemIds)];
           return {
             starredItemIds: uniqueItemIds,
@@ -165,6 +222,7 @@ export const useWistStore = create<WistState>()(
         set((state) => {
           const isStarred = state.starredItemIds.includes(itemId);
           if (watched === isStarred) return state;
+          watchRevision += 1;
           if (!watched) {
             return {
               starredItemIds: state.starredItemIds.filter(
@@ -192,6 +250,7 @@ export const useWistStore = create<WistState>()(
         }),
       toggleStar: (itemId, currentPrice) =>
         set((state) => {
+          watchRevision += 1;
           const isStarred = state.starredItemIds.includes(itemId);
           if (isStarred) {
             return {
@@ -220,7 +279,8 @@ export const useWistStore = create<WistState>()(
       // Replaces the whole selection from a backend synchronization, which is
       // the authority on what is watched. Each list is de-duplicated so the
       // device mirrors what the catalogue stored.
-      replaceWatchedSizes: (sizesByItemId) =>
+      replaceWatchedSizes: (sizesByItemId) => {
+        watchRevision += 1;
         set(() => ({
           watchedSizesByItemId: Object.fromEntries(
             Object.entries(sizesByItemId).map(([itemId, labels]) => [
@@ -228,11 +288,13 @@ export const useWistStore = create<WistState>()(
               [...new Set(labels)],
             ]),
           ),
-        })),
+        }));
+      },
       // Sets one item's sizes from the product screen. An empty list means "any
       // drop", represented as the absence of an entry to match the backend map.
       setWatchedSizes: (itemId, labels) =>
         set((state) => {
+          watchRevision += 1;
           const unique = [...new Set(labels)];
           if (unique.length === 0) {
             return {

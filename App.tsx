@@ -19,7 +19,6 @@ import {
   loadCatalogue,
   loadPriceDropAlerts,
   loadStyleProfile,
-  loadWatches,
   saveStyleProfile,
   saveWatchSizes,
   setCatalogueWatch,
@@ -43,9 +42,10 @@ import { colors } from "./src/theme";
 import { useWistStore } from "./src/store/useWistStore";
 // Aliased: the bare name Alert is React Native's dialog API in this file.
 import type { Alert as PriceDropAlert, Garment, Item } from "./src/types";
+import { catalogueWatchErrorMessage, PURCHASE_UNWATCHED_NOTICE } from "./src/wardrobeMessages";
 
 type ProfileView = { screen: "profile" | "wardrobe" | "outfits" }
-  | { screen: "edit"; id: string; from?: "outfits"; initialGarment?: Garment };
+  | { screen: "edit"; id: string; from?: "outfits"; initialGarment?: Garment; notice?: string };
 
 export default function App() {
   const [liveCatalogue, setLiveCatalogue] = useState<Catalogue>({
@@ -58,6 +58,7 @@ export default function App() {
   const [selectedBrandId, setSelectedBrandId] = useState("");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [syncingWatchIds, setSyncingWatchIds] = useState<string[]>([]);
+  const [syncingSizeCounts, setSyncingSizeCounts] = useState<Record<string, number>>({});
   const [storeHydrated, setStoreHydrated] = useState(
     useWistStore.persist.hasHydrated(),
   );
@@ -72,12 +73,7 @@ export default function App() {
   );
   const setWatchedSizes = useWistStore((state) => state.setWatchedSizes);
   const addFollowedBrands = useWistStore((state) => state.addFollowedBrands);
-  const replaceStarredItems = useWistStore(
-    (state) => state.replaceStarredItems,
-  );
-  const replaceWatchedSizes = useWistStore(
-    (state) => state.replaceWatchedSizes,
-  );
+  const refreshWatches = useWistStore((state) => state.refreshWatches);
   const mergePriceDropAlerts = useWistStore(
     (state) => state.mergePriceDropAlerts,
   );
@@ -127,13 +123,9 @@ export default function App() {
   useEffect(() => {
     if (!storeHydrated) return;
     let cancelled = false;
-    void loadWatches()
-      .then(({ itemIds, sizes }) => {
-        if (cancelled) return;
-        replaceStarredItems(itemIds);
-        replaceWatchedSizes(sizes);
-      })
+    void refreshWatches()
       .catch((error: unknown) => {
+        if (cancelled) return;
         console.warn(
           `Watch synchronization unavailable: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
@@ -141,7 +133,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [replaceStarredItems, replaceWatchedSizes, storeHydrated]);
+  }, [refreshWatches, storeHydrated]);
 
   useEffect(() => {
     if (!storeHydrated) return;
@@ -297,7 +289,7 @@ export default function App() {
       setStarredItem(item.id, !watched, item.currentPrice);
       Alert.alert(
         "Could not update Coveted",
-        error instanceof Error ? error.message : "Unknown catalogue error",
+        catalogueWatchErrorMessage(error),
       );
     } finally {
       setSyncingWatchIds((itemIds) =>
@@ -315,27 +307,32 @@ export default function App() {
       ? previous.filter((size) => size !== label)
       : [...previous, label];
     setWatchedSizes(item.id, next);
+    setSyncingSizeCounts((counts) => ({ ...counts, [item.id]: (counts[item.id] ?? 0) + 1 }));
     try {
       await saveWatchSizes(item.id, next);
     } catch (error) {
       setWatchedSizes(item.id, previous);
       Alert.alert(
         "Could not update alert sizes",
-        error instanceof Error ? error.message : "Unknown catalogue error",
+        catalogueWatchErrorMessage(error, true),
       );
+    } finally {
+      setSyncingSizeCounts((counts) => {
+        if ((counts[item.id] ?? 0) > 1) return { ...counts, [item.id]: counts[item.id]! - 1 };
+        const { [item.id]: _finished, ...rest } = counts;
+        return rest;
+      });
     }
   };
 
   const importLiveProduct = async (productUrl: string) => {
     await importCatalogueWatch(productUrl);
-    const [catalogue, watches] = await Promise.all([
+    const [catalogue] = await Promise.all([
       loadCatalogue(),
-      loadWatches(),
+      refreshWatches(),
     ]);
     setLiveCatalogue(catalogue);
     addFollowedBrands(catalogue.brands.map((brand) => brand.id));
-    replaceStarredItems(watches.itemIds);
-    replaceWatchedSizes(watches.sizes);
     if (!selectedBrandId && catalogue.brands[0]) {
       setSelectedBrandId(catalogue.brands[0].id);
     }
@@ -349,10 +346,18 @@ export default function App() {
     if (selectedItem && selectedItemBrand) {
       return (
         <ProductDetailScreen
+          key={selectedItem.id}
           brand={selectedItemBrand}
           coveted={covetedIds.includes(selectedItem.id)}
           item={selectedItem}
           onBack={() => setSelectedItemId(null)}
+          onBought={({ garment, unwatched }) => {
+            setSelectedItemId(null);
+            setActiveTab("profile");
+            setProfileView({ screen: "edit", id: garment.id, initialGarment: garment,
+              notice: unwatched ? undefined : PURCHASE_UNWATCHED_NOTICE });
+          }}
+          watchBusy={syncingWatchIds.includes(selectedItem.id) || (syncingSizeCounts[selectedItem.id] ?? 0) > 0}
           onToggleCovet={() => void toggleLiveCovet(selectedItem)}
           onToggleSize={(label) => void toggleLiveSize(selectedItem, label)}
           selectedSizes={watchedSizesByItemId[selectedItem.id] ?? []}
@@ -395,6 +400,7 @@ export default function App() {
           const garment = initial && (!stored || Date.parse(initial.updatedAt) > Date.parse(stored.updatedAt)) ? initial : stored;
           const returnScreen = profileView.from === "outfits" ? "outfits" : "wardrobe";
           if (garment) return <GarmentEditScreen key={garment.id} garment={garment}
+            notice={profileView.notice}
             backLabel={returnScreen === "outfits" ? "DRESS ME" : "WARDROBE"}
             onBack={() => setProfileView({ screen: returnScreen })} />;
         }

@@ -13,9 +13,11 @@ function editableFields(garment: Garment): GarmentInput {
   return { name, category, colors, formality, warmth, occasions, notes };
 }
 
-export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE" }: {
-  garment: Garment; onBack: () => void; backLabel?: string;
+export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE", notice }: {
+  garment: Garment; onBack: () => void; backLabel?: string; notice?: string;
 }) {
+  const productImage = garment.source === "purchase";
+  const imageLabel = productImage ? "product image" : "photo";
   const [draft, setDraft] = useState<GarmentInput>(() => editableFields(garment));
   const [colorsText, setColorsText] = useState(garment.colors.join(", "));
   const [busy, setBusy] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE" }: {
       if (!alive.current) return;
       const lost = caught instanceof UncertainWardrobeRequestError;
       setUncertain((previous) => previous || lost);
-      setError(garmentEditErrorMessage(caught));
+      setError(garmentEditErrorMessage(caught, productImage));
       // A deleted garment would otherwise linger in the store and fail every retry.
       if (caught instanceof WardrobeApiError && caught.code === "garment_not_found") void refresh();
     } finally {
@@ -67,7 +69,7 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE" }: {
     const tagged = await tag(garment.id, true);
     if (alive.current) {
       apply(tagged); setConfirmRetag(false);
-      if (tagged.tagStatus !== "tagged") setError("Could not read the photo. You can edit these details yourself or retry later.");
+      if (tagged.tagStatus !== "tagged") setError(`Could not read the ${imageLabel}. You can edit these details yourself or retry later.`);
     }
   });
 
@@ -80,7 +82,8 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE" }: {
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <Text style={styles.title}>Garment details</Text>
         <View style={styles.photo}><GarmentPhoto garment={garment} /></View>
-        {garment.tagStatus !== "tagged" && <Text style={styles.help}>{garment.tagStatus === "failed" ? "Couldn't tag this photo. Edit the details below or re-read it." : "Not tagged. Edit the details below or re-read the photo."}</Text>}
+        {notice && <Text accessibilityRole="alert" style={styles.help}>{notice}</Text>}
+        {garment.tagStatus !== "tagged" && <Text style={styles.help}>{garment.tagStatus === "failed" ? `Couldn't tag this ${imageLabel}. Edit the details below or re-read it.` : `Not tagged. Edit the details below or re-read the ${imageLabel}.`}</Text>}
         {busy && <View style={styles.notice}><ActivityIndicator color={colors.moss} /><Text style={styles.help}>{busy}</Text></View>}
         {error && <Text accessibilityRole="alert" style={styles.help}>{error}</Text>}
         {uncertain && <Pressable accessibilityRole="button" disabled={!!busy} onPress={() => void run("Refreshing…", async () => {
@@ -113,7 +116,7 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE" }: {
           <Text style={styles.saveText}>SAVE CHANGES</Text>
         </Pressable>
         {garment.photoUrl && <>
-          <Pressable accessibilityRole="button" disabled={!!busy || uncertain} onPress={() => setConfirmRetag(!confirmRetag)}><Text style={styles.choice}>RE-READ PHOTO</Text></Pressable>
+          <Pressable accessibilityRole="button" disabled={!!busy || uncertain} onPress={() => setConfirmRetag(!confirmRetag)}><Text style={styles.choice}>{productImage ? "RE-READ PRODUCT IMAGE" : "RE-READ PHOTO"}</Text></Pressable>
           {confirmRetag && <View style={styles.confirm}>
             <Text style={styles.help}>Re-reading replaces your saved details and notes, plus any unsaved edits. It may incur another processing charge.</Text>
             <Pressable accessibilityRole="button" disabled={!!busy} onPress={reread}><Text style={styles.choice}>RE-READ AND REPLACE DETAILS</Text></Pressable>
@@ -122,7 +125,7 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE" }: {
         </>}
         <Pressable accessibilityRole="button" disabled={!!busy} onPress={() => setConfirmDelete(!confirmDelete)}><Text style={styles.choice}>DELETE GARMENT</Text></Pressable>
         {confirmDelete && <View style={styles.confirm}>
-          <Text style={styles.help}>Delete this garment and its photo permanently? This cannot be undone.</Text>
+          <Text style={styles.help}>{productImage ? "Delete this garment permanently? This cannot be undone." : "Delete this garment and its photo permanently? This cannot be undone."}</Text>
           <Pressable accessibilityRole="button" disabled={!!busy} onPress={() => void run("Deleting…", async () => {
             await remove(garment.id); if (alive.current) onBack();
           })}><Text style={styles.choice}>DELETE PERMANENTLY</Text></Pressable>

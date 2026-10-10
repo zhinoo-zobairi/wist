@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Garment } from "../types";
 import {
-  deleteGarment, garmentPhotoSource, loadWardrobe, retagGarment, saveGarment,
+  addGarmentFromItem, deleteGarment, garmentPhotoSource, loadWardrobe, retagGarment, saveGarment,
   UncertainWardrobeRequestError, uploadGarmentPhoto, WardrobeApiError,
 } from "./catalogueClient";
 
@@ -11,6 +11,10 @@ const garment: Garment = {
   notes: null, source: "photo", catalogueItemId: null, tagStatus: "tagged",
   photoUrl: "/v1/wardrobe/01234567-1234-1234-1234-012345678901/photo",
   createdAt: "2026-10-10T10:00:00.000Z", updatedAt: "2026-10-10T10:00:00.000Z",
+};
+const purchase: Garment = {
+  ...garment, source: "purchase", catalogueItemId: "item-shirt",
+  photoUrl: "https://cdn.example.com/shirt.jpg",
 };
 const base = "http://localhost:4000/";
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
@@ -35,6 +39,86 @@ describe("wardrobe client", () => {
       fetchImpl.mockResolvedValueOnce(json({ garments: [{ ...garment, ...invalid }] }));
       await expect(loadWardrobe(fetchImpl, base, "owner")).rejects.toThrow();
     }
+  });
+
+  it("loads purchases with a catalogue link and an absolute public image", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(json({ garments: [purchase] }));
+    expect(await loadWardrobe(fetchImpl, base, "owner")).toEqual([purchase]);
+    for (const invalid of [
+      { catalogueItemId: null }, { catalogueItemId: "" }, { catalogueItemId: " " },
+      { photoUrl: null }, { photoUrl: garment.photoUrl }, { photoUrl: "//cdn.example.com/shirt.jpg" },
+      { photoUrl: "file:///shirt.jpg" }, { photoUrl: "data:image/jpeg;base64,photo" },
+      { photoUrl: "https://owner:secret@cdn.example.com/shirt.jpg" },
+    ]) {
+      fetchImpl.mockResolvedValueOnce(json({ garments: [{ ...purchase, ...invalid }] }));
+      await expect(loadWardrobe(fetchImpl, base, "owner")).rejects.toThrow("invalid garment");
+    }
+  });
+
+  it.each(["photo", "manual"])("rejects catalogue links on %s records", async (source) => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(json({
+      garments: [{ ...garment, source, catalogueItemId: "item-shirt" }],
+    }));
+    await expect(loadWardrobe(fetchImpl, base, "owner")).rejects.toThrow("invalid garment");
+  });
+
+  it.each([true, false])("posts a purchase and preserves the authoritative unwatch result %s", async (unwatched) => {
+    vi.useFakeTimers();
+    const result = { garment: purchase, unwatched };
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(json(result, 201));
+    expect(await addGarmentFromItem("item-shirt", fetchImpl, base, "owner")).toEqual(result);
+    expect(fetchImpl).toHaveBeenCalledExactlyOnceWith("http://localhost:4000/v1/wardrobe/from-item", {
+      method: "POST", headers: {
+        accept: "application/json", authorization: "Bearer owner", "content-type": "application/json",
+      }, body: '{"itemId":"item-shirt"}', signal: expect.any(AbortSignal),
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("preserves server errors without retrying a purchase", async () => {
+    vi.useFakeTimers();
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(json({ error: "wardrobe_full" }, 409));
+    await expect(addGarmentFromItem("item-shirt", fetchImpl, base, "owner"))
+      .rejects.toMatchObject({ code: "wardrobe_full", status: 409 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("treats malformed successful purchase responses as uncertain without repeating them", async () => {
+    vi.useFakeTimers();
+    for (const result of [
+      { garment: purchase }, { garment: purchase, unwatched: "true" },
+      { garment, unwatched: true }, { garment: { ...purchase, catalogueItemId: "another-item" }, unwatched: true },
+    ]) {
+      const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(json(result, 201));
+      await expect(addGarmentFromItem("item-shirt", fetchImpl, base, "owner"))
+        .rejects.toBeInstanceOf(UncertainWardrobeRequestError);
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+    }
+  });
+
+  it.each(["network", "timeout"])("reports an uncertain %s purchase without automatic retry", async (failure) => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | null | undefined;
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (_url, options) => {
+      if (failure === "network") throw new TypeError("Network request failed");
+      signal = options?.signal;
+      return new Promise((_resolve, reject) => {
+        signal?.addEventListener("abort", () => reject(new Error("AbortError")));
+      });
+    });
+    const result = addGarmentFromItem("item-shirt", fetchImpl, base, "owner");
+    const assertion = expect(result).rejects.toBeInstanceOf(UncertainWardrobeRequestError);
+    if (failure === "timeout") {
+      await vi.advanceTimersByTimeAsync(89_999);
+      expect(signal?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(signal?.aborted).toBe(true);
+    }
+    await assertion;
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("reads a local URI without credentials and posts raw JPEG bytes", async () => {
@@ -124,6 +208,22 @@ describe("wardrobe client", () => {
     });
     expect(garmentPhotoSource({ ...garment, photoUrl: null }, base, "owner")).toBeUndefined();
     expect(() => garmentPhotoSource({ ...garment, photoUrl: "https://example.com" }, base, "owner")).toThrow();
+    expect(() => garmentPhotoSource({ ...garment, photoUrl: "/v1/wardrobe/another-id/photo" }, base, "owner")).toThrow();
     expect(() => garmentPhotoSource(garment, base, "")).toThrow("OWNER_TOKEN");
+  });
+
+  it.each(["http", "https"])("uses a public %s purchase image without owner credentials", (protocol) => {
+    const photoUrl = `${protocol}://cdn.example.com/shirt.jpg`;
+    const source = garmentPhotoSource({ ...purchase, photoUrl }, base, "");
+    expect(source).toEqual({ uri: photoUrl });
+    expect(source).not.toHaveProperty("headers");
+  });
+
+  it.each([
+    "/v1/wardrobe/01234567-1234-1234-1234-012345678901/photo", "//cdn.example.com/shirt.jpg",
+    "file:///shirt.jpg", "data:image/jpeg;base64,photo", "javascript:alert(1)",
+    "https://owner:secret@cdn.example.com/shirt.jpg",
+  ])("rejects an unsafe purchase photo source: %s", (photoUrl) => {
+    expect(() => garmentPhotoSource({ ...purchase, photoUrl }, base, "owner")).toThrow("Invalid garment photo URL");
   });
 });

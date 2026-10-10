@@ -224,6 +224,16 @@ async function wardrobeJson(response: Response): Promise<JsonObject> {
   return responseJson(response);
 }
 
+function isPublicGarmentPhotoUrl(value: unknown): value is string {
+  if (typeof value !== "string" || !/^https?:\/\//i.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
 function toGarment(value: unknown): Garment {
   const invalid = () => new Error("Catalogue returned an invalid garment");
   if (!isObject(value)) throw invalid();
@@ -241,10 +251,11 @@ function toGarment(value: unknown): Garment {
     value.occasions.some((occasion) => !OCCASION_OPTIONS.some((option) => option.id === occasion)) ||
     new Set(value.occasions).size !== value.occasions.length ||
     (value.notes !== null && (typeof value.notes !== "string" || value.notes.length > 280)) ||
-    (value.catalogueItemId !== null && (typeof value.catalogueItemId !== "string" || !value.catalogueItemId)) ||
-    (value.source !== "manual" && value.source !== "photo") ||
+    (value.source !== "manual" && value.source !== "photo" && value.source !== "purchase") ||
     (value.tagStatus !== "tagged" && value.tagStatus !== "untagged" && value.tagStatus !== "failed") ||
-    (value.photoUrl !== null && value.photoUrl !== `/v1/wardrobe/${id}/photo`) ||
+    (value.source === "purchase"
+      ? typeof value.catalogueItemId !== "string" || !value.catalogueItemId.trim() || !isPublicGarmentPhotoUrl(value.photoUrl)
+      : value.catalogueItemId !== null || (value.photoUrl !== null && value.photoUrl !== `/v1/wardrobe/${id}/photo`)) ||
     typeof value.createdAt !== "string" || !Number.isFinite(Date.parse(value.createdAt)) ||
     typeof value.updatedAt !== "string" || !Number.isFinite(Date.parse(value.updatedAt))
   ) throw invalid();
@@ -269,6 +280,31 @@ export async function loadWardrobe(
     throw new Error("Catalogue returned duplicate garments");
   }
   return garments;
+}
+
+export type AddGarmentFromItemResult = { garment: Garment; unwatched: boolean };
+
+export async function addGarmentFromItem(
+  itemId: string, fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<AddGarmentFromItemResult> {
+  const headers = { ...authorizationHeaders(ownerToken), "content-type": "application/json" };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90_000);
+  try {
+    const body = await wardrobeJson(await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/wardrobe/from-item`, {
+      method: "POST", headers, body: JSON.stringify({ itemId }), signal: controller.signal,
+    }));
+    const garment = toGarment(body.garment);
+    if (garment.source !== "purchase" || garment.catalogueItemId !== itemId || typeof body.unwatched !== "boolean") {
+      throw new Error("Catalogue returned an invalid purchase result");
+    }
+    return { garment, unwatched: body.unwatched };
+  } catch (error) {
+    if (!(error instanceof WardrobeApiError)) throw new UncertainWardrobeRequestError();
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function uploadGarmentPhoto(
@@ -342,8 +378,12 @@ export async function retagGarment(
 
 export function garmentPhotoSource(
   garment: Garment, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
-): { uri: string; headers: { authorization: string } } | undefined {
+): { uri: string; headers?: { authorization: string } } | undefined {
   if (!garment.photoUrl) return undefined;
+  if (garment.source === "purchase") {
+    if (!isPublicGarmentPhotoUrl(garment.photoUrl)) throw new Error("Invalid garment photo URL");
+    return { uri: garment.photoUrl };
+  }
   if (garment.photoUrl !== `/v1/wardrobe/${encodeURIComponent(garment.id)}/photo`) {
     throw new Error("Invalid garment photo URL");
   }

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   Linking,
+  Modal,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
@@ -12,10 +14,14 @@ import {
   View,
 } from "react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Icon } from "../components/Icon";
 import { colors, fonts } from "../theme";
 import type { Brand, Item } from "../types";
+import { UncertainWardrobeRequestError, type AddGarmentFromItemResult } from "../services/catalogueClient";
+import { useWistStore } from "../store/useWistStore";
+import { purchaseErrorMessage, purchaseRefreshErrorMessage } from "../wardrobeMessages";
 
 type Props = {
   brand: Brand;
@@ -25,6 +31,8 @@ type Props = {
   onToggleCovet: () => void;
   selectedSizes: string[];
   onToggleSize: (label: string) => void;
+  onBought: (result: AddGarmentFromItemResult) => void;
+  watchBusy?: boolean;
 };
 
 const observedOn = (value?: string) =>
@@ -61,6 +69,8 @@ export function ProductDetailScreen({
   onToggleCovet,
   selectedSizes,
   onToggleSize,
+  onBought,
+  watchBusy = false,
 }: Props) {
   const { width } = useWindowDimensions();
   const mediaWidth = Math.min(width, 480);
@@ -70,6 +80,50 @@ export function ProductDetailScreen({
       ? item.media
       : [{ type: "image" as const, url: item.imageUrl }];
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  const [confirmBuy, setConfirmBuy] = useState(false);
+  const [buyBusy, setBuyBusy] = useState(false);
+  const [buyError, setBuyError] = useState<string | null>(null);
+  const [recovery, setRecovery] = useState<"refresh" | "repeat" | "owned" | null>(null);
+  const pending = useRef(false);
+  const alive = useRef(true);
+  const buy = useWistStore((state) => state.addGarmentFromItem);
+  const refreshPurchase = useWistStore((state) => state.refreshPurchaseState);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+
+  const addBoughtPiece = async () => {
+    if (pending.current || watchBusy || recovery === "refresh" || recovery === "owned") return;
+    pending.current = true;
+    setBuyBusy(true); setBuyError(null); setConfirmBuy(false);
+    try {
+      const result = await buy(item.id);
+      if (alive.current) onBought(result);
+    } catch (caught) {
+      if (alive.current) {
+        setBuyError(purchaseErrorMessage(caught));
+        setRecovery(caught instanceof UncertainWardrobeRequestError ? "refresh" : "repeat");
+      }
+    } finally {
+      pending.current = false;
+      if (alive.current) setBuyBusy(false);
+    }
+  };
+
+  const refreshBoughtPiece = async () => {
+    if (pending.current) return;
+    pending.current = true;
+    setBuyBusy(true); setBuyError(null);
+    try {
+      await refreshPurchase();
+      if (alive.current) {
+        setRecovery(useWistStore.getState().starredItemIds.includes(item.id) ? "repeat" : "owned");
+      }
+    } catch (caught) {
+      if (alive.current) { setBuyError(purchaseRefreshErrorMessage(caught)); setRecovery("refresh"); }
+    } finally {
+      pending.current = false;
+      if (alive.current) setBuyBusy(false);
+    }
+  };
   const updateActiveMedia = (
     event: NativeSyntheticEvent<NativeScrollEvent>,
   ) => {
@@ -134,7 +188,8 @@ export function ProductDetailScreen({
         </View>
 
         <Pressable
-          accessibilityState={{ selected: coveted }}
+          accessibilityState={{ selected: coveted, disabled: buyBusy || watchBusy }}
+          disabled={buyBusy || watchBusy}
           onPress={onToggleCovet}
           style={[styles.covet, coveted && styles.coveted]}
         >
@@ -143,6 +198,37 @@ export function ProductDetailScreen({
             {coveted ? "COVETED — WIST IS WATCHING" : "COVET THIS PIECE"}
           </Text>
         </Pressable>
+
+        {coveted && !recovery && !confirmBuy && <Pressable accessibilityRole="button"
+          disabled={buyBusy || watchBusy} onPress={() => setConfirmBuy(true)} style={styles.bought}>
+          <Text style={styles.boughtText}>I bought this</Text>
+        </Pressable>}
+        <Modal animationType="slide" presentationStyle="pageSheet" visible={confirmBuy}
+          onRequestClose={() => !buyBusy && setConfirmBuy(false)}>
+          <SafeAreaView edges={["top", "bottom"]} style={styles.buySheet}>
+          <Text style={styles.buyHelp}>Add to your wardrobe? You'll stop getting price alerts for it.</Text>
+          <Pressable accessibilityRole="button" disabled={buyBusy || watchBusy} onPress={() => void addBoughtPiece()}>
+            <Text style={styles.buyAction}>ADD TO WARDROBE</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" disabled={buyBusy} onPress={() => setConfirmBuy(false)}>
+            <Text style={styles.buyAction}>CANCEL</Text>
+          </Pressable>
+          </SafeAreaView>
+        </Modal>
+        {buyBusy && <View style={styles.buyNotice}><ActivityIndicator color={colors.moss} />
+          <Text style={styles.buyHelp}>{recovery === "refresh" ? "Refreshing…" : "Adding to wardrobe…"}</Text>
+        </View>}
+        {buyError && <Text accessibilityRole="alert" style={styles.buyHelp}>{buyError}</Text>}
+        {recovery === "refresh" && <Pressable accessibilityRole="button" disabled={buyBusy} onPress={() => void refreshBoughtPiece()}>
+          <Text style={styles.buyAction}>Refresh</Text>
+        </Pressable>}
+        {recovery === "owned" && <Text accessibilityRole="alert" style={styles.buyHelp}>This piece is in your wardrobe.</Text>}
+        {recovery === "repeat" && coveted && <View style={styles.buyNotice}>
+          <Text style={styles.buyHelp}>This piece is still in Coveted. Trying again can add a duplicate and repeat paid tagging.</Text>
+          <Pressable accessibilityRole="button" disabled={buyBusy || watchBusy} onPress={() => void addBoughtPiece()}>
+            <Text style={styles.buyAction}>Try again</Text>
+          </Pressable>
+        </View>}
 
         {item.variants && item.variants.length > 0 ? (
           <View style={styles.variants}>
@@ -154,7 +240,7 @@ export function ProductDetailScreen({
                   <Pressable
                     accessibilityLabel={`Size ${variant.label}, ${variant.available ? "available" : "unavailable"}`}
                     accessibilityState={{ selected }}
-                    disabled={!coveted}
+                    disabled={!coveted || buyBusy || watchBusy}
                     key={variant.id}
                     onPress={() => onToggleSize(variant.label)}
                     style={[
@@ -232,6 +318,12 @@ const styles = StyleSheet.create({
   coveted: { backgroundColor: colors.ink, borderColor: colors.ink },
   covetText: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1.2 },
   covetedText: { color: colors.card },
+  bought: { alignItems: "center", borderColor: colors.moss, borderWidth: 1, borderRadius: 999, marginTop: 12, paddingVertical: 15 },
+  boughtText: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 12 },
+  buyNotice: { backgroundColor: colors.wash, borderRadius: 20, marginTop: 12, padding: 16 },
+  buySheet: { backgroundColor: colors.paper, flex: 1, justifyContent: "center", padding: 24 },
+  buyHelp: { color: colors.muted, fontFamily: fonts.text, fontSize: 12, lineHeight: 19, marginTop: 10 },
+  buyAction: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 12, paddingVertical: 12 },
   variants: { marginTop: 30 },
   variantsTitle: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2 },
   variantGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
