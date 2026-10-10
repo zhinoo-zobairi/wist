@@ -111,7 +111,9 @@ it. Available endpoints are:
 - `POST /v1/wardrobe/photos` (owner token) — uploads raw JPEG, PNG, or WebP bytes
 - `GET /v1/wardrobe/:id/photo` (owner token) — returns the stored image bytes
 - `POST /v1/wardrobe/:id/tag` (owner token) — retries photo tagging; optional `{ "force": true }` overwrites existing tags
-- `POST /v1/outfits/suggestions` (owner token) — suggests outfits from tagged owned garments
+- `GET /v1/outfits` (owner token) — stored outfit ideas, saved outfits and background status; never calls Claude
+- `POST /v1/outfits/saved` with `{ "suggestionId": "…" }` (owner token) — saves an idea; `DELETE /v1/outfits/saved/:id` removes it
+- `POST /v1/outfits/more` (owner token) — queues one background run (`202`), or `429 daily_limit_reached` / `422 wardrobe_too_small` / `503 outfits_not_configured`
 
 Wardrobe records belong to the same single owner as the style profile and are
 stored in their own SQLite tables. Garment input is `{ name, category, colors,
@@ -199,56 +201,61 @@ Tests use fake taggers and a stubbed SDK transport; they do not call Anthropic.
 A live tagging check requires a real backend key and a garment photo. Native
 capture/review is available through Profile → Wardrobe.
 
-### Suggest outfits from owned garments
+### Prepare outfits in the background
 
-With at least **three tagged garments** and a backend `ANTHROPIC_API_KEY`, send
-`POST /v1/outfits/suggestions` with the owner bearer token and this JSON body:
+Outfit ideas are generated in the background and stored, so reading them never
+waits for Claude. With a backend `ANTHROPIC_API_KEY`, the service's scheduler
+checks every **60 seconds** and runs one Claude call when one of these is due:
 
-```json
-{ "context": { "occasion": "work" } }
-```
+- **10 minutes after the last change** to the tagged wardrobe (a garment added,
+  edited, deleted or successfully tagged); every further change restarts the
+  wait. Photo uploads still being tagged and failed tagging are not changes;
+- at **03:00** server-local time, only if outfits are still out of date (a
+  failed run, or changes left over after the daily limit);
+- after `POST /v1/outfits/more` (**More ideas**).
 
-The response is `{ "outfits": [{ "garments": [/* full owned garment records */],
-"reason": "…" }] }`. Occasions use the same five profile options. The backend
-loads the wardrobe and style profile, sends text tags (no notes or photos) to
-the shared direct Anthropic client, and returns **1–3 outfits**, each with
-**2–6 unique owned garment IDs**. It drops invalid combinations and truncates
-reasons to **200 characters**. Before responding it checks ownership/tagged
-status again and returns current records; an explanation can still reflect
-attributes from before an edit made during processing.
+At most **12 runs per day**, where a day runs 03:00–03:00 local time. A run with
+fewer than **three tagged garments** is skipped without a model call and does
+not count. One run asks for up to **2 new outfits per occasion** in the style
+profile (all five without a profile). Runs triggered by a change ask Claude to
+favour the pieces changed since the last successful run. Each outfit needs
+**2–6 unique tagged garment IDs** and a reason, truncated to **200 characters**;
+invalid outfits are dropped. An outfit with exactly the same pieces as an
+existing idea or saved outfit is dropped too. Each occasion keeps the **10
+newest unsaved ideas**.
 
-| Status | Meaning |
+Failures are recorded in a run log (kept **7 days**) and not retried in a loop;
+the wardrobe stays out of date, so the next trigger tries again. Only one run
+happens at a time, and a run interrupted by a restart is marked failed at
+startup. The scheduler runs only while the catalogue service runs.
+
+`GET /v1/outfits` returns `{ suggestions, saved, status }`. `status` has
+`pending`, `running`, `lastRunAt`, `lastRunStatus`, `runsLeftToday` and
+`generationEnabled`. Ideas that use a deleted garment are removed; saved outfits
+are kept and list `missingGarmentIds`.
+
+| Route | Result |
 |---|---|
-| `400 invalid_outfit_request` | Invalid JSON or occasion |
-| `422 wardrobe_too_small` | Fewer than three tagged garments; no model call |
-| `502 suggestion_failed` | Model error, refusal, invalid output, or no surviving outfits |
-| `503 outfits_not_configured` | Missing owner token, repositories, or backend key |
-
-Authentication failures return 401, bodies above the existing **8,192-byte**
-JSON limit return 413, and unsupported methods return 405.
+| `POST /v1/outfits/saved` | `201 { saved }`, `404 suggestion_not_found` |
+| `DELETE /v1/outfits/saved/:id` | `200 { id, deleted: true }`, `404 saved_outfit_not_found` |
+| `POST /v1/outfits/more` | `202 { queued: true }`, `503 outfits_not_configured`, `422 wardrobe_too_small`, `429 daily_limit_reached` |
 
 Inference uses **`claude-opus-5-5`**, **medium effort**, **16,000 output tokens**
 (thinking counts toward them; running out is logged as `truncated`),
 a **90,000 ms timeout per attempt**, **two SDK retries**, and the same approved
-server-side fallback as tagging. Three attempts plus backoff and fallback can
-repeat paid processing and exceed 90 seconds overall. Every request calls the
-model; Wist saves/caches no suggestions and adds no queue, startup recovery,
-or concurrency limit. Anthropic prompt caching marks the stable, ID-sorted
-wardrobe text with an explicit **5-minute TTL**. It caches input processing,
-not answers; short wardrobes may not reach the provider's cache threshold.
+server-side fallback as tagging. Anthropic prompt caching marks the stable,
+ID-sorted wardrobe text with an explicit **5-minute TTL**.
 
 Wardrobe names/tags and profile selections are sent to Anthropic. Account
-retention, model access, actual costs, and cache hits remain unverified here;
-the issue's $0.05–$0.10 estimate around 100 garments is not a measured price.
+retention, model access, actual costs, and cache hits remain unverified here.
 Unit/API tests use fake inference and SDK transport, never real model calls.
-Use **Profile → Wardrobe → Dress me** to request these ideas in the app.
 
 ```text
-catalogue:start → server.ts → shared Anthropic → ClaudeOutfitSuggester
-                  └→ handleRequest → handleOutfitRequest
-                                      ├→ wardrobe.listGarments / profiles.getProfile
-                                      ├→ suggester.suggest → structured IDs/reasons
-                                      └→ keepValidOutfits → current owned Garment records
+catalogue:start → server.ts → startOutfitScheduler (60 s)
+                    └→ runDueOutfitGeneration → decideRun
+                         └→ runOutfitGeneration → ClaudeOutfitSuggester
+                              └→ keepValidGeneratedOutfits → SqliteOutfitRepository
+GET /v1/outfits → handleOutfitRequest → stored ideas + saved outfits + status
 ```
 
 The service uses a local SQLite database. Configure the owner token before
@@ -365,41 +372,33 @@ the product exposes one save verb: **Covet**.
 
 ### Get outfit ideas
 
-1. Open **Profile → Wardrobe → Dress me**. Add at least three tagged pieces
-   first; manually reviewed and saved garments count too.
-2. Choose an occasion. The first occasion in your mobile style profile is
-   preselected; with no answered profile or no occasions, choose one yourself.
-3. Tap **Suggest**. Wist shows “Putting outfits together…” while the backend
-   works, then returns up to three collages of owned garments with short reasons.
-   Garments without photos use the existing “No photo” placeholder.
-4. Tap a garment to review or edit it. Back returns to a fresh **Dress me**
-   screen. **Try again** requests new ideas for the same occasion.
+1. Open **Profile → Wardrobe → Dress me**. It opens instantly with the ideas
+   the backend has already prepared; it never waits for Claude.
+2. Choose an occasion to filter the ideas. The first occasion in your style
+   profile is preselected. Without one, all ideas show until you choose.
+3. Tap **♡ Save** to keep an idea. Saved outfits are never removed
+   automatically and show **Missing a piece** if you delete one of their
+   garments. **Remove** deletes a saved outfit.
+4. Tap **More ideas** to queue one extra background run. You can leave the
+   screen; new ideas appear when it finishes. After the daily limit the app
+   shows “You've reached today's limit of new ideas.”
+5. Tap a garment to review or edit it.
 
-Suggestions are requested only by **Suggest**, **Retry**, or **Try again**.
-Opening the screen or choosing an occasion makes no model call. Changing the
-occasion clears the previous results; leaving the screen discards them.
-Results and request state stay in the screen, with no store/device persistence
-or offline queue. Five tabs remain unchanged.
-
-“Add at least 3 tagged pieces to get outfit ideas.” links back to Wardrobe.
-“Couldn't put outfits together right now.” offers Retry. The phone waits up to
-**120,000 ms** per request, using AbortController with **no automatic retries**;
-one request can be pending on the open screen. Leaving cancels the phone's wait
-and ignores late results. This does not cancel the backend's work: its
-90,000 ms per-attempt timeout, SDK retries, and fallback may run longer than
-the phone waits. Each explicit retry can repeat paid processing; Wist stores
-no answers to recover after a lost response or restart.
+While a run is pending or running, the open screen shows “Preparing ideas…”
+and re-reads `GET /v1/outfits` every **15 seconds** (no model call); it stops
+when you leave. Without a backend key no new ideas are made and only saved
+outfits show. Nothing is stored on the phone.
 
 ```text
-Wardrobe “Dress me” → App profileView → OutfitSuggestionsScreen
-                                        ├→ Suggest → catalogueClient.suggestOutfits
-                                        │             └→ POST /v1/outfits/suggestions
-                                        └→ garment → GarmentEditScreen → fresh Dress me
+Wardrobe “Dress me” → OutfitSuggestionsScreen
+                        ├→ loadOutfits → GET /v1/outfits (every 15 s while pending/running)
+                        ├→ ♡ Save → saveOutfitIdea → POST /v1/outfits/saved
+                        ├→ Remove → removeSavedOutfit → DELETE /v1/outfits/saved/:id
+                        └→ More ideas → requestMoreIdeas → POST /v1/outfits/more
 ```
 
-Client tests verify the contract, error mapping, timeout, and cancellation.
-Device screenshots and real model checks remain pending, as agreed; the web
-photo authorization limitation described above also applies to collages.
+Client tests verify the contract and error mapping. Device screenshots and
+real model checks remain pending.
 
 ## Checks
 

@@ -162,6 +162,9 @@ is photos only.
 
 ## Outfit suggestions (#8)
 
+Superseded by background outfit generation (C1.3, below): the route described
+here is removed. Kept as the record of what #8 approved.
+
 The owner approved these exact policies before implementation:
 
 | Rule | Approved value |
@@ -224,6 +227,9 @@ All implementation commits are local; no push, issue edit, or issue closure
 was performed.
 
 ## Mobile outfit suggestions (#9)
+
+Superseded by background outfit generation (C1.3, below): Dress me no longer
+requests suggestions or waits for them. Kept as the record of what #9 approved.
 
 The owner approved these screen and request policies before implementation:
 
@@ -288,3 +294,31 @@ Verification for #9:
   exposes that alongside its native accessibility state.
 - No real model calls, device checks, GitHub edits, pushes, or issue closures
   were performed.
+
+## Background outfit generation (C1.3)
+
+Approved by the owner on 2026-10-10; full design in
+`docs/superpowers/specs/2026-10-10-background-outfit-generation-design.md`.
+This replaces the stateless suggestion endpoint: `POST /v1/outfits/suggestions`
+is removed and Dress me never waits for Claude. The catalogue service now owns
+stored ideas, saved outfits, a run log and an in-process scheduler.
+
+| Rule | Approved value |
+|---|---|
+| Change trigger | One run 10 minutes after the last change to the tagged wardrobe; each change restarts the wait. Photo uploads awaiting tags and failed tagging are not changes |
+| Catch-up | At 03:00 local only if outfits are out of date; checked once per day |
+| More ideas | One tap queues one run; counts toward the cap; `503` without a key, checked before the wardrobe size |
+| One run | One Claude call, up to 2 new outfits per profile occasion (all five without a profile); change-triggered runs favour pieces changed since the last success |
+| Model | `claude-opus-5-5`, `medium`, `max_tokens` 16000, 90 s, 2 SDK retries, refusal fallback, 5-minute prompt cache |
+| Cap | 12 runs per cap day, 03:00–03:00 local (also across daylight-saving changes); skipped runs (under 3 tagged pieces) do not count; status stops reporting pending once the cap is reached |
+| Scheduler | 60 s tick, one run at a time; interrupted runs are marked failed at startup, with or without a key |
+| Failures | No retry loop; the next trigger retries |
+| Pool | 10 newest unsaved ideas per occasion; exact duplicates (same pieces) dropped |
+| Saved | Kept until removed; deleted pieces reported as missing |
+| Deleted garment | Ideas using it are removed at each run and each read |
+| Run log | 7 days, always keeping the latest successful run |
+| Refresh | Dress me re-reads stored outfits every 15 s while a run is pending or running |
+
+Remaining limitations: no real model call, device run, cost or cache-hit check
+has been made; the job runs only while the service runs (on the owner's Mac
+until hosting, #21).
