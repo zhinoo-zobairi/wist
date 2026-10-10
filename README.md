@@ -111,6 +111,7 @@ it. Available endpoints are:
 - `POST /v1/wardrobe/photos` (owner token) — uploads raw JPEG, PNG, or WebP bytes
 - `GET /v1/wardrobe/:id/photo` (owner token) — returns the stored image bytes
 - `POST /v1/wardrobe/:id/tag` (owner token) — retries photo tagging; optional `{ "force": true }` overwrites existing tags
+- `POST /v1/outfits/suggestions` (owner token) — suggests outfits from tagged owned garments
 
 Wardrobe records belong to the same single owner as the style profile and are
 stored in their own SQLite tables. Garment input is `{ name, category, colors,
@@ -197,6 +198,57 @@ catalogue:start → server.ts → Anthropic client → ClaudeGarmentTagger
 Tests use fake taggers and a stubbed SDK transport; they do not call Anthropic.
 A live tagging check requires a real backend key and a garment photo. Native
 capture/review is available through Profile → Wardrobe.
+
+### Suggest outfits from owned garments
+
+With at least **three tagged garments** and a backend `ANTHROPIC_API_KEY`, send
+`POST /v1/outfits/suggestions` with the owner bearer token and this JSON body:
+
+```json
+{ "context": { "occasion": "work" } }
+```
+
+The response is `{ "outfits": [{ "garments": [/* full owned garment records */],
+"reason": "…" }] }`. Occasions use the same five profile options. The backend
+loads the wardrobe and style profile, sends text tags (no notes or photos) to
+the shared direct Anthropic client, and returns **1–3 outfits**, each with
+**2–6 unique owned garment IDs**. It drops invalid combinations and truncates
+reasons to **200 characters**. Before responding it checks ownership/tagged
+status again and returns current records; an explanation can still reflect
+attributes from before an edit made during processing.
+
+| Status | Meaning |
+|---|---|
+| `400 invalid_outfit_request` | Invalid JSON or occasion |
+| `422 wardrobe_too_small` | Fewer than three tagged garments; no model call |
+| `502 suggestion_failed` | Model error, refusal, invalid output, or no surviving outfits |
+| `503 outfits_not_configured` | Missing owner token, repositories, or backend key |
+
+Authentication failures return 401, bodies above the existing **8,192-byte**
+JSON limit return 413, and unsupported methods return 405.
+
+Inference uses **`claude-opus-5-5`**, **medium effort**, **2,000 output tokens**,
+a **90,000 ms timeout per attempt**, **two SDK retries**, and the same approved
+server-side fallback as tagging. Three attempts plus backoff and fallback can
+repeat paid processing and exceed 90 seconds overall. Every request calls the
+model; Wist saves/caches no suggestions and adds no queue, startup recovery,
+or concurrency limit. Anthropic prompt caching marks the stable, ID-sorted
+wardrobe text with an explicit **5-minute TTL**. It caches input processing,
+not answers; short wardrobes may not reach the provider's cache threshold.
+
+Wardrobe names/tags and profile selections are sent to Anthropic. Account
+retention, model access, actual costs, and cache hits remain unverified here;
+the issue's $0.05–$0.10 estimate around 100 garments is not a measured price.
+Unit/API tests use fake inference and SDK transport, never real model calls.
+The outfit screen is a separate issue; #8 provides this backend endpoint.
+
+```text
+catalogue:start → server.ts → shared Anthropic → ClaudeOutfitSuggester
+                  └→ handleRequest → handleOutfitRequest
+                                      ├→ wardrobe.listGarments / profiles.getProfile
+                                      ├→ suggester.suggest → structured IDs/reasons
+                                      └→ keepValidOutfits → current owned Garment records
+```
 
 The service uses a local SQLite database. Configure the owner token before
 starting it:

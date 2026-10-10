@@ -106,7 +106,7 @@ from rerouting this integration.
   refused with `409 already_tagged`. (Changed 2026-10-10; previously a failed
   forced attempt marked the garment `failed`.)
 - Photos and garments remain single-owner. Multi-user auth, cloud storage,
-  outfit generation and calendar processing are later work.
+  calendar processing is later work; outfit generation is documented below.
 - The live photo acceptance check remains pending: no backend
   `ANTHROPIC_API_KEY` is configured in the shell or `.env.local`. Automated tests
   replace the tagger or SDK transport and make no Anthropic calls.
@@ -153,3 +153,72 @@ was blocked by the sandbox and its escalation could not run because automatic
 approval review returned 403 (reviewer model unavailable). No physical iPhone
 was available. This is a review infrastructure failure, not an unsafe-action
 finding. Live tagging also requires a backend key that is not configured here.
+The web export passed, but an attempted sandboxed Chrome launch aborted before
+loading the app; browser interactions and screenshots are also unverified.
+Expo introspection confirms the exact permission wording and absence of an iOS
+microphone usage description. The existing `expo-video` Android configuration
+still includes `RECORD_AUDIO`; wardrobe adds no microphone request and capture
+is photos only.
+
+## Outfit suggestions (#8)
+
+The owner approved these exact policies before implementation:
+
+| Rule | Approved value |
+|---|---|
+| Ownership | Backend reads its existing wardrobe/profile and performs inference; no new durable state |
+| Provider/client | Shared direct Anthropic client; backend-only `ANTHROPIC_API_KEY` |
+| Model/effort | `claude-opus-5-5`, `medium` |
+| Output cap | `max_tokens = 2000` |
+| Input | Tagged garments as text plus profile selections and occasion; no notes/photos |
+| Minimum | 3 tagged garments; fewer returns `422 wardrobe_too_small` without inference |
+| Output | 1–3 outfits, each with 2–6 unique eligible owned IDs |
+| Filtering | Drop invalid outfits, including unknown/duplicate IDs; no survivors returns `502 suggestion_failed` |
+| Reason length | Trimmed and truncated to 200 characters |
+| Attempt timeout | 90,000 ms |
+| SDK retries | 2; up to 3 attempts plus backoff |
+| Refusal fallback | `betas: ["server-side-fallback-2026-07-01"]`, `fallbacks: "default"` |
+| Model failure | `502 suggestion_failed`; no provider error payload returned/logged |
+| Missing configuration | `503 outfits_not_configured` |
+| Suggestion storage | None; every request performs billed inference |
+| Prompt cache | Wardrobe text block only, `cache_control: {type:"ephemeral", ttl:"5m"}` |
+| HTTP concurrency | Existing behavior unchanged; no new limit/queue |
+
+`POST /v1/outfits/suggestions` accepts `{context:{occasion}}`. Authentication,
+the 8,192-byte JSON body cap, and request concurrency follow the existing
+server. A profile can be absent; the request still proceeds using wardrobe and
+occasion. Garment JSON lines are sorted by ID and include exactly `id`, `name`,
+`category`, `colors`, `formality`, `warmth`, `occasions`. System instructions
+define occasion/style meanings and treat all user strings as data. Profile
+and context follow the cached wardrobe block so they do not change its prefix.
+
+The route filters IDs against both the prompt snapshot and current tagged
+ownership before returning full records. Deleting a garment during inference
+can invalidate outfits after a paid call; if none remain, the response is 502.
+Current garment attributes are returned, but a reason may reflect the earlier
+attributes if the garment was edited during inference.
+
+There is no overall 90-second deadline. SDK retries and server fallback can
+repeat paid work; interrupted requests have no durable checkpoints, and a new
+request after timeout/restart performs fresh inference. Prompt caching caches
+input processing, not suggestions; it can expire after five minutes and may
+not activate for small wardrobes. Account retention, model/fallback access,
+cache-read usage, and cost (including the issue's unverified $0.05–$0.10 estimate
+for roughly 100 garments) require a live account check. No key is configured
+here, so live outfit sensibility and cache-hit acceptance checks remain pending.
+
+## Verification for #6 and #8
+
+- `npm run typecheck` — passed for app and backend.
+- `npm test` — 311 tests across 31 files passed, including fake SDK transport.
+- `npm run catalogue:build` — passed.
+- Expo web export — passed after the final mobile change.
+- HTTP smoke against the compiled server with an isolated temporary database —
+  outfit 401 authentication, 503 without a model key, 413 above 8,192 bytes,
+  405 for unsupported method, and wardrobe creation/list/deletion passed.
+- Native camera/library, rendered screenshots, live tagging/outfit quality,
+  account cost/access, and actual provider cache hits remain unverified for the
+  environment reasons above. No real model calls were made.
+
+All implementation commits are local; no push, issue edit, or issue closure
+was performed.
