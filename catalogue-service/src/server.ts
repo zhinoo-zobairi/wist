@@ -14,6 +14,7 @@ import { SqliteCatalogueRepository } from "./sqliteRepository.js";
 import { SqliteStyleProfileRepository } from "./sqliteStyleProfileRepository.js";
 import { SqliteWardrobeRepository } from "./sqliteWardrobeRepository.js";
 import { startWatchScheduler } from "./watchScheduler.js";
+import { OpenMeteoWeatherSource } from "./weather.js";
 
 const databasePath =
   process.env.CATALOGUE_DB_PATH ?? resolve("catalogue-service/data/wist.sqlite");
@@ -32,6 +33,7 @@ const anthropic = process.env.ANTHROPIC_API_KEY
 const tagger = anthropic ? new ClaudeGarmentTagger(anthropic) : undefined;
 const suggester = anthropic ? new ClaudeOutfitSuggester(anthropic) : undefined;
 const outfits = new SqliteOutfitRepository(databasePath);
+const weatherSource = new OpenMeteoWeatherSource();
 // A run cut short by a crash is marked failed at every start, with or without an API key.
 // (The sqlite write happens synchronously, so it is done before the scheduler's first tick.)
 outfits.failInterruptedRuns().catch((error) => {
@@ -103,6 +105,7 @@ const server = createServer(async (request, response) => {
         tagger,
         suggester,
         outfits,
+        weatherSource,
       },
     );
     response.writeHead(result.status, {
