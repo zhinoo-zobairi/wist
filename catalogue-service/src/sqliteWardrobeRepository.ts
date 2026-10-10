@@ -59,9 +59,18 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
         occasion TEXT NOT NULL CHECK (occasion IN ('work','evening','weekend','celebration','travel')),
         PRIMARY KEY (garment_id, occasion)
       );
+      CREATE TABLE IF NOT EXISTS wardrobe_change_log (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        last_changed_at TEXT NOT NULL
+      );
     `);
     try {
       this.migratePhotoColumns();
+      // Wardrobes that existed before the change log count as changed.
+      this.database.prepare(`
+        INSERT OR IGNORE INTO wardrobe_change_log (id, last_changed_at)
+        SELECT 1, ? WHERE EXISTS (SELECT 1 FROM garments)
+      `).run(new Date().toISOString());
     } catch (error) {
       this.database.close();
       throw error;
@@ -170,6 +179,7 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(id, source, input.name, input.category, input.formality, input.warmth, input.notes, now, now, photoMediaType, tagStatus);
       this.writeChildSets(id, input);
+      if (tagStatus === "tagged") this.recordChange(now);
       this.database.exec("COMMIT");
     } catch (error) {
       this.database.exec("ROLLBACK");
@@ -206,19 +216,31 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
 
   private async writeAttributes(id: string, input: GarmentInput, condition: WriteCondition): Promise<Garment | null> {
     const guard = writeGuard(condition);
+    const now = new Date().toISOString();
     this.database.exec("BEGIN IMMEDIATE");
     try {
       const result = this.database.prepare(`
         UPDATE garments SET name = ?, category = ?, formality = ?, warmth = ?, notes = ?, updated_at = ?, tag_status = 'tagged'
         WHERE id = ? AND ${guard.sql}
-      `).run(input.name, input.category, input.formality, input.warmth, input.notes, new Date().toISOString(), id, ...guard.params);
-      if (result.changes > 0) this.writeChildSets(id, input);
+      `).run(input.name, input.category, input.formality, input.warmth, input.notes, now, id, ...guard.params);
+      if (result.changes > 0) {
+        this.writeChildSets(id, input);
+        this.recordChange(now);
+      }
       this.database.exec("COMMIT");
       return result.changes > 0 ? this.getGarment(id) : null;
     } catch (error) {
       this.database.exec("ROLLBACK");
       throw error;
     }
+  }
+
+  // Called inside the caller's transaction so the change and its record commit together.
+  private recordChange(changedAt: string): void {
+    this.database.prepare(`
+      INSERT INTO wardrobe_change_log (id, last_changed_at) VALUES (1, ?)
+      ON CONFLICT (id) DO UPDATE SET last_changed_at = excluded.last_changed_at
+    `).run(changedAt);
   }
 
   private writeChildSets(id: string, input: GarmentInput): void {
@@ -235,13 +257,28 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
   }
 
   async deleteGarment(id: string): Promise<boolean> {
-    return this.database.prepare("DELETE FROM garments WHERE id = ?").run(id).changes > 0;
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      const deleted = this.database.prepare("DELETE FROM garments WHERE id = ?").run(id).changes > 0;
+      if (deleted) this.recordChange(new Date().toISOString());
+      this.database.exec("COMMIT");
+      return deleted;
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   async countGarments(): Promise<number> {
     const row = this.database.prepare("SELECT COUNT(*) AS count FROM garments")
       .get() as unknown as { count: number };
     return row.count;
+  }
+
+  async lastChangedAt(): Promise<string | null> {
+    const row = this.database.prepare("SELECT last_changed_at FROM wardrobe_change_log WHERE id = 1")
+      .get() as unknown as { last_changed_at: string } | undefined;
+    return row?.last_changed_at ?? null;
   }
 
   close(): void {

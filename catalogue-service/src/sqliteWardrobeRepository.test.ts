@@ -202,4 +202,56 @@ describe("SQLite wardrobe repository", () => {
       check.close();
     }
   });
+
+  it("records the time of every change that can alter the tagged wardrobe", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const repository = createRepository();
+      await expect(repository.lastChangedAt()).resolves.toBeNull();
+
+      vi.setSystemTime(new Date("2026-10-10T09:00:00.000Z"));
+      const photo = await repository.createPhotoGarment("image/jpeg");
+      await repository.markTagFailed(photo.id);
+      await expect(repository.lastChangedAt()).resolves.toBeNull();
+
+      vi.setSystemTime(new Date("2026-10-10T09:01:00.000Z"));
+      await repository.applyTags(photo.id, input);
+      await expect(repository.lastChangedAt()).resolves.toBe("2026-10-10T09:01:00.000Z");
+
+      vi.setSystemTime(new Date("2026-10-10T09:02:00.000Z"));
+      const manual = await repository.createGarment(input, "manual");
+      await expect(repository.lastChangedAt()).resolves.toBe("2026-10-10T09:02:00.000Z");
+
+      vi.setSystemTime(new Date("2026-10-10T09:03:00.000Z"));
+      await repository.replaceGarment(manual.id, { ...input, name: "Edited" });
+      await expect(repository.lastChangedAt()).resolves.toBe("2026-10-10T09:03:00.000Z");
+
+      vi.setSystemTime(new Date("2026-10-10T09:04:00.000Z"));
+      await repository.applyTags(manual.id, input); // refused: already tagged
+      await repository.deleteGarment("missing");
+      await expect(repository.lastChangedAt()).resolves.toBe("2026-10-10T09:03:00.000Z");
+
+      vi.setSystemTime(new Date("2026-10-10T09:05:00.000Z"));
+      await repository.deleteGarment(manual.id);
+      await expect(repository.lastChangedAt()).resolves.toBe("2026-10-10T09:05:00.000Z");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("marks an existing wardrobe as changed when the change log is first created", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "wist-change-log-"));
+    directories.push(directory);
+    const path = join(directory, "wardrobe.sqlite");
+    const first = new SqliteWardrobeRepository(path);
+    await first.createGarment(input, "manual");
+    first.close();
+    const database = new DatabaseSync(path);
+    database.exec("DROP TABLE wardrobe_change_log");
+    database.close();
+
+    const reopened = new SqliteWardrobeRepository(path);
+    await expect(reopened.lastChangedAt()).resolves.toEqual(expect.any(String));
+    reopened.close();
+  });
 });

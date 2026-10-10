@@ -25,4 +25,6 @@ export interface WardrobeRepository {
   replaceGarment(id: string, input: GarmentInput): Promise<Garment | null>;
   deleteGarment(id: string): Promise<boolean>;
   countGarments(): Promise<number>;
+  /** When the set of tagged garments last changed, or null if it never has. */
+  lastChangedAt(): Promise<string | null>;
 }
