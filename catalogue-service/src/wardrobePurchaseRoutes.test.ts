@@ -174,6 +174,20 @@ describe("purchased garment API", () => {
     } });
   });
 
+  it("tags a purchase and a retag whose catalogue item has no brand, using an empty brand name", async () => {
+    const { request, catalogue, wardrobe } = setup();
+    vi.spyOn(catalogue, "listBrands").mockResolvedValue([]);
+    const item = (await catalogue.getItem(itemId))!;
+    const tag = vi.fn<GarmentTagger["tag"]>().mockResolvedValue({ ok: true, tags: input });
+    const bought = await request({ tagger: { tag } });
+    expect(bought).toMatchObject({ status: 201, body: { garment: { tagStatus: "tagged" } } });
+    expect(tag).toHaveBeenLastCalledWith({ kind: "product", imageUrl: item.imageUrl, productName: item.name, brandName: "" });
+    const garment = await wardrobe.createPurchaseGarment(itemId, item.imageUrl, null);
+    await expect(request({ tagger: { tag }, body: undefined }, `/v1/wardrobe/${garment.id}/tag`))
+      .resolves.toMatchObject({ status: 200, body: { garment: { tagStatus: "tagged" } } });
+    expect(tag).toHaveBeenLastCalledWith({ kind: "product", imageUrl: item.imageUrl, productName: item.name, brandName: "" });
+  });
+
   it("keeps the garment and returns unwatched false when unwatching fails", async () => {
     const { request, catalogue, wardrobe } = setup();
     await catalogue.watchItem(itemId);

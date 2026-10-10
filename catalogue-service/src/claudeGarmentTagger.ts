@@ -48,7 +48,7 @@ export class ClaudeGarmentTagger implements GarmentTagger {
             ? { type: "base64", media_type: input.mediaType, data: input.bytes.toString("base64") }
             : { type: "url", url: input.imageUrl } },
           { type: "text", text: input.kind === "photo" ? "Tag this garment."
-            : `Product: ${JSON.stringify(input.productName)} by ${JSON.stringify(input.brandName)}. Tag this garment.` },
+            : `Product: ${JSON.stringify(input.productName)}${input.brandName ? ` by ${JSON.stringify(input.brandName)}` : ""}. Tag this garment.` },
         ] }],
       }, { timeout: 60_000, maxRetries: 2 });
       if (response.stop_reason === "refusal") {

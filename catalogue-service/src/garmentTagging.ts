@@ -15,8 +15,7 @@ export async function productTagInput(
   item: CatalogueItem, imageUrl: string, catalogue: CatalogueRepository,
 ): Promise<Extract<TagInput, { kind: "product" }>> {
   const brand = (await catalogue.listBrands()).find((entry) => entry.id === item.brandId);
-  if (!brand) throw new Error("Catalogue item has no brand");
-  return { kind: "product", imageUrl, productName: item.name, brandName: brand.name };
+  return { kind: "product", imageUrl, productName: item.name, brandName: brand?.name ?? "" };
 }
 
 export async function tagAndSave(
