@@ -133,6 +133,7 @@ it. Available endpoints are:
 - `GET /v1/wardrobe/:id/photo` (owner token) — returns the stored image bytes
 - `POST /v1/wardrobe/:id/tag` (owner token) — retries photo or purchased-product tagging; optional `{ "force": true }` overwrites existing tags
 - `GET /v1/outfits` (owner token) — stored outfit ideas, saved outfits and background status; never calls Claude
+- `GET /v1/weather?latitude=…&longitude=…` (owner token) — today's weather for rounded coordinates, or `{ weather: null }` when unavailable; invalid coordinates return `400 invalid_location`
 - `POST /v1/outfits/saved` with `{ "suggestionId": "…" }` (owner token) — saves an idea; `DELETE /v1/outfits/saved/:id` removes it
 - `POST /v1/outfits/more` (owner token) — queues one background run (`202`), or `429 daily_limit_reached` / `422 wardrobe_too_small` / `503 outfits_not_configured`
 
@@ -425,6 +426,8 @@ already prepared and saved outfits still show. Nothing is stored on the phone.
 ```text
 Wardrobe “Dress me” → OutfitSuggestionsScreen
                         ├→ loadOutfits → GET /v1/outfits (every 15 s while pending/running)
+                        ├→ currentCoarseLocation → loadWeather → GET /v1/weather (once per visit)
+                        ├→ rankByWeather → ordered ideas + saved outfits
                         ├→ ♡ Save → saveOutfitIdea → POST /v1/outfits/saved
                         ├→ Remove → removeSavedOutfit → DELETE /v1/outfits/saved/:id
                         └→ More ideas → requestMoreIdeas → POST /v1/outfits/more
@@ -432,6 +435,64 @@ Wardrobe “Dress me” → OutfitSuggestionsScreen
 
 Client tests verify the contract and error mapping. Device screenshots and
 real model checks remain pending.
+
+### Rank outfits by today's weather (#10)
+
+Dress me reads location once per visit using `expo-location` and foreground
+permission only. On iOS the permission says “Wist uses your location to dress
+you for today's weather.” The location read uses balanced accuracy, waits at
+most **10 seconds** (including permission), and rounds coordinates to **two
+decimals** (roughly 1 km) before sending them. Background location and motion
+permissions are disabled. Denial, an error or timeout leaves the board working
+in its original order and shows **Weather not included**. Weather never delays
+loading outfits or adds a Claude call.
+
+The backend rounds coordinates again and calls the
+[Open-Meteo forecast API](https://open-meteo.com/en/docs) without a key. It
+summarizes **07:00–22:00 inclusive**, using the location's local timestamps:
+minimum/maximum temperature, maximum precipitation probability, maximum wind
+speed and the most severe WMO weather code. The weather line shows temperature,
+condition, rain/snow chance, wind and Open-Meteo attribution. Forecast data are
+provided by Open-Meteo under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/);
+Wist summarizes its hourly data.
+
+The backend fetch has a **5-second timeout**, **zero retries**, no redirects,
+and a **256 KB (256,000-byte)** response cap. Provider failure returns
+`200 { weather: null }`. The phone's weather request has its own **10-second
+AbortController timeout** and **zero retries**. There is **no backend cache**;
+weather stays in screen state for the visit and is fetched again on reopening,
+never on the **15-second outfit refresh**. Wist never stores or logs coordinates.
+Under [Open-Meteo's terms](https://open-meteo.com/en/terms), the provider may
+retain request logs containing the rounded coordinates for **up to 90 days**;
+the owner approved this on **2026-10-11**. The free API is for non-commercial
+use; review the terms and commercial plan before any public release.
+
+Ranking runs on the phone for both ideas and saved outfits. An outfit's warmth
+is its heaviest remaining garment: `light = 1`, `medium = 2`, `heavy = 3`. The
+day's mean of min/max targets **heavy below 10 °C**, **medium from 10 °C through
+18 °C inclusive**, and **light above 18 °C**. Lowest absolute difference comes
+first. For tied scores, outerwear comes first when the min/max swing is **at
+least 10 °C**; other ties retain server order. Rain, wind and condition do not
+affect ranking. No outfit is hidden. With weather included, saved outfits with
+no remaining garments go **last in their server order**, as additionally
+approved on **2026-10-11**; without weather the whole board keeps its order.
+
+```text
+catalogue:start → server.ts → new OpenMeteoWeatherSource → RequestOptions.weatherSource
+Dress me opens → currentCoarseLocation → catalogueClient.loadWeather
+  → GET /v1/weather → handleRequest → handleWeatherRequest → weatherSource.today → Open-Meteo
+Dress me renders → rankByWeather(ideas | saved, weather) → cards
+```
+
+Expo's one-shot native location request cannot be cancelled; late results are
+ignored after timeout or leaving. Leaving before location arrives prevents the
+weather request; requests already started may finish, without updating a left
+screen. Weather is not refreshed during a visit, including across midnight.
+Tests mock location and HTTP. A real forecast for Open-Meteo's public Berlin
+example coordinates was captured as a fixture; native permission, device
+rendering and a complete phone-to-provider live check remain unverified. The
+full approved values and verification results are in
+[Wardrobe decisions](docs/WARDROBE_DECISIONS.md#weather-ranked-outfits-10).
 
 ## Checks
 

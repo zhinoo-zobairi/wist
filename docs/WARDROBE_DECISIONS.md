@@ -437,3 +437,107 @@ Verification for #7:
 - Step 1 is committed locally as `fe8218b`. Later commits are left to the owner
   after automatic approval review returned 403 for `codex-auto-review`; no
   review check was bypassed. No push, issue update or closure was performed.
+
+## Weather-ranked outfits (#10)
+
+Approved by the owner on **2026-10-11**, including the ten checked Decisions
+in issue #10 and the additional provider-log and empty-outfit decisions in this
+session. The issue was re-scoped on 2026-10-10 around background generation
+(C1.3/#27). Weather only reorders stored ideas and saved outfits on the phone;
+it adds no Claude call, stored business data, job or scheduler. The catalogue
+service owns the external integration, and the phone owns the temporary weather
+display and ranking. `GET /v1/outfits` and background generation keep their
+existing behavior; `POST /v1/outfits/suggestions` remains removed.
+
+| Rule | Approved value |
+|---|---|
+| Provider | Open-Meteo forecast API, called by the backend; free, no key or account for the personal non-commercial app |
+| Location | `expo-location`, foreground permission only, balanced accuracy, once when Dress me opens; not repeated on the 15 s outfit refresh |
+| Native permission | iOS: `Wist uses your location to dress you for today's weather.`; background location and motion permissions disabled |
+| Location wait | 10,000 ms for foreground permission and the one-shot position read; denial/error/timeout returns `null`; no retries |
+| Precision | Latitude and longitude rounded to two decimals on the device and again on the server (roughly 1 km); latitude in [-90, 90], longitude in [-180, 180] |
+| Missing location/weather | Show `Weather not included`, preserve the board's order, never block loading outfits |
+| Window | Today, 07:00–22:00 inclusive in the location's local timestamps; min/max temperature, max precipitation probability, max wind speed, most severe WMO code |
+| Backend fetch | 5,000 ms with `AbortSignal.timeout`, zero retries, `redirect: "error"`, response capped at 256 KB (256,000 bytes); failure returns `200 { weather: null }` |
+| Phone weather fetch | Separate 10,000 ms AbortController timeout, zero retries; errors and timeout return `null` |
+| Cache | None on the backend; one weather fetch per visit, held in screen state only; no persisted weather or coordinates |
+| Wist location privacy | Coordinates are never stored or logged on the device or backend |
+| Provider location privacy | Owner approved Open-Meteo request logs containing the two-decimal coordinates for up to 90 days, under its terms; independent of Wist's no-storage policy |
+| Outfit warmth | Heaviest remaining garment: light = 1, medium = 2, heavy = 3 |
+| Target warmth | Mean of daytime min/max: below 10 °C → 3; 10–18 °C inclusive → 2; above 18 °C → 1 |
+| Score | Absolute difference between outfit and target warmth; lowest first, for both ideas and saved outfits |
+| Ties | Outerwear first only when max minus min is at least 10 °C; otherwise preserve server order |
+| Empty saved outfits | With weather, no remaining garments → last, preserving their server order; never hidden; with unavailable weather, preserve the entire input order |
+| Rain/wind/condition | Display only, never affect ranking; garments have no waterproof attribute |
+| Dependency | `expo-location` installed via `npx expo install`, SDK-compatible `~57.0.20` |
+
+The owner-authenticated route is
+`GET /v1/weather?latitude=…&longitude=…` → `200 { weather }`. Missing, non-finite,
+out-of-range, non-decimal or repeated coordinate parameters return
+`400 invalid_location` before calling the provider. No configured source or
+an unavailable source returns `200 { weather: null }`. Invalid summaries and
+HTTP/network failures become the owner-facing fallback on the phone, never raw
+codes. The backend does not forward the owner token to Open-Meteo.
+
+Parameters were checked against the current
+[Open-Meteo documentation](https://open-meteo.com/en/docs):
+`hourly=temperature_2m,precipitation_probability,wind_speed_10m,weather_code`,
+`timezone=auto`, `forecast_days=1`. Units are °C, percent and km/h. The WMO
+mapping includes freezing precipitation, showers and thunderstorm/hail codes.
+Forecast data are attributed to Open-Meteo under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); Wist summarizes the
+hourly data. Its [terms](https://open-meteo.com/en/terms) restrict the free API
+to non-commercial use and apply provider quotas (10,000/day, 5,000/hour,
+600/minute). No new Wist throttling or retry policy is added; provider refusal
+uses the approved null-weather behavior. Review commercial terms before any
+public release.
+
+```text
+catalogue:start → server.ts: new OpenMeteoWeatherSource() → RequestOptions.weatherSource
+Profile → Wardrobe → Dress me → OutfitSuggestionsScreen (open)
+  ├→ loadOutfits → GET /v1/outfits → stored board (independent of weather)
+  └→ currentCoarseLocation → catalogueClient.loadWeather → GET /v1/weather
+       → handleRequest → handleWeatherRequest → weatherSource.today → Open-Meteo
+OutfitSuggestionsScreen (render) → rankByWeather(board.suggestions | board.saved, weather)
+  → weatherLine(weather) + cards
+```
+
+Remaining limitations: Expo cannot cancel a one-shot native location read or
+dismiss an outstanding permission dialog. The app stops waiting after 10 s,
+ignores a late result, and never starts GPS after a late permission grant. The
+board is visible independently. Leaving before the position arrives prevents
+the weather fetch; a fetch already started may finish within its existing
+timeout and its late result is ignored. No work is checkpointed or resumed.
+Returning starts a fresh lookup; weather never repeats a paid model call.
+The weather held for a visit is not refreshed across midnight or movement.
+Rounding is coarse location, not anonymity; Open-Meteo can receive those
+coordinates and the backend's network address.
+
+Verification for #10:
+
+- Test-first changes add **108 tests**; **546 tests across 45 files**, app/backend
+  typecheck and catalogue build pass. All test HTTP is stubbed and `expo-location`
+  is mocked; no test makes a real network, device or model call.
+- Backend tests cover the trimmed real forecast, the inclusive daytime window,
+  WMO mapping, malformed input, rounded request URL, timeout, HTTP/network
+  errors and oversized streamed body, plus owner auth and coordinate validation.
+- Mobile tests cover each temperature band and both boundaries, 10 °C layer
+  ties, stable order, no mutation/removal, null weather and empty saved outfits
+  last; client failure/abort, location denial/rounding/errors/late results and
+  readable weather copy are covered too.
+- Expo native config introspection confirms the exact foreground iOS string
+  and no background location or motion permission.
+- Expo web export passes with the real `expo-location` dependency. The export
+  was built without loading `.env.local`.
+- A temporary JSDOM/React Native Web harness using the actual screen, store,
+  client, ranking and messages passes **10 scenario checks**: independent board
+  loading, one coarse authenticated weather fetch, weather line, idea/saved/empty
+  order, polling and occasion changes without another weather read, denial/error
+  fallback, leaving before location, ignored late replies and Strict Mode's
+  single weather lookup. Location and all HTTP were replaced; no test dependency
+  was added to the repository.
+- The fixture was captured on 2026-10-11 using Open-Meteo's public Berlin example
+  (52.52, 13.41), not the owner's position. The live fixture request succeeded;
+  a complete phone → backend → Open-Meteo check, iPhone permission handling,
+  native rendering and device screenshots remain unverified.
+- No push, GitHub issue update/closure, or #11 implementation is performed.
