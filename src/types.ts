@@ -143,4 +143,13 @@ export type OutfitStatus = {
 };
 export type OutfitBoard = { suggestions: OutfitIdea[]; saved: SavedOutfit[]; status: OutfitStatus };
 
+export type Coordinates = { latitude: number; longitude: number };
+export type WeatherSummary = {
+  minC: number;
+  maxC: number;
+  precipitationChancePct: number;
+  maxWindKph: number;
+  condition: "clear" | "cloudy" | "fog" | "drizzle" | "rain" | "snow" | "thunderstorm";
+};
+
 export const LOCAL_USER_ID = "local-user";

@@ -19,6 +19,8 @@ import {
   type OutfitIdea,
   type OutfitStatus,
   type SavedOutfit,
+  type Coordinates,
+  type WeatherSummary,
 } from "../types";
 
 type Fetch = typeof fetch;
@@ -682,5 +684,40 @@ export async function requestMoreIdeas(
     if (error instanceof WardrobeApiError &&
       (error.code === "daily_limit_reached" || error.code === "wardrobe_too_small")) return error.code;
     return "unavailable";
+  }
+}
+
+function toWeatherSummary(value: unknown): WeatherSummary | null {
+  if (!isObject(value) ||
+    typeof value.minC !== "number" || !Number.isFinite(value.minC) ||
+    typeof value.maxC !== "number" || !Number.isFinite(value.maxC) || value.minC > value.maxC ||
+    typeof value.precipitationChancePct !== "number" || !Number.isFinite(value.precipitationChancePct) ||
+    value.precipitationChancePct < 0 || value.precipitationChancePct > 100 ||
+    typeof value.maxWindKph !== "number" || !Number.isFinite(value.maxWindKph) || value.maxWindKph < 0 ||
+    !["clear", "cloudy", "fog", "drizzle", "rain", "snow", "thunderstorm"].includes(value.condition as string)) return null;
+  return {
+    minC: value.minC, maxC: value.maxC, precipitationChancePct: value.precipitationChancePct,
+    maxWindKph: value.maxWindKph, condition: value.condition as WeatherSummary["condition"],
+  };
+}
+
+export async function loadWeather(
+  location: Coordinates, fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<WeatherSummary | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const query = new URLSearchParams({
+      latitude: String(Math.round(location.latitude * 100) / 100),
+      longitude: String(Math.round(location.longitude * 100) / 100),
+    });
+    const body = await wardrobeJson(await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/weather?${query}`, {
+      headers: authorizationHeaders(ownerToken), signal: controller.signal,
+    }));
+    return toWeatherSummary(body.weather);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
