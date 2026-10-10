@@ -1,5 +1,5 @@
 import type { ApiResponse, RequestOptions } from "./app.js";
-import { productTagInput, tagAndSave } from "./garmentTagging.js";
+import { isPublicHttpsUrl, productTagInput, tagAndSave } from "./garmentTagging.js";
 import type { CatalogueRepository } from "./repository.js";
 import { MAX_GARMENTS } from "./wardrobe.js";
 import { WardrobeFullError, type WardrobeRepository } from "./wardrobeRepository.js";
@@ -21,6 +21,7 @@ export async function createPurchase(
   if (!itemId) return { status: 400, body: { error: "invalid_purchase_request" } };
   const item = await catalogue.getItem(itemId);
   if (!item) return { status: 404, body: { error: "item_not_found" } };
+  if (!isPublicHttpsUrl(item.imageUrl)) return { status: 422, body: { error: "item_image_unavailable" } };
   if (await wardrobe.countGarments() >= MAX_GARMENTS) {
     return { status: 409, body: { error: "wardrobe_full" } };
   }

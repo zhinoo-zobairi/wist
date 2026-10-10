@@ -361,6 +361,13 @@ the existing behavior of replacing details and notes only while the garment's
 read timestamp is unchanged. A missing catalogue product prevents retagging
 with `404 item_not_found`. Purchase deletion never touches disk photo storage.
 
+A purchase whose catalogue image is not an absolute `https:` URL without
+credentials (crawled data can be relative, `http:` or carry credentials) is
+refused with `422 item_image_unavailable`; nothing is created, tagged or
+unwatched. Retagging a purchase garment with such a stored URL returns the same
+error instead of sending it to Anthropic. The phone accepts only `https:`
+purchase photos, so one bad garment cannot break the whole wardrobe load.
+
 Public purchase photo sources omit all owner authorization headers. Wardrobe,
 the editor, and outfit cards share `GarmentPhoto`; protected photo garments
 retain the exact relative backend route and owner authentication.

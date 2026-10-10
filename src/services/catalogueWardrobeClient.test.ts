@@ -49,6 +49,7 @@ describe("wardrobe client", () => {
       { photoUrl: null }, { photoUrl: garment.photoUrl }, { photoUrl: "//cdn.example.com/shirt.jpg" },
       { photoUrl: "file:///shirt.jpg" }, { photoUrl: "data:image/jpeg;base64,photo" },
       { photoUrl: "https://owner:secret@cdn.example.com/shirt.jpg" },
+      { photoUrl: "http://cdn.example.com/shirt.jpg" },
     ]) {
       fetchImpl.mockResolvedValueOnce(json({ garments: [{ ...purchase, ...invalid }] }));
       await expect(loadWardrobe(fetchImpl, base, "owner")).rejects.toThrow("invalid garment");
@@ -212,8 +213,8 @@ describe("wardrobe client", () => {
     expect(() => garmentPhotoSource(garment, base, "")).toThrow("OWNER_TOKEN");
   });
 
-  it.each(["http", "https"])("uses a public %s purchase image without owner credentials", (protocol) => {
-    const photoUrl = `${protocol}://cdn.example.com/shirt.jpg`;
+  it("uses a public https purchase image without owner credentials", () => {
+    const photoUrl = "https://cdn.example.com/shirt.jpg";
     const source = garmentPhotoSource({ ...purchase, photoUrl }, base, "");
     expect(source).toEqual({ uri: photoUrl });
     expect(source).not.toHaveProperty("headers");
@@ -222,7 +223,7 @@ describe("wardrobe client", () => {
   it.each([
     "/v1/wardrobe/01234567-1234-1234-1234-012345678901/photo", "//cdn.example.com/shirt.jpg",
     "file:///shirt.jpg", "data:image/jpeg;base64,photo", "javascript:alert(1)",
-    "https://owner:secret@cdn.example.com/shirt.jpg",
+    "https://owner:secret@cdn.example.com/shirt.jpg", "http://cdn.example.com/shirt.jpg",
   ])("rejects an unsafe purchase photo source: %s", (photoUrl) => {
     expect(() => garmentPhotoSource({ ...purchase, photoUrl }, base, "owner")).toThrow("Invalid garment photo URL");
   });

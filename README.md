@@ -125,7 +125,7 @@ it. Available endpoints are:
 - `GET /v1/alerts` (owner token)
 - `GET /v1/wardrobe` (owner token) — lists owned garments, newest first
 - `POST /v1/wardrobe` (owner token) — creates a garment from typed-in attributes
-- `POST /v1/wardrobe/from-item` (owner token) — adds a bought catalogue item with `{ "itemId": "..." }`; returns `201 { garment, unwatched }`
+- `POST /v1/wardrobe/from-item` (owner token) — adds a bought catalogue item with `{ "itemId": "..." }`; returns `201 { garment, unwatched }`, or `422 item_image_unavailable` when the item's image is not a public https URL
 - `GET /v1/wardrobe/:id` (owner token)
 - `PUT /v1/wardrobe/:id` (owner token) — replaces all editable attributes
 - `DELETE /v1/wardrobe/:id` (owner token) — permanently deletes the garment

@@ -142,6 +142,29 @@ describe("purchased garment API", () => {
     await expect(wardrobe.lastChangedAt()).resolves.toBeNull();
   });
 
+  it.each(["/images/coat.jpg", "http://brand.example/coat.jpg", "https://owner:secret@brand.example/coat.jpg"])(
+    "refuses a purchase whose product image is %s and creates nothing", async (imageUrl) => {
+      const { request, catalogue, wardrobe } = setup();
+      const item = (await catalogue.getItem(itemId))!;
+      vi.spyOn(catalogue, "getItem").mockResolvedValue({ ...item, imageUrl });
+      const unwatch = vi.spyOn(catalogue, "unwatchItem");
+      const tag = vi.fn<GarmentTagger["tag"]>();
+      await expect(request({ tagger: { tag } }))
+        .resolves.toEqual({ status: 422, body: { error: "item_image_unavailable" } });
+      expect(tag).not.toHaveBeenCalled();
+      expect(unwatch).not.toHaveBeenCalled();
+      await expect(wardrobe.countGarments()).resolves.toBe(0);
+    });
+
+  it("refuses to retag a purchase whose stored image is not a public https url", async () => {
+    const { request, catalogue, wardrobe } = setup();
+    const garment = await wardrobe.createPurchaseGarment(itemId, "http://brand.example/coat.jpg", null);
+    const tag = vi.fn<GarmentTagger["tag"]>();
+    await expect(request({ tagger: { tag }, body: undefined }, `/v1/wardrobe/${garment.id}/tag`))
+      .resolves.toEqual({ status: 422, body: { error: "item_image_unavailable" } });
+    expect(tag).not.toHaveBeenCalled();
+  });
+
   it.each([{ sizes: [] }, { sizes: ["M"] }, { sizes: ["S", "M"] }])("copies only a single watch size: %j", async ({ sizes }) => {
     const { request, catalogue } = setup();
     await catalogue.watchItem(itemId);

@@ -1,7 +1,7 @@
 import type { ApiResponse, RequestOptions } from "./app.js";
 import { MAX_PHOTO_BYTES, PHOTO_MEDIA_TYPES, type GarmentPhotoStore, type PhotoMediaType } from "./garmentPhotoStore.js";
 import type { TagInput } from "./garmentTagger.js";
-import { productTagInput, tagAndSave } from "./garmentTagging.js";
+import { isPublicHttpsUrl, productTagInput, tagAndSave } from "./garmentTagging.js";
 import type { CatalogueRepository } from "./repository.js";
 import { MAX_GARMENTS } from "./wardrobe.js";
 import { WardrobeFullError, type WardrobeRepository } from "./wardrobeRepository.js";
@@ -88,6 +88,7 @@ async function retagGarment(id: string, wardrobe: WardrobeRepository, catalogue:
     const item = garment.catalogueItemId ? await catalogue.getItem(garment.catalogueItemId) : null;
     if (!item) return { status: 404, body: { error: "item_not_found" } };
     if (!garment.photoUrl) return { status: 404, body: { error: "photo_not_found" } };
+    if (!isPublicHttpsUrl(garment.photoUrl)) return { status: 422, body: { error: "item_image_unavailable" } };
     input = await productTagInput(item, garment.photoUrl, catalogue);
   } else {
     const bytes = await options.photoStore!.read(garment.id, mediaType!);

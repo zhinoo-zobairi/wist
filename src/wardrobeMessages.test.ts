@@ -52,6 +52,9 @@ describe("purchaseErrorMessage", () => {
     expect(purchaseErrorMessage(new WardrobeApiError("item_not_found", 404))).toBe(
       "This piece is no longer in the catalogue.",
     );
+    expect(purchaseErrorMessage(new WardrobeApiError("item_image_unavailable", 422))).toBe(
+      "This piece's photo can't be used, so it can't be added automatically.",
+    );
   });
 
   it("explains an uncertain purchase outcome before another paid attempt", () => {

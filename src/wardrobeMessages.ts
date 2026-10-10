@@ -29,6 +29,9 @@ export function purchaseErrorMessage(caught: unknown): string {
       return "Your wardrobe is full (300 garments). Remove one before adding another.";
     }
     if (caught.code === "item_not_found") return "This piece is no longer in the catalogue.";
+    if (caught.code === "item_image_unavailable") {
+      return "This piece's photo can't be used, so it can't be added automatically.";
+    }
   }
   return "Could not add this piece. Please try again.";
 }

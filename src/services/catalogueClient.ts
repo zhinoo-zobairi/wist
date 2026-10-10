@@ -225,10 +225,10 @@ async function wardrobeJson(response: Response): Promise<JsonObject> {
 }
 
 function isPublicGarmentPhotoUrl(value: unknown): value is string {
-  if (typeof value !== "string" || !/^https?:\/\//i.test(value)) return false;
+  if (typeof value !== "string" || !/^https:\/\//i.test(value)) return false;
   try {
     const url = new URL(value);
-    return !url.username && !url.password;
+    return url.protocol === "https:" && !url.username && !url.password;
   } catch {
     return false;
   }
