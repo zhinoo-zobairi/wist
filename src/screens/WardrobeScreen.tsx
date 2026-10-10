@@ -43,6 +43,7 @@ export function WardrobeScreen({ onBack, onEdit }: { onBack: () => void; onEdit:
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) throw new Error("Allow camera access in Settings, or choose a photo instead.");
       }
+      if (!alive.current) return;
       const options: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], allowsMultipleSelection: false, quality: 1 };
       const result = source === "camera"
         ? await ImagePicker.launchCameraAsync(options)
@@ -138,7 +139,7 @@ const styles = StyleSheet.create({
   notice: { paddingHorizontal: 22, paddingBottom: 16, gap: 10 },
   grid: { paddingHorizontal: 22, paddingBottom: 24, gap: 20 },
   row: { gap: 14 },
-  card: { flex: 1, maxWidth: "50%" },
+  card: { width: "48%" },
   name: { color: colors.ink, fontFamily: fonts.display, fontSize: 22, marginTop: 9 },
   tagChip: { alignSelf: "flex-start", backgroundColor: colors.wash, borderRadius: 20, marginTop: 7, padding: 8 },
   tagText: { color: colors.moss, fontFamily: fonts.textMedium, fontSize: 10 },
