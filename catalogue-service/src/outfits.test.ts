@@ -1,34 +1,42 @@
 import { describe, expect, it } from "vitest";
-import { keepValidOutfits, parseOutfitRequest } from "./outfits.js";
+import { garmentKey, keepValidGeneratedOutfits } from "./outfits.js";
 
-describe("outfit domain", () => {
-  it.each(["work", "evening", "weekend", "celebration", "travel"])("accepts occasion %s", (occasion) => {
-    expect(parseOutfitRequest({ context: { occasion } })).toEqual({ occasion });
+const eligible = new Set(["a", "b", "c", "d"]);
+const outfit = (occasion: string, garmentIds: unknown[], reason: unknown = "Works well.") => ({ occasion, garmentIds, reason });
+
+describe("garmentKey", () => {
+  it("ignores garment order", () => {
+    expect(garmentKey(["b", "a", "c"])).toBe("a,b,c");
+    expect(garmentKey(["c", "b", "a"])).toBe(garmentKey(["a", "b", "c"]));
   });
-  it.each([null, [], {}, { occasion: "work" }, { context: null }, { context: [] },
-    { context: { occasion: "gym" } }, { context: { occasion: 1 } },
-  ])("rejects an invalid request %j", (request) => {
-    expect(parseOutfitRequest(request)).toBeNull();
+});
+
+describe("keepValidGeneratedOutfits", () => {
+  it("keeps valid outfits and trims reasons to 200 characters", () => {
+    const long = ` ${"x".repeat(250)} `;
+    expect(keepValidGeneratedOutfits([outfit("work", ["a", "b"], long)], eligible, ["work"]))
+      .toEqual([{ occasion: "work", garmentIds: ["a", "b"], reason: "x".repeat(200) }]);
   });
-  const ids = new Set(["a", "b", "c", "d", "e", "f", "g"]);
-  it("drops malformed outfits, hallucinations, duplicates, and invalid lengths", () => {
-    const valid = { garmentIds: ["a", "b"], reason: "A balanced combination." };
-    expect(keepValidOutfits([
-      null, {}, { garmentIds: ["a", "unknown"], reason: "Invented" },
-      { garmentIds: ["a", "a"], reason: "Duplicate" },
-      { garmentIds: ["a"], reason: "Too small" },
-      { garmentIds: [...ids], reason: "Too large" },
-      { garmentIds: ["a", "b"], reason: " " },
-      { garmentIds: ["a", "b"], reason: 3 }, valid,
-    ], ids)).toEqual([valid]);
+
+  it.each([
+    ["unknown garment", outfit("work", ["a", "zzz"])],
+    ["duplicate garment", outfit("work", ["a", "a"])],
+    ["too few garments", outfit("work", ["a"])],
+    ["too many garments", outfit("work", ["a", "b", "c", "d", "e", "f", "g"])],
+    ["unrequested occasion", outfit("evening", ["a", "b"])],
+    ["empty reason", outfit("work", ["a", "b"], "  ")],
+    ["non-string id", outfit("work", ["a", 1])],
+  ])("drops an outfit with %s", (_, candidate) => {
+    expect(keepValidGeneratedOutfits([candidate], eligible, ["work"])).toEqual([]);
   });
-  it("keeps only the first three valid outfits and truncates reasons to 200 characters", () => {
-    const outfit = { garmentIds: ["a", "b"], reason: ` ${"x".repeat(250)} ` };
-    expect(keepValidOutfits(Array(10).fill(outfit), ids)).toEqual(Array(3).fill({ ...outfit, reason: "x".repeat(200) }));
+
+  it("keeps at most 2 outfits per occasion", () => {
+    const many = [outfit("work", ["a", "b"]), outfit("work", ["a", "c"]), outfit("work", ["a", "d"]), outfit("travel", ["b", "c"])];
+    expect(keepValidGeneratedOutfits(many, eligible, ["work", "travel"]).map((o) => o.occasion))
+      .toEqual(["work", "work", "travel"]);
   });
-  it("accepts six unique pieces and returns empty when no outfits survive", () => {
-    expect(keepValidOutfits([{ garmentIds: ["a", "b", "c", "d", "e", "f"], reason: "Layered." }], ids)).toHaveLength(1);
-    expect(keepValidOutfits([{ garmentIds: ["unknown", "a"], reason: "Invented" }], ids)).toEqual([]);
-    expect(keepValidOutfits(null, ids)).toEqual([]);
+
+  it("returns nothing for non-array output", () => {
+    expect(keepValidGeneratedOutfits(null, eligible, ["work"])).toEqual([]);
   });
 });
