@@ -38,7 +38,7 @@ reverses #8's "stateless" decision on purpose (owner-approved 2026-10-10).
 | 9 | Saved outfits | ♡ moves a suggestion into **Saved**. Saved outfits are never deleted automatically; the owner can remove them. |
 | 10 | Deleted garment | Suggestions containing it are deleted. Saved outfits stay and list the missing garment. |
 | 11 | No waiting path | `POST /v1/outfits/suggestions` and the waiting UI are removed. Empty state: "Preparing ideas…" plus **More ideas**. |
-| 12 | No API key | The job is disabled; Dress me shows saved outfits only and More ideas returns `503`. |
+| 12 | No API key | The job is disabled; no new ideas are made; ideas already prepared and saved outfits still show, and More ideas returns `503`. |
 | 13 | Ownership | `catalogue-service`, own module and tables, in-process scheduler like `watchScheduler.ts`. Runs only while the service runs (on the owner's Mac until hosting, #21). |
 
 Weather (#10) and calendar (#11) will rank stored outfits on request instead

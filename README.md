@@ -384,10 +384,11 @@ the product exposes one save verb: **Covet**.
    shows “You've reached today's limit of new ideas.”
 5. Tap a garment to review or edit it.
 
-While a run is pending or running, the open screen shows “Preparing ideas…”
-and re-reads `GET /v1/outfits` every **15 seconds** (no model call); it stops
-when you leave. Without a backend key no new ideas are made and only saved
-outfits show. Nothing is stored on the phone.
+While a run is pending or running, the **More ideas** button reads “Preparing
+ideas…” (and the empty state says so when no idea matches the chosen occasion)
+and the screen re-reads `GET /v1/outfits` every **15 seconds** (no model call);
+it stops when you leave. Without a backend key no new ideas are made; ideas
+already prepared and saved outfits still show. Nothing is stored on the phone.
 
 ```text
 Wardrobe “Dress me” → OutfitSuggestionsScreen

@@ -311,6 +311,7 @@ stored ideas, saved outfits, a run log and an in-process scheduler.
 | One run | One Claude call, up to 2 new outfits per profile occasion (all five without a profile); change-triggered runs favour pieces changed since the last success |
 | Model | `claude-opus-5-5`, `medium`, `max_tokens` 16000, 90 s, 2 SDK retries, refusal fallback, 5-minute prompt cache |
 | Cap | 12 runs per cap day, 03:00–03:00 local (also across daylight-saving changes); skipped runs (under 3 tagged pieces) do not count; status stops reporting pending once the cap is reached |
+| No key | No new ideas are made; ideas already prepared and saved outfits still show |
 | Scheduler | 60 s tick, one run at a time; interrupted runs are marked failed at startup, with or without a key |
 | Failures | No retry loop; the next trigger retries |
 | Pool | 10 newest unsaved ideas per occasion; exact duplicates (same pieces) dropped |
