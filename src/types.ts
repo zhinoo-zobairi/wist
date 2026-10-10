@@ -130,4 +130,7 @@ export type Garment = GarmentInput & {
   updatedAt: string;
 };
 
+export type OutfitContext = { occasion: Occasion };
+export type SuggestedOutfit = { garments: Garment[]; reason: string };
+
 export const LOCAL_USER_ID = "local-user";

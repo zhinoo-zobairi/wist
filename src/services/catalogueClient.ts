@@ -15,6 +15,8 @@ import {
   WARMTH_OPTIONS,
   type Garment,
   type GarmentInput,
+  type OutfitContext,
+  type SuggestedOutfit,
 } from "../types";
 
 type Fetch = typeof fetch;
@@ -345,6 +347,56 @@ export function garmentPhotoSource(
   return { uri: `${baseUrl.replace(/\/$/, "")}${garment.photoUrl}`, headers: {
     authorization: authorizationHeaders(ownerToken).authorization,
   } };
+}
+
+export type OutfitSuggestionResult =
+  | { ok: true; outfits: SuggestedOutfit[] }
+  | { ok: false; reason: "wardrobe_too_small" | "unavailable" | "cancelled" };
+
+function toSuggestedOutfit(value: unknown): SuggestedOutfit {
+  if (!isObject(value) || !Array.isArray(value.garments) ||
+    value.garments.length < 2 || value.garments.length > 6 ||
+    typeof value.reason !== "string" || !value.reason.trim() || value.reason.length > 200) {
+    throw new Error("Catalogue returned an invalid outfit");
+  }
+  const garments = value.garments.map(toGarment);
+  if (garments.some((garment) => garment.tagStatus !== "tagged") ||
+    new Set(garments.map((garment) => garment.id)).size !== garments.length) {
+    throw new Error("Catalogue returned invalid outfit garments");
+  }
+  return { garments, reason: value.reason.trim() };
+}
+
+export async function suggestOutfits(
+  context: OutfitContext, signal?: AbortSignal, fetchImpl: Fetch = fetch,
+  baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<OutfitSuggestionResult> {
+  if (signal?.aborted) return { ok: false, reason: "cancelled" };
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  signal?.addEventListener("abort", cancel, { once: true });
+  const timer = setTimeout(cancel, 120_000);
+  try {
+    const body = await wardrobeJson(await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/outfits/suggestions`, {
+      method: "POST", body: JSON.stringify({ context }), signal: controller.signal,
+      headers: { ...authorizationHeaders(ownerToken), "content-type": "application/json" },
+    }));
+    if (controller.signal.aborted) return { ok: false, reason: signal?.aborted ? "cancelled" : "unavailable" };
+    if (!Array.isArray(body.outfits) || body.outfits.length < 1 || body.outfits.length > 3) {
+      throw new Error("Catalogue returned an invalid outfit list");
+    }
+    return { ok: true, outfits: body.outfits.map(toSuggestedOutfit) };
+  } catch (error) {
+    if (signal?.aborted) return { ok: false, reason: "cancelled" };
+    if (!controller.signal.aborted && error instanceof WardrobeApiError &&
+      error.status === 422 && error.code === "wardrobe_too_small") {
+      return { ok: false, reason: "wardrobe_too_small" };
+    }
+    return { ok: false, reason: "unavailable" };
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", cancel);
+  }
 }
 
 export async function loadCatalogue(
