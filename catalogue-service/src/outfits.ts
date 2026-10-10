@@ -35,7 +35,3 @@ export function keepValidGeneratedOutfits(
   }
   return kept;
 }
-
-// Used by the old suggester interface until it is rewritten.
-export type OutfitContext = { occasion: Occasion };
-export type Outfit = { garmentIds: string[]; reason: string };
