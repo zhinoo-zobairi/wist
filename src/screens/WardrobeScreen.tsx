@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { GarmentPhoto } from "../components/GarmentPhoto";
-import { UncertainWardrobeRequestError, WardrobeApiError } from "../services/catalogueClient";
+import { UncertainWardrobeRequestError } from "../services/catalogueClient";
 import { prepareGarmentPhoto } from "../services/garmentPhoto";
 import { useWistStore } from "../store/useWistStore";
 import { colors, fonts } from "../theme";
 import type { Garment } from "../types";
+import { WardrobeNotice, captureErrorMessage } from "../wardrobeMessages";
 
 export function WardrobeScreen({ onBack, onEdit }: { onBack: () => void; onEdit: (id: string) => void }) {
   const wardrobe = useWistStore((state) => state.wardrobe);
@@ -41,7 +42,7 @@ export function WardrobeScreen({ onBack, onEdit }: { onBack: () => void; onEdit:
     try {
       if (source === "camera") {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permission.granted) throw new Error("Allow camera access in Settings, or choose a photo instead.");
+        if (!permission.granted) throw new WardrobeNotice("Allow camera access in Settings, or choose a photo instead.");
       }
       if (!alive.current) return;
       const options: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], allowsMultipleSelection: false, quality: 1 };
@@ -56,10 +57,7 @@ export function WardrobeScreen({ onBack, onEdit }: { onBack: () => void; onEdit:
       if (alive.current) onEdit(garment.id);
     } catch (caught) {
       if (!alive.current) return;
-      setError(caught instanceof UncertainWardrobeRequestError ? caught.message
-        : caught instanceof WardrobeApiError && caught.code === "wardrobe_full" ? "Your wardrobe is full (300 garments). Remove one before adding another."
-        : caught instanceof WardrobeApiError && caught.code === "payload_too_large" ? "This photo is too large. Choose a smaller photo."
-        : caught instanceof Error ? caught.message : "Could not add this photo. Please try again.");
+      setError(captureErrorMessage(caught));
     } finally {
       pending.current = false;
       if (alive.current) setBusy(null);

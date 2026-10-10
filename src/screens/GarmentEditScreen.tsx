@@ -5,6 +5,7 @@ import { OccasionStylePicker } from "../components/OccasionStylePicker";
 import { UncertainWardrobeRequestError, WardrobeApiError } from "../services/catalogueClient";
 import { useWistStore } from "../store/useWistStore";
 import { colors, fonts } from "../theme";
+import { garmentEditErrorMessage } from "../wardrobeMessages";
 import { FORMALITY_OPTIONS, GARMENT_CATEGORY_OPTIONS, OCCASION_OPTIONS, WARMTH_OPTIONS, type Garment, type GarmentInput } from "../types";
 
 function editableFields(garment: Garment): GarmentInput {
@@ -37,9 +38,9 @@ export function GarmentEditScreen({ garment, onBack }: { garment: Garment; onBac
       if (!alive.current) return;
       const lost = caught instanceof UncertainWardrobeRequestError;
       setUncertain((previous) => previous || lost);
-      setError(lost ? "The response did not arrive. Your garment may still be processing; refresh before trying again."
-        : caught instanceof WardrobeApiError && caught.code === "garment_changed" ? "This garment changed while the photo was being read. Your saved changes were kept."
-        : "Could not update this garment. Check your connection and try again.");
+      setError(garmentEditErrorMessage(caught));
+      // A deleted garment would otherwise linger in the store and fail every retry.
+      if (caught instanceof WardrobeApiError && caught.code === "garment_not_found") void refresh();
     } finally {
       pending.current = false;
       if (alive.current) setBusy(null);
