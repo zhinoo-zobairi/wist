@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { UncertainWardrobeRequestError, WardrobeApiError } from "./services/catalogueClient";
-import { WardrobeNotice, captureErrorMessage, garmentEditErrorMessage, purchaseRefreshErrorMessage, purchaseErrorMessage, catalogueWatchErrorMessage } from "./wardrobeMessages";
+import { WardrobeNotice, captureErrorMessage, garmentEditErrorMessage, purchaseRefreshErrorMessage, purchaseErrorMessage, purchaseRecoveryAfterError, catalogueWatchErrorMessage } from "./wardrobeMessages";
 
 describe("captureErrorMessage", () => {
   it("explains a full wardrobe and an oversized photo", () => {
@@ -90,4 +90,19 @@ it("keeps watch errors owner-facing", () => {
   const error = new Error("unauthorized backend token details");
   expect(catalogueWatchErrorMessage(error)).toBe("Could not update Coveted. Please try again.");
   expect(catalogueWatchErrorMessage(error, true)).toBe("Could not update alert sizes. Please try again.");
+});
+
+describe("purchaseRecoveryAfterError", () => {
+  it("offers no duplicate warning when the server answered", () => {
+    expect(purchaseRecoveryAfterError(new WardrobeApiError("wardrobe_full", 409))).toBeNull();
+    expect(purchaseRecoveryAfterError(new WardrobeApiError("item_not_found", 404))).toBeNull();
+  });
+
+  it("requires a refresh when no response arrived", () => {
+    expect(purchaseRecoveryAfterError(new UncertainWardrobeRequestError())).toBe("refresh");
+  });
+
+  it("keeps the duplicate warning for any other failure", () => {
+    expect(purchaseRecoveryAfterError(new TypeError("Network request failed"))).toBe("repeat");
+  });
 });

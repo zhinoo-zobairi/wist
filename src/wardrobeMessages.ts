@@ -36,6 +36,12 @@ export function purchaseErrorMessage(caught: unknown): string {
   return "Could not add this piece. Please try again.";
 }
 
+/** What the screen offers next: null when the server answered, so nothing was created. */
+export function purchaseRecoveryAfterError(caught: unknown): "refresh" | "repeat" | null {
+  if (caught instanceof UncertainWardrobeRequestError) return "refresh";
+  return caught instanceof WardrobeApiError ? null : "repeat";
+}
+
 export const PURCHASE_UNWATCHED_NOTICE =
   "Wist could not stop price alerts for this piece. You can remove it from Coveted manually.";
 

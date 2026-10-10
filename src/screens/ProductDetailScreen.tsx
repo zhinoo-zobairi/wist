@@ -19,9 +19,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "../components/Icon";
 import { colors, fonts } from "../theme";
 import type { Brand, Item } from "../types";
-import { UncertainWardrobeRequestError, type AddGarmentFromItemResult } from "../services/catalogueClient";
+import type { AddGarmentFromItemResult } from "../services/catalogueClient";
 import { useWistStore } from "../store/useWistStore";
-import { purchaseErrorMessage, purchaseRefreshErrorMessage } from "../wardrobeMessages";
+import { purchaseErrorMessage, purchaseRecoveryAfterError, purchaseRefreshErrorMessage } from "../wardrobeMessages";
 
 type Props = {
   brand: Brand;
@@ -100,7 +100,7 @@ export function ProductDetailScreen({
     } catch (caught) {
       if (alive.current) {
         setBuyError(purchaseErrorMessage(caught));
-        setRecovery(caught instanceof UncertainWardrobeRequestError ? "refresh" : "repeat");
+        setRecovery(purchaseRecoveryAfterError(caught));
       }
     } finally {
       pending.current = false;
