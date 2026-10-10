@@ -227,7 +227,8 @@ attributes from before an edit made during processing.
 Authentication failures return 401, bodies above the existing **8,192-byte**
 JSON limit return 413, and unsupported methods return 405.
 
-Inference uses **`claude-opus-5-5`**, **medium effort**, **2,000 output tokens**,
+Inference uses **`claude-opus-5-5`**, **medium effort**, **16,000 output tokens**
+(thinking counts toward them; running out is logged as `truncated`),
 a **90,000 ms timeout per attempt**, **two SDK retries**, and the same approved
 server-side fallback as tagging. Three attempts plus backoff and fallback can
 repeat paid processing and exceed 90 seconds overall. Every request calls the

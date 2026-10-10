@@ -169,7 +169,7 @@ The owner approved these exact policies before implementation:
 | Ownership | Backend reads its existing wardrobe/profile and performs inference; no new durable state |
 | Provider/client | Shared direct Anthropic client; backend-only `ANTHROPIC_API_KEY` |
 | Model/effort | `claude-opus-5-5`, `medium` |
-| Output cap | `max_tokens = 2000` |
+| Output cap | `max_tokens = 16000` (thinking counts toward it); `stop_reason: "max_tokens"` is reported as `truncated` and returns `502 suggestion_failed`. Changed 2026-10-10 from 2000, which could cut off medium-effort thinking on large wardrobes |
 | Input | Tagged garments as text plus profile selections and occasion; no notes/photos |
 | Minimum | 3 tagged garments; fewer returns `422 wardrobe_too_small` without inference |
 | Output | 1–3 outfits, each with 2–6 unique eligible owned IDs |
