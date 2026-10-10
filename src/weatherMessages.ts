@@ -7,6 +7,8 @@ const CONDITIONS: Record<WeatherSummary["condition"], string> = {
 
 export function weatherLine(weather: WeatherSummary | null, checking: boolean): string {
   if (weather === null) return checking ? "Checking today's weather…" : "Weather not included";
-  return `${weather.minC}–${weather.maxC} °C · ${CONDITIONS[weather.condition]} · ` +
-    `${weather.precipitationChancePct}% chance of rain or snow · wind up to ${weather.maxWindKph} km/h · Open-Meteo`;
+  const min = Math.round(weather.minC), max = Math.round(weather.maxC);
+  const range = min === max ? `${min}` : `${min}–${max}`;
+  return `${range} °C · ${CONDITIONS[weather.condition]} · ` +
+    `${weather.precipitationChancePct}% chance of rain or snow · wind up to ${Math.round(weather.maxWindKph)} km/h · Open-Meteo`;
 }
