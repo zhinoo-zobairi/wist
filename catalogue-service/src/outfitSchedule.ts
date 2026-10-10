@@ -18,19 +18,24 @@ export type ScheduleState = {
   catchUpCheckedDay: string | null;
 };
 
-const HOUR_MS = 3_600_000;
+/** The local calendar date the cap day started on. Built from local fields so daylight saving cannot shift the 03:00 roll. */
+function capDate(now: Date): Date {
+  const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (now.getHours() < CATCH_UP_HOUR) date.setDate(date.getDate() - 1);
+  return date;
+}
 
 /** The cap day runs 03:00→03:00 local, so changes left over after the cap wait for the catch-up. */
 export function capDay(now: Date): string {
-  const shifted = new Date(now.getTime() - CATCH_UP_HOUR * HOUR_MS);
-  const month = String(shifted.getMonth() + 1).padStart(2, "0");
-  const day = String(shifted.getDate()).padStart(2, "0");
-  return `${shifted.getFullYear()}-${month}-${day}`;
+  const date = capDate(now);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
 }
 
 export function capDayStart(now: Date): Date {
-  const shifted = new Date(now.getTime() - CATCH_UP_HOUR * HOUR_MS);
-  return new Date(shifted.getFullYear(), shifted.getMonth(), shifted.getDate(), CATCH_UP_HOUR);
+  const date = capDate(now);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), CATCH_UP_HOUR);
 }
 
 export function decideRun(
