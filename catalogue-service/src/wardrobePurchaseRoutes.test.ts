@@ -198,7 +198,7 @@ describe("purchased garment API", () => {
     await expect(request({ tagger: { tag }, body: undefined }, `/v1/wardrobe/${garment.id}/tag`))
       .resolves.toEqual({ status: 409, body: { error: "already_tagged" } });
     await expect(request({ tagger: { tag }, body: '{"force":true}' }, `/v1/wardrobe/${garment.id}/tag`))
-      .resolves.toMatchObject({ status: 200, body: { garment: { tagStatus: "tagged", notes: null } } });
+      .resolves.toMatchObject({ status: 200, body: { garment: { tagStatus: "tagged", notes: "Size: M" } } });
     const remove = vi.fn();
     await expect(request({ photoStore: { write: vi.fn(), read: vi.fn(), remove } }, `/v1/wardrobe/${garment.id}`, "DELETE"))
       .resolves.toMatchObject({ status: 200 });

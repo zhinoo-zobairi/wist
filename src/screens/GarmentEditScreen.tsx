@@ -118,7 +118,7 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE", not
         {garment.photoUrl && <>
           <Pressable accessibilityRole="button" disabled={!!busy || uncertain} onPress={() => setConfirmRetag(!confirmRetag)}><Text style={styles.choice}>{productImage ? "RE-READ PRODUCT IMAGE" : "RE-READ PHOTO"}</Text></Pressable>
           {confirmRetag && <View style={styles.confirm}>
-            <Text style={styles.help}>Re-reading replaces your saved details and notes, plus any unsaved edits. It may incur another processing charge.</Text>
+            <Text style={styles.help}>{productImage ? "Re-reading replaces your saved details, plus any unsaved edits. Your notes are kept." : "Re-reading replaces your saved details and notes, plus any unsaved edits."} It may incur another processing charge.</Text>
             <Pressable accessibilityRole="button" disabled={!!busy} onPress={reread}><Text style={styles.choice}>RE-READ AND REPLACE DETAILS</Text></Pressable>
             <Pressable accessibilityRole="button" disabled={!!busy} onPress={() => setConfirmRetag(false)}><Text style={styles.choice}>CANCEL</Text></Pressable>
           </View>}

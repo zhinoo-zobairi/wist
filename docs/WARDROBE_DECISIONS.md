@@ -355,10 +355,12 @@ The nullable link and public URL are added with guarded `ALTER TABLE` migrations
 existing records, child sets and timestamps survive.
 
 Manual retry uses `POST /v1/wardrobe/:id/tag` and the garment's stored URL with
-the catalogue product's current name and brand. Initial and ordinary retry
-preserve the size note. A tagged garment requires `{force:true}`; force retains
-the existing behavior of replacing details and notes only while the garment's
-read timestamp is unchanged. A missing catalogue product prevents retagging
+the catalogue product's current name and brand. Initial, ordinary and
+forced retry all preserve the existing notes (the `Size: <label>` note cannot be
+restored from the image). A tagged garment requires `{force:true}`; force replaces
+details, but not notes, only while the garment's read timestamp is unchanged.
+Photo garments keep today's behavior: a forced retag replaces their notes.
+(Changed 2026-10-10; previously force erased a purchase's notes.) A missing catalogue product prevents retagging
 with `404 item_not_found`. Purchase deletion never touches disk photo storage.
 
 A purchase whose catalogue image is not an absolute `https:` URL without

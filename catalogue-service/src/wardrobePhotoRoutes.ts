@@ -100,7 +100,7 @@ async function retagGarment(id: string, wardrobe: WardrobeRepository, catalogue:
   const { ok, garment: tagged } = await tagAndSave(
     wardrobe, options.tagger, garment.id, input,
     force ? garment.updatedAt : undefined,
-    garment.source === "purchase" && !force ? garment.notes : undefined,
+    garment.source === "purchase" ? garment.notes : undefined,
   );
   if (tagged) return { status: 200, body: { garment: tagged } };
   if (!await wardrobe.getGarment(garment.id)) return { status: 404, body: { error: "garment_not_found" } };
