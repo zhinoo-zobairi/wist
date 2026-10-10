@@ -47,6 +47,14 @@ describe("today's weather summary", () => {
     expect(summarizeOpenMeteo(value)?.condition).toBe("thunderstorm");
   });
 
+  it("ranks by condition severity, not code number (heavy snow beats slight showers)", () => {
+    const value = structuredClone(fixture);
+    value.hourly.weather_code.fill(3);
+    value.hourly.weather_code[10] = 75;
+    value.hourly.weather_code[12] = 80;
+    expect(summarizeOpenMeteo(value)?.condition).toBe("snow");
+  });
+
   it.each([null, [], {}, { hourly: {} }, { hourly: { ...fixture.hourly, time: [] } }])(
     "returns null for malformed data %#", (value) => expect(summarizeOpenMeteo(value)).toBeNull(),
   );

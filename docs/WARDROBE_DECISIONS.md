@@ -457,7 +457,7 @@ existing behavior; `POST /v1/outfits/suggestions` remains removed.
 | Location wait | 10,000 ms for foreground permission and the one-shot position read; denial/error/timeout returns `null`; no retries |
 | Precision | Latitude and longitude rounded to two decimals on the device and again on the server (roughly 1 km); latitude in [-90, 90], longitude in [-180, 180] |
 | Missing location/weather | Show `Weather not included`, preserve the board's order, never block loading outfits |
-| Window | Today, 07:00–22:00 inclusive in the location's local timestamps; min/max temperature, max precipitation probability, max wind speed, most severe WMO code |
+| Window | Today, 07:00–22:00 inclusive in the location's local timestamps; min/max temperature, max precipitation probability, max wind speed, most severe condition by severity order thunderstorm > snow > rain > drizzle > fog > cloudy > clear (not WMO code number) |
 | Backend fetch | 5,000 ms with `AbortSignal.timeout`, zero retries, `redirect: "error"`, response capped at 256 KB (256,000 bytes); failure returns `200 { weather: null }` |
 | Phone weather fetch | Separate 10,000 ms AbortController timeout, zero retries; errors and timeout return `null` |
 | Cache | None on the backend; one weather fetch per visit, held in screen state only; no persisted weather or coordinates |

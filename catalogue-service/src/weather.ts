@@ -17,6 +17,9 @@ const CONDITIONS: Record<number, WeatherSummary["condition"]> = {
   95: "thunderstorm", 96: "thunderstorm", 97: "thunderstorm", 99: "thunderstorm",
 };
 
+// Least to most severe; the day's condition is the most severe one in the window.
+const SEVERITY: WeatherSummary["condition"][] = ["clear", "cloudy", "fog", "drizzle", "rain", "snow", "thunderstorm"];
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -30,7 +33,7 @@ export function summarizeOpenMeteo(json: unknown): WeatherSummary | null {
   const arrays = [temperatures, rain, wind, codes] as unknown[][];
   const date = typeof time[0] === "string" ? time[0].slice(0, 10) : "";
   const hours = new Set<number>();
-  let minC = Infinity, maxC = -Infinity, precipitationChancePct = 0, maxWindKph = 0, worstCode = 0;
+  let minC = Infinity, maxC = -Infinity, precipitationChancePct = 0, maxWindKph = 0, worst = 0;
 
   // timezone=auto gives location-local timestamps; never use the server's local day.
   for (let index = 0; index < time.length; index += 1) {
@@ -50,10 +53,10 @@ export function summarizeOpenMeteo(json: unknown): WeatherSummary | null {
     maxC = Math.max(maxC, temperature);
     precipitationChancePct = Math.max(precipitationChancePct, chance);
     maxWindKph = Math.max(maxWindKph, speed);
-    worstCode = Math.max(worstCode, code);
+    worst = Math.max(worst, SEVERITY.indexOf(CONDITIONS[code]!));
   }
   if (hours.size !== 16) return null;
-  return { minC, maxC, precipitationChancePct, maxWindKph, condition: CONDITIONS[worstCode]! };
+  return { minC, maxC, precipitationChancePct, maxWindKph, condition: SEVERITY[worst]! };
 }
 
 async function readBoundedJson(response: Response): Promise<unknown> {

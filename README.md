@@ -451,7 +451,8 @@ The backend rounds coordinates again and calls the
 [Open-Meteo forecast API](https://open-meteo.com/en/docs) without a key. It
 summarizes **07:00–22:00 inclusive**, using the location's local timestamps:
 minimum/maximum temperature, maximum precipitation probability, maximum wind
-speed and the most severe WMO weather code. The weather line shows temperature,
+speed and the most severe condition (thunderstorm, snow, rain, drizzle, fog,
+cloudy, clear, in that order) mapped from the WMO weather codes. The weather line shows temperature,
 condition, rain/snow chance, wind and Open-Meteo attribution. Forecast data are
 provided by Open-Meteo under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/);
 Wist summarizes its hourly data.
