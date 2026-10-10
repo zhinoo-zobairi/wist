@@ -8,6 +8,8 @@ import type { StyleProfileRepository } from "./styleProfileRepository.js";
 import { parseWatchSizes } from "./watchedSizes.js";
 import type { WardrobeRepository } from "./wardrobeRepository.js";
 import { handleWardrobeRequest } from "./wardrobeRoutes.js";
+import type { OutfitSuggester } from "./outfitSuggester.js";
+import { handleOutfitRequest } from "./outfitRoutes.js";
 
 export type ApiResponse = {
   status: number;
@@ -28,6 +30,7 @@ export type RequestOptions = {
   wardrobe?: WardrobeRepository;
   photoStore?: GarmentPhotoStore;
   tagger?: GarmentTagger;
+  suggester?: OutfitSuggester;
   bodyBytes?: Buffer;
   contentType?: string;
 };
@@ -40,6 +43,10 @@ export async function handleRequest(
   options: RequestOptions = {},
 ): Promise<ApiResponse> {
   const { pathname } = new URL(rawUrl, "http://catalogue.local");
+
+  if (pathname === "/v1/outfits/suggestions") {
+    return handleOutfitRequest(method, auth, options);
+  }
 
   if (pathname === "/v1/wardrobe" || pathname.startsWith("/v1/wardrobe/")) {
     return handleWardrobeRequest(method, pathname, auth, options);

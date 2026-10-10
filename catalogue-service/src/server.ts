@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 import { handleRequest } from "./app.js";
 import { ClaudeGarmentTagger } from "./claudeGarmentTagger.js";
+import { ClaudeOutfitSuggester } from "./claudeOutfitSuggester.js";
 import { DiskGarmentPhotoStore, MAX_PHOTO_BYTES } from "./garmentPhotoStore.js";
 import { MAX_JSON_BODY_BYTES, readRequestBody } from "./requestBody.js";
 import { importProduct } from "./productImport.js";
@@ -27,6 +28,7 @@ const anthropic = process.env.ANTHROPIC_API_KEY
     })
   : undefined;
 const tagger = anthropic ? new ClaudeGarmentTagger(anthropic) : undefined;
+const suggester = anthropic ? new ClaudeOutfitSuggester(anthropic) : undefined;
 const port = Number.parseInt(process.env.PORT ?? "4000", 10);
 const ownerToken = process.env.CATALOGUE_OWNER_TOKEN;
 const host = process.env.CATALOGUE_HOST ?? "127.0.0.1";
@@ -62,6 +64,7 @@ const server = createServer(async (request, response) => {
       (request.method === "PUT" && pathname === "/v1/profile") ||
       (request.method === "POST" && pathname === "/v1/watches") ||
       (request.method === "POST" && pathname === "/v1/wardrobe") ||
+      (request.method === "POST" && pathname === "/v1/outfits/suggestions") ||
       (request.method === "POST" && /^\/v1\/wardrobe\/[^/]+\/tag$/.test(pathname)) ||
       (request.method === "PUT" && /^\/v1\/wardrobe\/[^/]+$/.test(pathname));
     const hasPhotoBody = request.method === "POST" && pathname === "/v1/wardrobe/photos";
@@ -86,6 +89,7 @@ const server = createServer(async (request, response) => {
         wardrobe,
         photoStore,
         tagger,
+        suggester,
       },
     );
     response.writeHead(result.status, {
