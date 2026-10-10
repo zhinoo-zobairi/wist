@@ -41,7 +41,7 @@ export async function handleOutfitRequest(
         })),
       saved: (await outfits.listSaved()).map((record) => savedView(record, byId)),
       status: {
-        pending: generationEnabled && (unattempted || await outfits.moreIdeasRequested()),
+        pending: generationEnabled && summary.runsThisCapDay < DAILY_RUN_CAP && (unattempted || await outfits.moreIdeasRequested()),
         running: summary.running,
         lastRunAt: summary.lastRun?.at ?? null,
         lastRunStatus: summary.lastRun?.status ?? null,

@@ -67,6 +67,19 @@ describe("outfits API", () => {
       .toMatchObject({ pending: false, generationEnabled: false });
   });
 
+  it("stops reporting pending once the daily cap is reached", async () => {
+    const { outfits, request, populate } = setup();
+    await populate();
+    await outfits.requestMoreIdeas();
+    const status = async () => ((await request("GET", "/v1/outfits")).body as { status: { pending: boolean } }).status;
+    await expect(status()).resolves.toMatchObject({ pending: true });
+    for (let index = 0; index < DAILY_RUN_CAP; index += 1) {
+      await outfits.finishRun(await outfits.startRun("debounced", null), "failed", 0, "x");
+    }
+    await outfits.requestMoreIdeas();
+    await expect(status()).resolves.toMatchObject({ pending: false, runsLeftToday: 0 });
+  });
+
   it("saves a suggestion and removes a saved outfit", async () => {
     const { outfits, request, populate } = setup();
     const [a, b] = await populate();
