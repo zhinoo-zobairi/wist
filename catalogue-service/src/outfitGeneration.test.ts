@@ -63,6 +63,21 @@ describe("runOutfitGeneration", () => {
     expect((await outfits.listSuggestions()).map((s) => s.reason)).toEqual(["New.", "Good."]);
   });
 
+  it("favours changed pieces only in change-triggered runs", async () => {
+    const { deps, suggest, wardrobe, populate } = setup();
+    const [a, b, c] = await populate();
+    suggest.mockResolvedValue({ ok: true, outfits: [{ occasion: "work", garmentIds: [a!, b!], reason: "Good." }] });
+    await runOutfitGeneration(deps, "debounced");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await wardrobe.replaceGarment(c!, { ...input, name: "Edited" });
+    await runOutfitGeneration(deps, "more_ideas");
+    expect(suggest.mock.calls[1]![0].focusGarmentIds).toEqual([]);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await wardrobe.replaceGarment(c!, { ...input, name: "Edited again" });
+    await runOutfitGeneration(deps, "catch_up");
+    expect(suggest.mock.calls[2]![0].focusGarmentIds).toEqual([c]);
+  });
+
   it("fails without storing anything when Claude fails or every outfit is invalid", async () => {
     const { deps, suggest, outfits, populate } = setup();
     const [a] = await populate();

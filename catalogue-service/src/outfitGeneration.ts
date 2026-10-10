@@ -34,7 +34,8 @@ export async function runOutfitGeneration(deps: GenerationDeps, trigger: RunTrig
 
     const profile = await deps.profiles.getProfile();
     const occasions = profile && profile.occasions.length > 0 ? profile.occasions : [...OCCASIONS];
-    const focusGarmentIds = lastSucceeded
+    // Only change-triggered runs favour changed pieces (decision 3); More ideas starts fresh.
+    const focusGarmentIds = lastSucceeded && trigger !== "more_ideas"
       ? garments.filter((garment) => garment.updatedAt > lastSucceeded).map((garment) => garment.id)
       : [];
     const result = await deps.suggester.suggest({ garments, profile, occasions, focusGarmentIds });
