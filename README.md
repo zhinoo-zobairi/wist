@@ -58,6 +58,14 @@ garment later to edit it, re-read its photo, or permanently delete it after
 confirmation. Re-reading replaces saved details and notes and may incur
 another model charge.
 
+For a coveted piece you bought on the brand's site, open its product screen
+and tap **I bought this**. Confirm **Add to your wardrobe? You'll stop getting
+price alerts for it.** Wist adds the piece using its product image and opens the
+garment editor so you can check the tags. It removes the piece from Coveted
+only after the backend confirms the watch was removed. If that removal fails,
+the editor explains that you can uncovet it manually. Buying the same item again
+is allowed: covet it again and repeat the flow to create another garment.
+
 Run the backend using the same owner token as the phone. A backend-only
 `ANTHROPIC_API_KEY` enables automatic tagging; without it, photos remain
 **Not tagged · Retry** and can still be edited by hand. **Couldn't tag · Retry**
@@ -68,11 +76,19 @@ automatic client retries. The backend's retries can take longer. If the
 connection ends before an upload response arrives, the garment may already
 exist and still be processing: **Retry refreshes the wardrobe**. Explicitly
 adding the photo again can create a duplicate and repeat paid processing.
+**I bought this** also waits at most **90,000 ms** on the phone, with zero
+automatic retries. Leaving its screen prevents late navigation; a successful
+late response still updates the store. On timeout or network loss, **Refresh**
+reloads both wardrobe and watches without buying again. If the item is no
+longer coveted, Wist says it is in the wardrobe and offers no repeat. If it
+is still coveted, an explicit **Try again** can add a duplicate garment and
+repeat paid tagging; the backend may still be finishing the first request.
 Other wardrobe calls have no application-level timeout. Records update only
 from server responses; failed actions preserve the current list. Wardrobe
 records and pending actions are never saved in AsyncStorage or queued offline.
 
-Photos use authenticated native image requests. Browser previews may ignore
+Uploaded photos use authenticated native image requests. Purchased-product
+images use their public URLs without owner authorization headers. Browser previews may ignore
 image authorization headers and show **Photo unavailable**; the native app is
 the intended photo workflow. Camera and library permission copy is configured
 for native builds; no microphone permission is requested by wardrobe capture.
@@ -81,6 +97,10 @@ for native builds; no microphone permission is requested by wardrobe capture.
 App profileView → Profile → WardrobeScreen / GarmentEditScreen
                               ├→ image picker → garmentPhoto → JPEG URI
                               └→ useWistStore → catalogueClient → wardrobe API
+ProductDetailScreen "I bought this" → useWistStore.addGarmentFromItem
+  → catalogueClient → POST /v1/wardrobe/from-item → catalogue item + watch sizes
+  → wardrobe.createPurchaseGarment → tagger.tag(product) → applyTags/markTagFailed
+  → catalogue.unwatchItem → returned garment → GarmentEditScreen
 ```
 
 The first backend slice is a separate TypeScript catalogue service. It owns the
@@ -105,12 +125,13 @@ it. Available endpoints are:
 - `GET /v1/alerts` (owner token)
 - `GET /v1/wardrobe` (owner token) — lists owned garments, newest first
 - `POST /v1/wardrobe` (owner token) — creates a garment from typed-in attributes
+- `POST /v1/wardrobe/from-item` (owner token) — adds a bought catalogue item with `{ "itemId": "..." }`; returns `201 { garment, unwatched }`
 - `GET /v1/wardrobe/:id` (owner token)
 - `PUT /v1/wardrobe/:id` (owner token) — replaces all editable attributes
 - `DELETE /v1/wardrobe/:id` (owner token) — permanently deletes the garment
 - `POST /v1/wardrobe/photos` (owner token) — uploads raw JPEG, PNG, or WebP bytes
 - `GET /v1/wardrobe/:id/photo` (owner token) — returns the stored image bytes
-- `POST /v1/wardrobe/:id/tag` (owner token) — retries photo tagging; optional `{ "force": true }` overwrites existing tags
+- `POST /v1/wardrobe/:id/tag` (owner token) — retries photo or purchased-product tagging; optional `{ "force": true }` overwrites existing tags
 - `GET /v1/outfits` (owner token) — stored outfit ideas, saved outfits and background status; never calls Claude
 - `POST /v1/outfits/saved` with `{ "suggestionId": "…" }` (owner token) — saves an idea; `DELETE /v1/outfits/saved/:id` removes it
 - `POST /v1/outfits/more` (owner token) — queues one background run (`202`), or `429 daily_limit_reached` / `422 wardrobe_too_small` / `503 outfits_not_configured`
@@ -136,6 +157,17 @@ with `tagStatus: "untagged"` and a relative `photoUrl`. Initial attributes are
 “Untitled garment”, `top`, `["unknown"]`, `casual`, `medium`, and no occasions;
 editing attributes marks it `tagged` and preserves its source and photo.
 Manual garments are already `tagged` and have no photo URL.
+
+Bought catalogue pieces use `source: "purchase"`, a `catalogueItemId` link and
+the item's public image URL. Wist never copies the brand image; if it disappears,
+the garment shows a placeholder. Product tagging sends that image URL and the
+quoted name/brand through the same inference policy as photos. Exactly one
+chosen watch size becomes `Size: <label>` in notes; other selections leave notes
+empty. Purchases may be added more than once. The backend removes the watch
+after creation, including when tagging fails; an unwatch failure keeps the
+garment and reports `unwatched: false`, so it can still be uncoveted manually.
+Only successfully applied tags record a change for background outfit generation.
+
 
 Photos live at `<database directory>/wardrobe-photos/<garment UUID>.<ext>` and
 are kept until the garment is deleted. Back up that directory together with

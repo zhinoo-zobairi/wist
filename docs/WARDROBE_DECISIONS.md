@@ -323,3 +323,108 @@ stored ideas, saved outfits, a run log and an in-process scheduler.
 Remaining limitations: no real model call, device run, cost or cache-hit check
 has been made; the job runs only while the service runs (on the owner's Mac
 until hosting, #21).
+
+## Bought catalogue pieces (#7)
+
+Approved by the owner on 2026-10-10. The catalogue service owns the purchased
+garment and nullable `catalogueItemId` link. The catalogue repository still owns
+the product and watch; there is no foreign key across those repositories.
+
+| Rule | Approved value |
+|---|---|
+| Image | Reuse the catalogue item's absolute public `imageUrl`; the backend never downloads or stores it. Missing brand images show a placeholder |
+| Tag input | Product image by URL, plus JSON-quoted product name and brand as text; product text is untrusted data, not instructions |
+| Tagging policy | Same as photo tagging: direct Anthropic `claude-opus-5-5`, effort `low`, `max_tokens = 2000`, 60,000 ms per attempt, 2 SDK retries (up to 3 attempts plus backoff), beta `server-side-fallback-2026-07-01`, `fallbacks: "default"` |
+| Watch | Call the same `repository.unwatchItem` as watch deletion. Failure preserves the garment and returns `201` with `unwatched: false`; the item can still be uncoveted manually |
+| Size | Exactly one selected watch size becomes `Size: <label>` in notes; zero or multiple selections leave notes `null` |
+| Duplicates | Allowed; every purchase creates a separate garment, subject to the existing 300-garment cap |
+
+`POST /v1/wardrobe/from-item` accepts `{itemId}` with owner authentication and
+the existing 8,192-byte JSON cap. It returns `{garment, unwatched}` with `201`.
+An unknown product returns `404 item_not_found`; a full wardrobe returns
+`409 wardrobe_full`, including a race after the precheck. Initial attributes
+match photo uploads: `Untitled garment`, `top`, `["unknown"]`, `casual`,
+`medium`, no occasions, `untagged`, plus the selected-size note above.
+
+Tagging is synchronous. Missing configuration leaves the purchase `untagged`;
+a model failure marks it `failed`, and both still attempt unwatching and return
+`201`. Untagged creation and failed tagging do not write `wardrobe_change_log`,
+including on reopening the database. Applying tags records the change inside
+its transaction, so the existing background outfit scheduler sees the purchase.
+The nullable link and public URL are added with guarded `ALTER TABLE` migrations;
+existing records, child sets and timestamps survive.
+
+Manual retry uses `POST /v1/wardrobe/:id/tag` and the garment's stored URL with
+the catalogue product's current name and brand. Initial and ordinary retry
+preserve the size note. A tagged garment requires `{force:true}`; force retains
+the existing behavior of replacing details and notes only while the garment's
+read timestamp is unchanged. A missing catalogue product prevents retagging
+with `404 item_not_found`. Purchase deletion never touches disk photo storage.
+
+Public purchase photo sources omit all owner authorization headers. Wardrobe,
+the editor, and outfit cards share `GarmentPhoto`; protected photo garments
+retain the exact relative backend route and owner authentication.
+
+There is no new inference cache, queue, automatic application retry, image
+retention mechanism, or request-concurrency limit. The existing SDK retries and
+provider fallback can repeat paid processing. Restart after garment creation
+can leave tagging or unwatching unfinished; no purchase reconciliation job or
+checkpoint is added. Brand images can disappear, and Anthropic fetches the
+provided URL; provider access, retention and cost have not been verified live.
+Native display and live model checks remain pending under the owner's earlier
+instruction.
+
+The owner additionally approved the purchase phone policy in this session:
+
+| Rule | Approved value |
+|---|---|
+| Phone timeout | 90,000 ms with AbortController |
+| Automatic client retries | Zero |
+| Leaving | Prevent late navigation; a successful late response still updates the store; leaving does not abort the phone wait or backend processing |
+| Uncertain outcome | Say the piece may already have been added; offer Refresh before any repeat |
+| Refresh | Reload wardrobe and watches together; no purchase POST. A failed read preserves both current lists and still requires Refresh |
+| After refresh, no longer coveted | Say it is in the wardrobe; offer no repeat |
+| After refresh, still coveted | Offer explicit Try again; a repeat can create a duplicate garment and repeat paid tagging |
+| Successful response | Add the authoritative garment; remove coveted ID and chosen-size cache only when `unwatched: true`; otherwise show the owner-facing unwatch notice in the editor |
+
+The backend still uses 60,000 ms per attempt, two SDK retries and fallback,
+so processing can exceed the phone's wait and continue after network loss.
+No purchase operation is queued offline. The screen prevents duplicate taps
+while its request is pending, allows cancellation of the confirmation sheet,
+and waits for any in-flight watch or size write before starting a purchase.
+Backend error codes pass through `wardrobeMessages` and never appear on screen.
+Wardrobe records are authoritative server responses and remain memory-only on
+the phone; the existing coveted/size cache follows the confirmed unwatch result.
+Independent in-memory revisions guard wardrobe and watch reads: a stale startup
+or import read cannot re-covet a confirmed purchase, while an unrelated garment
+edit during recovery does not discard the authoritative watch response.
+
+```text
+App → ProductDetailScreen "I bought this" → useWistStore.addGarmentFromItem
+  → catalogueClient.addGarmentFromItem → POST /v1/wardrobe/from-item
+  → handleRequest → handleWardrobeRequest → createPurchase
+  → catalogue.getItem/listWatchSizes → wardrobe.createPurchaseGarment
+  → tagger.tag(product URL + quoted name/brand) → wardrobe.applyTags/markTagFailed
+  → catalogue.unwatchItem → {garment, unwatched} → store → GarmentEditScreen
+```
+
+
+Verification for #7:
+
+- Test-first changes cover schema migration, catalogue links, fake SDK product
+  transport, purchase routes, the transactional capacity race, change logging,
+  client photo-source decisions, owner-facing copy and store synchronization.
+- App/backend type checking, 429 tests across 39 files, and the catalogue build
+  pass. Tests use fake HTTP/taggers/SDK transports and make no real model calls.
+- Expo web export passes.
+- A temporary JSDOM/React Native Web harness using the actual purchase screen,
+  store and client passed 10 UI checks: entry/confirmation/cancel, single pending
+  request and loading, editor callbacks, watch success/failure, uncertain
+  recovery reads, owned/no-repeat and watched/explicit-repeat states, error
+  copy, and late success updating the store without navigating after unmount.
+  Visual-only Icon/video/safe-area wrappers and HTTP were replaced; this does
+  not verify native rendering, image retrieval, device screenshots or live
+  provider behavior.
+- Step 1 is committed locally as `fe8218b`. Later commits are left to the owner
+  after automatic approval review returned 403 for `codex-auto-review`; no
+  review check was bypassed. No push, issue update or closure was performed.
