@@ -65,6 +65,26 @@ describe("outfit client", () => {
       .resolves.toBe(expected);
   });
 
+  it.each([[401, "unauthorized"], [503, "outfits_not_configured"]])("loadOutfits throws on status %i", async (code, error) => {
+    await expect(loadOutfits(vi.fn<typeof fetch>().mockResolvedValueOnce(json({ error }, code)), baseUrl, "owner"))
+      .rejects.toMatchObject({ status: code });
+  });
+
+  it("loadOutfits throws on a network error", async () => {
+    await expect(loadOutfits(vi.fn<typeof fetch>().mockRejectedValueOnce(new TypeError("offline")), baseUrl, "owner"))
+      .rejects.toThrow("offline");
+  });
+
+  it("maps a 401 on More ideas to unavailable", async () => {
+    await expect(requestMoreIdeas(vi.fn<typeof fetch>().mockResolvedValueOnce(json({ error: "unauthorized" }, 401)), baseUrl, "owner"))
+      .resolves.toBe("unavailable");
+  });
+
+  it("saveOutfitIdea throws on a 404", async () => {
+    await expect(saveOutfitIdea("gone", vi.fn<typeof fetch>().mockResolvedValueOnce(json({ error: "not_found" }, 404)), baseUrl, "owner"))
+      .rejects.toMatchObject({ status: 404 });
+  });
+
   it("maps a network failure on More ideas to unavailable", async () => {
     await expect(requestMoreIdeas(vi.fn<typeof fetch>().mockRejectedValueOnce(new TypeError("offline")), baseUrl, "owner"))
       .resolves.toBe("unavailable");
