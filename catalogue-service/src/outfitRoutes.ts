@@ -78,9 +78,9 @@ export async function handleOutfitRequest(
 
   if (pathname === "/v1/outfits/more") {
     if (method !== "POST") return { status: 405, body: { error: "method_not_allowed" } };
+    if (!suggester) return { status: 503, body: { error: "outfits_not_configured" } };
     const tagged = (await wardrobe.listGarments()).filter((garment) => garment.tagStatus === "tagged");
     if (tagged.length < MIN_TAGGED_GARMENTS) return { status: 422, body: { error: "wardrobe_too_small" } };
-    if (!suggester) return { status: 503, body: { error: "outfits_not_configured" } };
     const summary = await outfits.runSummary(capDayStart(new Date()));
     if (summary.runsThisCapDay >= DAILY_RUN_CAP) return { status: 429, body: { error: "daily_limit_reached" } };
     await outfits.requestMoreIdeas();

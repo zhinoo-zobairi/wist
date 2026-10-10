@@ -89,6 +89,8 @@ describe("outfits API", () => {
   it("queues More ideas within the cap and refuses it otherwise", async () => {
     const { outfits, request, populate } = setup();
     await expect(request("POST", "/v1/outfits/more")).resolves.toEqual({ status: 422, body: { error: "wardrobe_too_small" } });
+    await expect(request("POST", "/v1/outfits/more", { suggester: undefined }))
+      .resolves.toEqual({ status: 503, body: { error: "outfits_not_configured" } });
     await populate();
     await expect(request("POST", "/v1/outfits/more", { suggester: undefined }))
       .resolves.toEqual({ status: 503, body: { error: "outfits_not_configured" } });
