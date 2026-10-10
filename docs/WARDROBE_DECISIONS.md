@@ -222,3 +222,69 @@ here, so live outfit sensibility and cache-hit acceptance checks remain pending.
 
 All implementation commits are local; no push, issue edit, or issue closure
 was performed.
+
+## Mobile outfit suggestions (#9)
+
+The owner approved these screen and request policies before implementation:
+
+| Rule | Approved value |
+|---|---|
+| Ownership | Existing backend owns records/inference; phone owns current screen presentation only |
+| Entry | “Dress me” at the top of Wardrobe; no new tab or navigation library |
+| Default | First occasion from existing mobile style-profile selections; no answered profile/no occasions requires a choice |
+| Request trigger | Suggest, Retry, or Try again only; never on screen open or occasion selection |
+| Occasion change | Clear existing results/errors without requesting new suggestions |
+| Result lifetime | Screen state only; leaving discards results; no Zustand/AsyncStorage persistence |
+| Editor navigation | Tapping a garment opens its existing editor; Back/Save/Delete returns to a fresh Dress me screen without results |
+| Phone timeout | 120,000 ms using AbortController |
+| Client retry | Zero automatic retries; manual Retry/Try again repeats the same occasion |
+| Phone concurrency | One pending request per open screen; prevent repeated taps while pending |
+| Leaving | Abort the phone's wait and ignore late responses |
+| Too-small copy | “Add at least 3 tagged pieces to get outfit ideas.” plus Back to Wardrobe |
+| Other failure copy | “Couldn't put outfits together right now.” plus Retry |
+
+The client sends only `{context:{occasion}}` with owner auth. It validates 1–3
+outfits, each containing 2–6 unique tagged garment records and a nonempty reason
+at most 200 characters. Malformed responses map to the same unavailable state
+as 502/503, network errors, and timeouts. It reuses garment validation and
+authenticated photo sources from #6. Existing manual/photo garment sources
+remain unchanged; manual garments with no photo show the existing placeholder.
+Public purchase photos depend on the separate purchase feature.
+
+The editor receives only the selected garment record, never outfit reasons or
+the result collection. A newer suggestion record can be used when the wardrobe
+store's last refresh is older or missing it; a newer store record takes priority.
+Opening the editor unmounts the suggestion screen and discards all its results.
+Reasons use the bundled Cormorant Garamond 600 italic font; garment names use
+Inter. Collages have 2–3 columns, 4:5 photos and 20 px corners. Existing theme
+tokens are reused, with moss actions and no wine/garnet accent.
+
+The phone's timeout is independent of the existing backend policy: direct
+Opus 5.5, medium effort, the current 16,000-token output cap, 90,000 ms per
+attempt, two SDK retries, server-side fallback, and five-minute input caching
+are preserved. Backend work can continue and incur charges after a client
+timeout, navigation, or connection loss. An explicit new request can repeat
+paid processing. No answers, checkpoints, background retry, or offline queue
+are added. The one-request phone guard is per screen instance; leaving and
+reopening does not limit work still running on the backend.
+
+Device and live model acceptance checks remain pending under the owner's
+existing instruction. No simulator/browser escalation or real model call is
+required for this implementation; screenshots and live outfit quality/cache
+checks are not claimed.
+
+Verification for #9:
+
+- Type checking for app/backend and the catalogue build passed.
+- 348 tests across 33 files passed, including 27 new outfit-client cases.
+- The Expo web export passed with the new screen and bundled italic font.
+- A temporary JSDOM harness bundled the actual screen/client/store with React
+  Native Web and fake HTTP. It checked required/default occasion, zero automatic
+  calls, double-tap prevention, loading, 422/502/503 copy/actions, same-occasion
+  retry, collage/editor callbacks, clearing on occasion change, fresh reopening,
+  cancellation, and ignored late results. This verifies state and events, not
+  native rendering, physical photo display, or screenshots.
+- The DOM check found the existing picker omitted web `aria-checked`; it now
+  exposes that alongside its native accessibility state.
+- No real model calls, device checks, GitHub edits, pushes, or issue closures
+  were performed.

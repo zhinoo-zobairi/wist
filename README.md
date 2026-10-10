@@ -241,7 +241,7 @@ Wardrobe names/tags and profile selections are sent to Anthropic. Account
 retention, model access, actual costs, and cache hits remain unverified here;
 the issue's $0.05–$0.10 estimate around 100 garments is not a measured price.
 Unit/API tests use fake inference and SDK transport, never real model calls.
-The outfit screen is a separate issue; #8 provides this backend endpoint.
+Use **Profile → Wardrobe → Dress me** to request these ideas in the app.
 
 ```text
 catalogue:start → server.ts → shared Anthropic → ClaudeOutfitSuggester
@@ -362,6 +362,44 @@ once. Drops detected after that point notify normally, including ones that
 landed while Wist was closed.
 The cached field remains named `starredItemIds` for backward compatibility, but
 the product exposes one save verb: **Covet**.
+
+### Get outfit ideas
+
+1. Open **Profile → Wardrobe → Dress me**. Add at least three tagged pieces
+   first; manually reviewed and saved garments count too.
+2. Choose an occasion. The first occasion in your mobile style profile is
+   preselected; with no answered profile or no occasions, choose one yourself.
+3. Tap **Suggest**. Wist shows “Putting outfits together…” while the backend
+   works, then returns up to three collages of owned garments with short reasons.
+   Garments without photos use the existing “No photo” placeholder.
+4. Tap a garment to review or edit it. Back returns to a fresh **Dress me**
+   screen. **Try again** requests new ideas for the same occasion.
+
+Suggestions are requested only by **Suggest**, **Retry**, or **Try again**.
+Opening the screen or choosing an occasion makes no model call. Changing the
+occasion clears the previous results; leaving the screen discards them.
+Results and request state stay in the screen, with no store/device persistence
+or offline queue. Five tabs remain unchanged.
+
+“Add at least 3 tagged pieces to get outfit ideas.” links back to Wardrobe.
+“Couldn't put outfits together right now.” offers Retry. The phone waits up to
+**120,000 ms** per request, using AbortController with **no automatic retries**;
+one request can be pending on the open screen. Leaving cancels the phone's wait
+and ignores late results. This does not cancel the backend's work: its
+90,000 ms per-attempt timeout, SDK retries, and fallback may run longer than
+the phone waits. Each explicit retry can repeat paid processing; Wist stores
+no answers to recover after a lost response or restart.
+
+```text
+Wardrobe “Dress me” → App profileView → OutfitSuggestionsScreen
+                                        ├→ Suggest → catalogueClient.suggestOutfits
+                                        │             └→ POST /v1/outfits/suggestions
+                                        └→ garment → GarmentEditScreen → fresh Dress me
+```
+
+Client tests verify the contract, error mapping, timeout, and cancellation.
+Device screenshots and real model checks remain pending, as agreed; the web
+photo authorization limitation described above also applies to collages.
 
 ## Checks
 
