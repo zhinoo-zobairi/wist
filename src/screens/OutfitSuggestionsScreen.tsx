@@ -90,10 +90,11 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
     try {
       const message = await action();
       if (alive.current) setNotice(message);
-      await refresh();
     } catch {
       if (alive.current) setNotice("Something went wrong. Please try again.");
     } finally {
+      // Also after a failure: a 404 means the idea is gone, so reload the board to drop its card.
+      if (alive.current) await refresh();
       if (alive.current) setBusy(false);
     }
   };
