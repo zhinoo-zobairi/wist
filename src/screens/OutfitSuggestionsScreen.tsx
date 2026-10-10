@@ -23,7 +23,7 @@ type BoardState = { status: "loading" } | { status: "ready"; board: OutfitBoard 
 
 function OutfitCard({ label, garments, reason, missing, action, onEdit, disabled }: {
   label: string; garments: Garment[]; reason: string; missing: number;
-  action: { text: string; onPress: () => void }; onEdit: (garment: Garment) => void; disabled: boolean;
+  action: { text: string; accessibilityLabel: string; onPress: () => void }; onEdit: (garment: Garment) => void; disabled: boolean;
 }) {
   return (
     <View style={styles.card}>
@@ -38,7 +38,8 @@ function OutfitCard({ label, garments, reason, missing, action, onEdit, disabled
       </View>
       {missing > 0 && <Text style={styles.help}>Missing a piece</Text>}
       <Text style={styles.reason}>{reason}</Text>
-      <Pressable accessibilityRole="button" disabled={disabled} onPress={action.onPress}
+      <Pressable accessibilityRole="button" accessibilityLabel={action.accessibilityLabel} disabled={disabled}
+        onPress={action.onPress}
         style={[styles.secondary, disabled && styles.disabled]}>
         <Text style={styles.secondaryText}>{action.text}</Text>
       </Pressable>
@@ -134,7 +135,10 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
             <View style={styles.results}>
               {ideas.map((idea) => <OutfitCard key={idea.id} label={labelFor(idea.occasion)} garments={idea.garments}
                 reason={idea.reason} missing={0} onEdit={onEdit} disabled={busy}
-                action={{ text: "♡ SAVE", onPress: () => void act(async () => { await saveOutfitIdea(idea.id); return null; }) }} />)}
+                action={{
+                  text: "♡ SAVE", accessibilityLabel: `Save ${labelFor(idea.occasion).toLowerCase()} outfit: ${idea.garments.map((g) => g.name).join(", ")}`,
+                  onPress: () => void act(async () => { await saveOutfitIdea(idea.id); return null; }),
+                }} />)}
             </View>
             {board.status.generationEnabled && <>
               <Pressable accessibilityRole="button" disabled={busy || waiting}
@@ -150,7 +154,10 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
               <View style={styles.results}>
                 {saved.map((outfit) => <OutfitCard key={outfit.id} label={labelFor(outfit.occasion)} garments={outfit.garments}
                   reason={outfit.reason} missing={outfit.missingGarmentIds.length} onEdit={onEdit} disabled={busy}
-                  action={{ text: "REMOVE", onPress: () => void act(async () => { await removeSavedOutfit(outfit.id); return null; }) }} />)}
+                  action={{
+                    text: "REMOVE", accessibilityLabel: `Remove saved ${labelFor(outfit.occasion).toLowerCase()} outfit: ${outfit.garments.map((g) => g.name).join(", ")}`,
+                    onPress: () => void act(async () => { await removeSavedOutfit(outfit.id); return null; }),
+                  }} />)}
               </View>
             </>}
           </>;
