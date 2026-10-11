@@ -3,6 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { OutfitSuggester, SuggestionInput, SuggestionResult } from "./outfitSuggester.js";
 import { OCCASIONS } from "./styleProfile.js";
+import { wardrobePromptText } from "./wardrobePromptText.js";
 
 const OutfitSchema = z.object({ outfits: z.array(z.object({
   occasion: z.enum(OCCASIONS), garmentIds: z.array(z.string()), reason: z.string(),
@@ -31,10 +32,7 @@ export class ClaudeOutfitSuggester implements OutfitSuggester {
 
   async suggest(input: SuggestionInput): Promise<SuggestionResult> {
     try {
-      const wardrobeText = [...input.garments].sort((a, b) => a.id.localeCompare(b.id)).map((garment) => {
-        const { id, name, category, colors, formality, warmth, occasions } = garment;
-        return JSON.stringify({ id, name, category, colors, formality, warmth, occasions });
-      }).join("\n");
+      const wardrobeText = wardrobePromptText(input.garments);
       const profile = input.profile ? { occasions: input.profile.occasions, styles: input.profile.styles } : null;
       const response = await this.client.beta.messages.parse({
         // Thinking is always on for this model and counts toward max_tokens, so the cap
