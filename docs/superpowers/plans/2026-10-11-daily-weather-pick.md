@@ -12,12 +12,12 @@
 
 ---
 
-## Questions for the owner
+## Owner answers (approved 2026-10-11)
 
-Answer these before the task named; every other task can start now.
+No questions are open.
 
-1. **`saveLocation` timeout (before Task 9).** The spec says the location save is fire-and-forget. The removed `loadWeather` had an approved **10,000 ms** AbortController timeout and **zero retries**. As written, Task 9 adds **no timeout and no retry** to `saveLocation`: it never blocks the board, but a hung request stays open until the platform gives up. Do you want the same 10,000 ms abort? If yes, Task 9 copies `loadWeather`'s `AbortController` pattern with that value.
-2. **Saving a ranked idea (before Task 11).** `saveSuggestion` gives a saved outfit a **new id**, so an idea saved after 06:00 is no longer in `today.order`: it becomes unranked (after the ranked ones, newest first) and loses its "For today" marker until the next morning. This follows decision 7 ("created after the pick"). Confirm, or ask for the rank to carry over to the saved copy (a separate change).
+1. **`saveLocation` timeout:** a **10,000 ms** `AbortController` timeout, **zero retries**, and the caller ignores errors. This is the same policy as the removed `loadWeather` (Task 9).
+2. **A saved idea keeps its place:** when a suggestion is saved, the stored pick swaps that suggestion's id for the new saved-outfit id in `order` and moves its `reasons` entry, in the **same transaction** as the save. `SqliteOutfitRepository.saveSuggestion` owns both tables, so this lives there (Task 3).
 
 ---
 
@@ -41,6 +41,8 @@ Answer these before the task named; every other task can start now.
 | Latest location only (one row); latest pick only (one row) | Task 3 |
 | Full ranking; reasons for the top 3, ≤ 200 characters; unknown/duplicate ids dropped | Tasks 2, 4 |
 | Location rounded to 2 decimals on the phone and again on the server; `400 invalid_location` | Tasks 7, 9 |
+| `saveLocation`: 10,000 ms abort, zero retries, errors ignored by the screen (owner answer 1) | Tasks 9, 11 |
+| Saving a ranked idea keeps its place and reason in today's pick, in the save transaction (owner answer 2) | Task 3 |
 | Existing Open-Meteo source (5 s timeout, zero retries, 256 KB cap) reused unchanged | Task 5 |
 
 ## File map
@@ -51,7 +53,7 @@ Answer these before the task named; every other task can start now.
 | `catalogue-service/src/claudeOutfitSuggester.ts` (modify) | use the shared wardrobe text |
 | `catalogue-service/src/dailyPick.ts` (create) | pure rules: `localDay`, `isDailyPickDue`, `keepValidRanking` |
 | `catalogue-service/src/outfitRepository.ts` (modify) | location + daily pick methods, `DailyPickRecord` |
-| `catalogue-service/src/sqliteOutfitRepository.ts` (modify) | `outfit_location` and `daily_pick` single-row tables |
+| `catalogue-service/src/sqliteOutfitRepository.ts` (modify) | `outfit_location` and `daily_pick` single-row tables; `saveSuggestion` carries a ranked idea's place into the pick |
 | `catalogue-service/src/outfitPicker.ts` (create) | picker boundary types |
 | `catalogue-service/src/claudeOutfitPicker.ts` (create) | the one `claude-sonnet-5-5` call |
 | `catalogue-service/src/dailyPickRun.ts` (create) | `runDueDailyPick`: due check → attempt → weather → Claude → validate → store |
@@ -324,6 +326,8 @@ git commit -m "feat(outfits): add the daily pick rules"
 
 Two single-row tables (decisions 1 and 8). `outfit_location` holds only the latest rounded coordinates. `daily_pick` holds the server-local date of the latest attempt and the latest successful pick as JSON; both are overwritten, never appended.
 
+Owner answer 2: `saveSuggestion` gives the saved outfit a new id. In the **same transaction**, it swaps the old id for the new one at the same position in the stored pick's `order` and moves the `reasons` entry, so a ranked idea keeps its place and its "For today" reason. An unranked idea, or a save with no stored pick, leaves the pick untouched.
+
 **Files:**
 - Modify: `catalogue-service/src/outfitRepository.ts`
 - Modify: `catalogue-service/src/sqliteOutfitRepository.ts`
@@ -390,12 +394,40 @@ const weather: WeatherSummary = { minC: 6, maxC: 11, precipitationChancePct: 70,
     await expect(repository.getDailyPick()).resolves.toEqual({ day: "2026-10-11", weather, order: ["b"], reasons: {} });
     await expect(repository.dailyPickAttemptedDay()).resolves.toBe("2026-10-11");
   });
+
+  it("keeps a ranked idea's place and reason when it is saved (owner answer 2)", async () => {
+    const repository = createRepository();
+    await repository.storeSuggestions([work(["a", "b"], "First."), work(["a", "c"], "Ranked."), work(["a", "d"], "Unranked.")]);
+    const byReason = async (reason: string) => (await repository.listSuggestions()).find((s) => s.reason === reason)!;
+    const first = await byReason("First.");
+    const ranked = await byReason("Ranked.");
+    const unranked = await byReason("Unranked.");
+
+    // No stored pick: saving works and creates none.
+    await expect(repository.saveSuggestion(first.id)).resolves.not.toBeNull();
+    await expect(repository.getDailyPick()).resolves.toBeNull();
+
+    const pick = { day: "2026-10-11", weather, order: ["other", ranked.id, "last"],
+      reasons: { other: "Warm.", [ranked.id]: "Rain-ready." } };
+    await repository.storeDailyPick(pick);
+
+    // An unranked idea leaves the pick unchanged.
+    await repository.saveSuggestion(unranked.id);
+    await expect(repository.getDailyPick()).resolves.toEqual(pick);
+
+    // A ranked idea's saved copy takes its position and reason.
+    const saved = await repository.saveSuggestion(ranked.id);
+    await expect(repository.getDailyPick()).resolves.toEqual({
+      day: "2026-10-11", weather, order: ["other", saved!.id, "last"],
+      reasons: { other: "Warm.", [saved!.id]: "Rain-ready." },
+    });
+  });
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run catalogue-service/src/sqliteOutfitRepository.test.ts`
-Expected: FAIL — `repository.getLocation is not a function`.
+Expected: FAIL — `repository.getLocation is not a function`, `repository.dailyPickAttemptedDay is not a function` and `repository.getDailyPick is not a function` in the three new tests.
 
 - [ ] **Step 3: Extend the interface**
 
@@ -432,6 +464,18 @@ export type DailyPickRecord = {
   /** Replaces the stored pick; only the latest is kept (decision 8). */
   storeDailyPick(pick: DailyPickRecord): Promise<void>;
   getDailyPick(): Promise<DailyPickRecord | null>;
+```
+
+4. Replace the `saveSuggestion` doc comment:
+
+```ts
+  /** Moves a suggestion into saved outfits; null if it no longer exists. */
+```
+
+with:
+
+```ts
+  /** Moves a suggestion into saved outfits; null if it no longer exists. A ranked idea keeps its place and reason in the stored pick. */
 ```
 
 - [ ] **Step 4: Implement the tables**
@@ -524,6 +568,34 @@ with:
     return row.pick === null ? null : JSON.parse(row.pick) as DailyPickRecord;
   }
 
+```
+
+4. In `saveSuggestion`, inside its `this.transaction(() => { … })`, replace:
+
+```ts
+      this.database.prepare("DELETE FROM outfit_suggestions WHERE id = ?").run(id);
+      return { id: savedId, occasion: row.occasion, reason: row.reason, savedAt, garmentIds };
+```
+
+with:
+
+```ts
+      this.database.prepare("DELETE FROM outfit_suggestions WHERE id = ?").run(id);
+      // Owner answer 2: the saved copy keeps the idea's place and reason in today's pick, in this same transaction.
+      const stored = this.database.prepare("SELECT pick FROM daily_pick WHERE id = 1")
+        .get() as unknown as { pick: string | null };
+      if (stored.pick !== null) {
+        const pick = JSON.parse(stored.pick) as DailyPickRecord;
+        const position = pick.order.indexOf(id);
+        if (position !== -1) {
+          pick.order[position] = savedId;
+          const pickReason = pick.reasons[id];
+          delete pick.reasons[id];
+          if (pickReason !== undefined) pick.reasons[savedId] = pickReason;
+          this.database.prepare("UPDATE daily_pick SET pick = ? WHERE id = 1").run(JSON.stringify(pick));
+        }
+      }
+      return { id: savedId, occasion: row.occasion, reason: row.reason, savedAt, garmentIds };
 ```
 
 - [ ] **Step 5: Run the tests to verify they pass**
@@ -1489,9 +1561,7 @@ git commit -m "feat(outfits): serve today's pick with stored outfits"
 
 ### Task 9: Read today's pick and save the phone's location (client)
 
-> Blocked on **Question 1** only for the timeout. As written: no timeout, no retry.
-
-`loadOutfits` parses `today`. A missing or malformed `today` becomes `null` ("Today's pick isn't ready") instead of failing the whole board. `saveLocation` sends `PUT /v1/location` with coordinates rounded again on the phone. `loadWeather` stays until Task 12.
+`loadOutfits` parses `today`. A missing or malformed `today` becomes `null` ("Today's pick isn't ready") instead of failing the whole board. `saveLocation` sends `PUT /v1/location` with coordinates rounded again on the phone. Owner answer 1: it uses a **10,000 ms** `AbortController` timeout, makes **zero retries**, and rejects on any failure; the screen ignores the rejection (Task 11). `loadWeather` stays until Task 12.
 
 **Files:**
 - Modify: `src/types.ts`
@@ -1553,21 +1623,49 @@ with:
       .resolves.toMatchObject({ today: null });
   });
 
-  it("saves only the rounded location with owner auth", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(null, { status: 204 }));
-    await expect(saveLocation({ latitude: 52.5249, longitude: 13.4051 }, fetchImpl, baseUrl, "owner")).resolves.toBeUndefined();
-    expect(fetchImpl).toHaveBeenCalledExactlyOnceWith("http://catalogue.test/v1/location", {
-      method: "PUT", body: JSON.stringify({ latitude: 52.52, longitude: 13.41 }),
-      headers: expect.objectContaining({ authorization: "Bearer owner", "content-type": "application/json" }),
-    });
+  it("saves only the rounded location with owner auth and clears its timer", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(null, { status: 204 }));
+      await expect(saveLocation({ latitude: 52.5249, longitude: 13.4051 }, fetchImpl, baseUrl, "owner")).resolves.toBeUndefined();
+      expect(fetchImpl).toHaveBeenCalledExactlyOnceWith("http://catalogue.test/v1/location", {
+        method: "PUT", body: JSON.stringify({ latitude: 52.52, longitude: 13.41 }),
+        headers: expect.objectContaining({ authorization: "Bearer owner", "content-type": "application/json" }),
+        signal: expect.any(AbortSignal),
+      });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  it("throws when the location is refused or the network fails", async () => {
+  it("throws once, without retrying, when the location is refused or the network fails", async () => {
     const at = { latitude: 52.52, longitude: 13.41 };
-    await expect(saveLocation(at, vi.fn<typeof fetch>().mockResolvedValueOnce(json({ error: "invalid_location" }, 400)), baseUrl, "owner"))
-      .rejects.toMatchObject({ status: 400, code: "invalid_location" });
-    await expect(saveLocation(at, vi.fn<typeof fetch>().mockRejectedValueOnce(new TypeError("offline")), baseUrl, "owner"))
-      .rejects.toThrow("offline");
+    const refused = vi.fn<typeof fetch>().mockResolvedValueOnce(json({ error: "invalid_location" }, 400));
+    await expect(saveLocation(at, refused, baseUrl, "owner")).rejects.toMatchObject({ status: 400, code: "invalid_location" });
+    const offline = vi.fn<typeof fetch>().mockRejectedValueOnce(new TypeError("offline"));
+    await expect(saveLocation(at, offline, baseUrl, "owner")).rejects.toThrow("offline");
+    expect(refused).toHaveBeenCalledTimes(1);
+    expect(offline).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts a pending location save at 10 seconds without retrying (owner answer 1)", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn<typeof fetch>((_url, init) => new Promise((_resolve, reject) => {
+        init!.signal!.addEventListener("abort", () => reject(new DOMException("Timed out", "AbortError")), { once: true });
+      }));
+      const pending = saveLocation({ latitude: 52.52, longitude: 13.41 }, fetchImpl, baseUrl, "owner");
+      const settled = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      await vi.advanceTimersByTimeAsync(9999);
+      expect(fetchImpl.mock.calls[0]![1]!.signal!.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await settled;
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 ```
 
@@ -1663,23 +1761,33 @@ with:
 4. Add after the `requestMoreIdeas` function:
 
 ```ts
-/** Stores the phone's rounded location for tomorrow's 06:00 pick. Callers fire and forget. */
+/**
+ * Stores the phone's rounded location for the next 06:00 pick. 10,000 ms timeout and zero retries
+ * (owner answer 1, same as the removed loadWeather); rejects on any failure, and callers ignore it.
+ */
 export async function saveLocation(
   location: Coordinates, fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
 ): Promise<void> {
-  const response = await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/location`, {
-    method: "PUT",
-    body: JSON.stringify({
-      latitude: Math.round(location.latitude * 100) / 100,
-      longitude: Math.round(location.longitude * 100) / 100,
-    }),
-    headers: { ...authorizationHeaders(ownerToken), "content-type": "application/json" },
-  });
-  if (!response.ok) {
-    const value: unknown = await response.json().catch(() => null);
-    throw new WardrobeApiError(
-      isObject(value) && typeof value.error === "string" ? value.error : "location_request_failed", response.status,
-    );
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const response = await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/location`, {
+      method: "PUT",
+      body: JSON.stringify({
+        latitude: Math.round(location.latitude * 100) / 100,
+        longitude: Math.round(location.longitude * 100) / 100,
+      }),
+      headers: { ...authorizationHeaders(ownerToken), "content-type": "application/json" },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const value: unknown = await response.json().catch(() => null);
+      throw new WardrobeApiError(
+        isObject(value) && typeof value.error === "string" ? value.error : "location_request_failed", response.status,
+      );
+    }
+  } finally {
+    clearTimeout(timer);
   }
 }
 ```
@@ -1786,9 +1894,7 @@ git commit -m "feat(mobile): order outfits by today's pick"
 
 ### Task 11: Show today's pick in Dress me
 
-> Confirm **Question 2** first (saved ideas lose their rank until tomorrow).
-
-The screen stops reading live weather. On open it saves the location once per visit, fire-and-forget. The weather line shows the pick's forecast, or "Today's pick isn't ready". Ideas and saved outfits follow `today.order`. A card whose id has a reason shows "For today" with it; reasons exist only for the overall top 3, and those always sit at the top of any occasion filter, so this marks exactly "the top 3 of the current filter that have a reason".
+The screen stops reading live weather. On open it saves the location once per visit, fire-and-forget: `saveLocation` stops waiting after 10,000 ms (Task 9) and the screen ignores any rejection (owner answer 1). A ranked idea that is saved keeps its place and reason, because the repository moves them to the saved id (Task 3, owner answer 2). The screen needs nothing extra for that. The weather line shows the pick's forecast, or "Today's pick isn't ready". Ideas and saved outfits follow `today.order`. A card whose id has a reason shows "For today" with it; reasons exist only for the overall top 3, and those always sit at the top of any occasion filter, so this marks exactly "the top 3 of the current filter that have a reason".
 
 **Files:**
 - Modify: `src/weatherMessages.ts`
@@ -1962,7 +2068,8 @@ with:
 
 ```ts
     // One location save per visit, even if React repeats mount effects in development.
-    // Fire-and-forget: it never delays the board, errors are ignored, and the 15 s refresh does not repeat it.
+    // Fire-and-forget: it never delays the board, errors and the 10 s timeout are ignored (owner answer 1),
+    // and the 15 s refresh does not repeat it.
     if (!locationSent.current) {
       locationSent.current = true;
       void currentCoarseLocation()
@@ -2234,7 +2341,8 @@ permission only. On iOS the permission says “Wist uses your location to dress
 you for today's weather.” The read uses balanced accuracy, waits at most **10
 seconds** (including permission), and rounds coordinates to **two decimals**
 (roughly 1 km). The phone then sends them with `PUT /v1/location`,
-fire-and-forget: the board never waits for it and errors are ignored. The
+fire-and-forget: the board never waits for it, the request has its own
+**10-second** timeout and **zero retries**, and errors are ignored. The
 backend rounds again and keeps **only the latest location** (one row,
 overwritten; no history). Denied permission sends nothing; the last stored
 location stays in use.
@@ -2258,9 +2366,10 @@ the server-side refusal fallback. The ID-sorted wardrobe text is cached with a
 **5-minute TTL**, followed by the weather and the outfit list. Unknown and
 duplicate outfit ids are dropped; only the **latest pick** is stored.
 
-Dress me orders ideas and saved outfits by the pick. Outfits missing from it —
-including ideas generated after 06:00 and ideas saved after 06:00, which get a
-new id — follow, newest first. The top 3 in the current occasion filter show
+Dress me orders ideas and saved outfits by the pick. Outfits missing from it,
+such as ideas generated after 06:00, follow, newest first. Saving a ranked idea
+keeps its place and reason: the saved copy takes over its spot in the pick.
+The top 3 in the current occasion filter show
 **For today** with their reason. The weather line shows the forecast the pick
 used (“This morning's forecast: 6–11 °C · rain likely · Open-Meteo”). Without
 today's pick (before 06:00, or after a failed attempt) the board keeps the
@@ -2318,7 +2427,8 @@ call.
 
 | Rule | Approved value |
 |---|---|
-| Location source | The phone sends its location, rounded to 2 decimals (~1 km), each time Dress me opens with location permission; `PUT /v1/location` (owner token), rounded again server-side; `204`, `400 invalid_location`; fire-and-forget on the phone |
+| Location source | The phone sends its location, rounded to 2 decimals (~1 km), each time Dress me opens with location permission; `PUT /v1/location` (owner token), rounded again server-side; `204`, `400 invalid_location` |
+| Phone location save | Fire-and-forget; 10,000 ms AbortController timeout, zero retries, errors ignored by the screen (same as the removed `loadWeather`; approved 2026-10-11) |
 | Location storage | Only the latest (one row, overwritten); no history. Open-Meteo request logs as already approved for #10 |
 | Schedule | 06:00 server-local — the clock of the machine running the catalogue service — one attempt per local date, recorded before any call; on the outfit scheduler's 60 s tick after the generation check; separate from the 12/day generation cap |
 | Skips | No stored location, no outfits, or no API key → no call that day (without a key the scheduler does not run) |
@@ -2329,12 +2439,12 @@ call.
 | Validation | Unknown and duplicate ids dropped; reasons kept only for the top 3 valid ids, trimmed to 200; no valid id → failed, nothing stored |
 | Failure | No retry. That day Dress me shows the server order (newest first) and "Today's pick isn't ready"; the next attempt is tomorrow at 06:00 |
 | Storage | Only the latest pick (replaced each day); served by `GET /v1/outfits` only on its own server-local date |
+| Saving a ranked idea | Keeps its place: in the same transaction as the save, the stored pick replaces the suggestion id with the new saved-outfit id in `order` and moves its `reasons` entry; unranked ideas and saves with no stored pick leave the pick unchanged (approved 2026-10-11) |
 | Display | Weather line from the pick's forecast; ranked outfits first, unranked ones (missing, or created after the pick) newest first; the top 3 in the current occasion filter marked "For today" with their reason |
 | Removed | `src/outfitRanking.ts`, `GET /v1/weather`, the phone's `loadWeather` |
 
-Accepted trade-offs: ideas generated after 06:00 are ranked the next day; an
-idea saved after 06:00 gets a new id and is unranked until the next day; on the
-first morning of a trip the pick uses the previous day's location.
+Accepted trade-offs: ideas generated after 06:00 are ranked the next day; on
+the first morning of a trip the pick uses the previous day's location.
 
 ```text
 OutfitSuggestionsScreen (open, location allowed)
@@ -2374,6 +2484,7 @@ git commit -m "docs: describe the daily weather pick"
 - **Spec coverage:** decision 1 (location source, latest only) → Tasks 3, 7, 9, 11; 2 (06:00, one attempt, 60 s tick, separate cap) → Tasks 2, 5, 6; 3 (skips) → Tasks 5, 6; 4 (model policy) → Task 4; 5 (full ranking, top-3 reasons ≤ 200) → Tasks 2, 4; 6 (failure, no retry, "isn't ready") → Tasks 5, 8, 11; 7 (validation, unranked newest first) → Tasks 2, 10; 8 (latest pick only) → Task 3; 9 (removals) → Tasks 12, 13; 10 (display) → Task 11. API: `PUT /v1/location` → Task 7; `today` → Task 8; `/v1/weather` 404 → Task 13. Testing section: schedule → Tasks 2, 5; picker request shape/stop reasons/schema → Task 4; validation → Task 2; repository → Task 3; routes → Tasks 7, 8, 13; mobile parsing, `saveLocation`, ordering → Tasks 9, 10. Docs → Task 14 (server-local note also in Task 6).
 - **Order keeps every commit green:** replacements (Tasks 1–11) land before removals (Tasks 12–13). The backend endpoint is removed only after the phone stops calling it.
 - **Interpretations to confirm in review:** (a) "no API key → record skipped" is met by not starting the scheduler without a key (existing behaviour), so no attempt row is written in that case; (b) the weather line follows the spec's example exactly and drops the old rain-chance and wind parts; while the board loads it keeps the existing "Checking today's weather…" copy; (c) a malformed `today` reads as `null` instead of failing the board; (d) a generation error and a daily pick error are caught separately in the same tick.
-- **No new consequential values:** timeouts, retries, model settings, schedule and storage limits are the approved ones; the only open value (`saveLocation` timeout) is Question 1.
+- **Owner answers (2026-10-11):** (1) `saveLocation` uses a 10,000 ms abort and zero retries, and the screen ignores errors → Task 9 code plus the abort test, Task 11 comment, Task 14 docs. (2) Saving a ranked idea keeps its place and reason, in the save transaction → Task 3 `saveSuggestion` plus a test covering ranked, unranked and no-pick saves; Task 14 docs. No questions are open.
+- **No new consequential values:** timeouts, retries, model settings, schedule and storage limits are all approved ones.
 - **Placeholder scan:** every step has complete code or an exact command; no "TBD", "similar to", or unstated file paths.
 - **Types used across tasks:** `Ranking`, `localDay`, `isDailyPickDue`, `keepValidRanking` (Task 2); `DailyPickRecord` and the six repository methods (Task 3); `PickOutfit`, `PickInput`, `PickResult`, `OutfitPicker` (Task 4); `DailyPickDeps`, `DailyPickOutcome`, `runDueDailyPick` (Task 5); `SchedulerDeps` (Task 6); `roundCoordinate`, `handleLocationRequest` (Task 7); mobile `DailyPick`, `OutfitBoard.today`, `saveLocation` (Task 9); `orderForToday` (Task 10). Each is defined once and used with the same name and shape afterwards. `top` (array of `{ id, reason }`) is Claude's output; `reasons` (record) is the stored and served shape.
