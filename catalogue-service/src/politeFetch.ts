@@ -97,6 +97,16 @@ export function isAllowedByRobots(
 export const DEFAULT_USER_AGENT =
   "WistCatalogue/1.0 (+https://github.com/zhinoo-zobairi/wist)";
 
+/** CATALOGUE_USER_AGENT, unless it is empty or does not identify as WistCatalogue/ (no browser UAs). */
+export function resolveUserAgent(configured: string | undefined): string {
+  if (!configured) return DEFAULT_USER_AGENT;
+  if (!configured.startsWith("WistCatalogue/")) {
+    console.warn("CATALOGUE_USER_AGENT must start with WistCatalogue/; using the default");
+    return DEFAULT_USER_AGENT;
+  }
+  return configured;
+}
+
 const maxRobotsBytes = 128 * 1024;
 
 export type PoliteFetchOptions = {
@@ -231,7 +241,7 @@ export function createPoliteFetch(options: PoliteFetchOptions): typeof fetch {
 /** The one configuration every process uses: the approved spacing and robots cache. */
 export function createDefaultPoliteFetch(): typeof fetch {
   return createPoliteFetch({
-    userAgent: process.env.CATALOGUE_USER_AGENT ?? DEFAULT_USER_AGENT,
+    userAgent: resolveUserAgent(process.env.CATALOGUE_USER_AGENT),
     minHostSpacingMs: 10_000,
     robotsTtlMs: 24 * 60 * 60 * 1000,
   });

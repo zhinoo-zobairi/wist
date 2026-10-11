@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { createPoliteFetch, isAllowedByRobots } from "./politeFetch.js";
+import { DEFAULT_USER_AGENT, createPoliteFetch, isAllowedByRobots, resolveUserAgent } from "./politeFetch.js";
 
 describe("isAllowedByRobots", () => {
   it("allows everything when the file is empty", () => {
@@ -263,5 +263,28 @@ describe("createPoliteFetch", () => {
       await politeFetch("https://slow.test/p/2");
       expect(robotsRequests(requests)).toHaveLength(2);
     });
+  });
+});
+
+describe("resolveUserAgent", () => {
+  it("falls back to the default when unset or empty", () => {
+    expect(resolveUserAgent(undefined)).toBe(DEFAULT_USER_AGENT);
+    expect(resolveUserAgent("")).toBe(DEFAULT_USER_AGENT);
+  });
+
+  it("accepts an override that still identifies as WistCatalogue", () => {
+    expect(resolveUserAgent("WistCatalogue/2.0 (+mailto:me@example.com)")).toBe(
+      "WistCatalogue/2.0 (+mailto:me@example.com)",
+    );
+  });
+
+  it("ignores a browser-like override and warns with only the variable name", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const browser = "Mozilla/5.0 (Macintosh) Chrome/120";
+    expect(resolveUserAgent(browser)).toBe(DEFAULT_USER_AGENT);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain("CATALOGUE_USER_AGENT");
+    expect(String(warn.mock.calls[0]?.[0])).not.toContain("Mozilla");
+    warn.mockRestore();
   });
 });
