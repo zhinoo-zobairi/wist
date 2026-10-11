@@ -6,7 +6,7 @@ const weather: WeatherSummary = { minC: 6, maxC: 11, precipitationChancePct: 70,
 
 describe("weather line", () => {
   it("says weather is loading until the board arrives", () => {
-    expect(weatherLine(null, true)).toBe("Checking today's weather…");
+    expect(weatherLine(null, true)).toBe("Loading today's pick…");
   });
   it("says today's pick isn't ready without one", () => {
     expect(weatherLine(null, false)).toBe("Today's pick isn't ready");

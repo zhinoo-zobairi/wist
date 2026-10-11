@@ -131,9 +131,9 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Dress me</Text>
-        <Text accessibilityLiveRegion="polite" style={styles.subtitle}>
+        {state.status !== "error" && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>
           {weatherLine(state.status === "ready" ? state.board.today?.weather ?? null : null, state.status === "loading")}
-        </Text>
+        </Text>}
         <Text style={styles.subtitle}>Ideas prepared from the pieces you already own.</Text>
         <Text style={styles.label}>WHAT’S THE OCCASION?</Text>
         <OccasionStylePicker selectionMode="single" selectedColor={colors.moss} options={OCCASION_OPTIONS}
