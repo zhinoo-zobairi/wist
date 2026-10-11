@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Garment } from "../types";
-import { loadOutfits, removeSavedOutfit, requestMoreIdeas, saveOutfitIdea } from "./catalogueClient";
+import { loadOutfits, removeSavedOutfit, requestMoreIdeas, saveLocation, saveOutfitIdea } from "./catalogueClient";
 
 const baseUrl = "http://catalogue.test/";
 const garment: Garment = {
@@ -13,11 +13,13 @@ const status = { pending: false, running: false, lastRunAt: null, lastRunStatus:
 const idea = { id: "s1", occasion: "work", reason: "Polished.", createdAt: "2026-10-10T10:00:00.000Z", garments: [garment, trousers] };
 const saved = { id: "v1", occasion: "work", reason: "Kept.", savedAt: "2026-10-10T11:00:00.000Z", garments: [garment], missingGarmentIds: ["01234567-1234-1234-1234-012345678902"] };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+const weather = { minC: 6, maxC: 11, precipitationChancePct: 70, maxWindKph: 20, condition: "rain" };
+const today = { day: "2026-10-11", weather, order: ["s1", "v1"], reasons: { s1: "Warm enough for the rain." } };
 
 describe("outfit client", () => {
   it("loads ideas, saved outfits and status with owner auth", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(json({ suggestions: [idea], saved: [saved], status }));
-    await expect(loadOutfits(fetchImpl, baseUrl, "owner")).resolves.toEqual({ suggestions: [idea], saved: [saved], status });
+    await expect(loadOutfits(fetchImpl, baseUrl, "owner")).resolves.toEqual({ suggestions: [idea], saved: [saved], status, today: null });
     expect(fetchImpl).toHaveBeenCalledWith("http://catalogue.test/v1/outfits", {
       headers: expect.objectContaining({ authorization: "Bearer owner" }),
     });
@@ -88,5 +90,67 @@ describe("outfit client", () => {
   it("maps a network failure on More ideas to unavailable", async () => {
     await expect(requestMoreIdeas(vi.fn<typeof fetch>().mockRejectedValueOnce(new TypeError("offline")), baseUrl, "owner"))
       .resolves.toBe("unavailable");
+  });
+
+  it("reads today's pick with the board", async () => {
+    const body = { suggestions: [idea], saved: [saved], status, today };
+    await expect(loadOutfits(vi.fn<typeof fetch>().mockResolvedValueOnce(json(body)), baseUrl, "owner"))
+      .resolves.toEqual({ suggestions: [idea], saved: [saved], status, today });
+  });
+
+  it.each([
+    undefined, null, [], { ...today, day: 11 }, { ...today, day: "11 October" }, { ...today, order: [1] },
+    { ...today, order: "s1" }, { ...today, reasons: [] }, { ...today, reasons: { s1: 2 } },
+    { ...today, reasons: { s1: "x".repeat(201) } }, { ...today, weather: null }, { ...today, weather: { ...weather, minC: 20 } },
+    { ...today, weather: { ...weather, precipitationChancePct: 101 } }, { ...today, weather: { ...weather, condition: "storm" } },
+  ])("treats a missing or invalid pick %# as not ready without failing the board", async (value) => {
+    const body = { suggestions: [], saved: [], status, today: value };
+    await expect(loadOutfits(vi.fn<typeof fetch>().mockResolvedValueOnce(json(body)), baseUrl, "owner"))
+      .resolves.toMatchObject({ today: null });
+  });
+
+  it("saves only the rounded location with owner auth and clears its timer", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(null, { status: 204 }));
+      await expect(saveLocation({ latitude: 52.5249, longitude: 13.4051 }, fetchImpl, baseUrl, "owner")).resolves.toBeUndefined();
+      expect(fetchImpl).toHaveBeenCalledExactlyOnceWith("http://catalogue.test/v1/location", {
+        method: "PUT", body: JSON.stringify({ latitude: 52.52, longitude: 13.41 }),
+        headers: expect.objectContaining({ authorization: "Bearer owner", "content-type": "application/json" }),
+        signal: expect.any(AbortSignal),
+      });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("throws once, without retrying, when the location is refused or the network fails", async () => {
+    const at = { latitude: 52.52, longitude: 13.41 };
+    const refused = vi.fn<typeof fetch>().mockResolvedValueOnce(json({ error: "invalid_location" }, 400));
+    await expect(saveLocation(at, refused, baseUrl, "owner")).rejects.toMatchObject({ status: 400, code: "invalid_location" });
+    const offline = vi.fn<typeof fetch>().mockRejectedValueOnce(new TypeError("offline"));
+    await expect(saveLocation(at, offline, baseUrl, "owner")).rejects.toThrow("offline");
+    expect(refused).toHaveBeenCalledTimes(1);
+    expect(offline).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts a pending location save at 10 seconds without retrying (owner answer 1)", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn<typeof fetch>((_url, init) => new Promise((_resolve, reject) => {
+        init!.signal!.addEventListener("abort", () => reject(new DOMException("Timed out", "AbortError")), { once: true });
+      }));
+      const pending = saveLocation({ latitude: 52.52, longitude: 13.41 }, fetchImpl, baseUrl, "owner");
+      const settled = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      await vi.advanceTimersByTimeAsync(9999);
+      expect(fetchImpl.mock.calls[0]![1]!.signal!.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await settled;
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

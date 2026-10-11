@@ -141,8 +141,6 @@ export type OutfitStatus = {
   pending: boolean; running: boolean; lastRunAt: string | null; lastRunStatus: OutfitRunStatus | null;
   runsLeftToday: number; generationEnabled: boolean;
 };
-export type OutfitBoard = { suggestions: OutfitIdea[]; saved: SavedOutfit[]; status: OutfitStatus };
-
 export type Coordinates = { latitude: number; longitude: number };
 export type WeatherSummary = {
   minC: number;
@@ -151,5 +149,8 @@ export type WeatherSummary = {
   maxWindKph: number;
   condition: "clear" | "cloudy" | "fog" | "drizzle" | "rain" | "snow" | "thunderstorm";
 };
+/** The 06:00 ranking of every stored outfit; `reasons` covers the top 3. */
+export type DailyPick = { day: string; weather: WeatherSummary; order: string[]; reasons: Record<string, string> };
+export type OutfitBoard = { suggestions: OutfitIdea[]; saved: SavedOutfit[]; status: OutfitStatus; today: DailyPick | null };
 
 export const LOCAL_USER_ID = "local-user";

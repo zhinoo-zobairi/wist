@@ -20,6 +20,7 @@ import {
   type OutfitStatus,
   type SavedOutfit,
   type Coordinates,
+  type DailyPick,
   type WeatherSummary,
 } from "../types";
 
@@ -643,12 +644,70 @@ function toOutfitStatus(value: unknown): OutfitStatus {
   };
 }
 
+/**
+ * Stores the phone's rounded location for the next 06:00 pick. 10,000 ms timeout and zero retries
+ * (owner answer 1, same as the removed loadWeather); rejects on any failure, and callers ignore it.
+ */
+export async function saveLocation(
+  location: Coordinates, fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<void> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const response = await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/location`, {
+      method: "PUT",
+      body: JSON.stringify({
+        latitude: Math.round(location.latitude * 100) / 100,
+        longitude: Math.round(location.longitude * 100) / 100,
+      }),
+      headers: { ...authorizationHeaders(ownerToken), "content-type": "application/json" },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const value: unknown = await response.json().catch(() => null);
+      throw new WardrobeApiError(
+        isObject(value) && typeof value.error === "string" ? value.error : "location_request_failed", response.status,
+      );
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function toWeatherSummary(value: unknown): WeatherSummary | null {
+  if (!isObject(value) ||
+    typeof value.minC !== "number" || !Number.isFinite(value.minC) ||
+    typeof value.maxC !== "number" || !Number.isFinite(value.maxC) || value.minC > value.maxC ||
+    typeof value.precipitationChancePct !== "number" || !Number.isFinite(value.precipitationChancePct) ||
+    value.precipitationChancePct < 0 || value.precipitationChancePct > 100 ||
+    typeof value.maxWindKph !== "number" || !Number.isFinite(value.maxWindKph) || value.maxWindKph < 0 ||
+    !["clear", "cloudy", "fog", "drizzle", "rain", "snow", "thunderstorm"].includes(value.condition as string)) return null;
+  return {
+    minC: value.minC, maxC: value.maxC, precipitationChancePct: value.precipitationChancePct,
+    maxWindKph: value.maxWindKph, condition: value.condition as WeatherSummary["condition"],
+  };
+}
+
+/** A missing or malformed pick reads as "not ready"; it never fails the board. */
+function toDailyPick(value: unknown): DailyPick | null {
+  if (!isObject(value) || typeof value.day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value.day) ||
+    !Array.isArray(value.order) || value.order.some((id) => typeof id !== "string") ||
+    !isObject(value.reasons) ||
+    Object.values(value.reasons).some((reason) => typeof reason !== "string" || reason.length > 200)) return null;
+  const weather = toWeatherSummary(value.weather);
+  if (!weather) return null;
+  return { day: value.day, weather, order: value.order as string[], reasons: { ...value.reasons } as Record<string, string> };
+}
+
 export async function loadOutfits(
   fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
 ): Promise<OutfitBoard> {
   const body = await wardrobeJson(await fetchImpl(outfitsUrl(baseUrl), { headers: authorizationHeaders(ownerToken) }));
   if (!Array.isArray(body.suggestions) || !Array.isArray(body.saved)) throw new Error("Catalogue returned an invalid outfit board");
-  return { suggestions: body.suggestions.map(toOutfitIdea), saved: body.saved.map(toSavedOutfit), status: toOutfitStatus(body.status) };
+  return {
+    suggestions: body.suggestions.map(toOutfitIdea), saved: body.saved.map(toSavedOutfit),
+    status: toOutfitStatus(body.status), today: toDailyPick(body.today),
+  };
 }
 
 export async function saveOutfitIdea(
@@ -685,20 +744,6 @@ export async function requestMoreIdeas(
       (error.code === "daily_limit_reached" || error.code === "wardrobe_too_small")) return error.code;
     return "unavailable";
   }
-}
-
-function toWeatherSummary(value: unknown): WeatherSummary | null {
-  if (!isObject(value) ||
-    typeof value.minC !== "number" || !Number.isFinite(value.minC) ||
-    typeof value.maxC !== "number" || !Number.isFinite(value.maxC) || value.minC > value.maxC ||
-    typeof value.precipitationChancePct !== "number" || !Number.isFinite(value.precipitationChancePct) ||
-    value.precipitationChancePct < 0 || value.precipitationChancePct > 100 ||
-    typeof value.maxWindKph !== "number" || !Number.isFinite(value.maxWindKph) || value.maxWindKph < 0 ||
-    !["clear", "cloudy", "fog", "drizzle", "rain", "snow", "thunderstorm"].includes(value.condition as string)) return null;
-  return {
-    minC: value.minC, maxC: value.maxC, precipitationChancePct: value.precipitationChancePct,
-    maxWindKph: value.maxWindKph, condition: value.condition as WeatherSummary["condition"],
-  };
 }
 
 export async function loadWeather(
