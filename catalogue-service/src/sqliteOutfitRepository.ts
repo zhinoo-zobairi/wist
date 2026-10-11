@@ -4,12 +4,13 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import {
-  MAX_SUGGESTIONS_PER_OCCASION, type OutfitRepository, type RunStatus, type RunSummary,
+  MAX_SUGGESTIONS_PER_OCCASION, type DailyPickRecord, type OutfitRepository, type RunStatus, type RunSummary,
   type SavedOutfitRecord, type SuggestionRecord,
 } from "./outfitRepository.js";
 import { garmentKey, type GeneratedOutfit } from "./outfits.js";
 import type { RunTrigger } from "./outfitSchedule.js";
 import { OCCASIONS, type Occasion } from "./styleProfile.js";
+import type { Coordinates } from "./weather.js";
 
 const OCCASION_CHECK = `CHECK (occasion IN (${OCCASIONS.map((occasion) => `'${occasion}'`).join(",")}))`;
 
@@ -70,6 +71,17 @@ export class SqliteOutfitRepository implements OutfitRepository {
         catch_up_checked_day TEXT
       );
       INSERT OR IGNORE INTO outfit_requests (id) VALUES (1);
+      CREATE TABLE IF NOT EXISTS outfit_location (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS daily_pick (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        attempted_day TEXT,
+        pick TEXT
+      );
+      INSERT OR IGNORE INTO daily_pick (id) VALUES (1);
     `);
   }
 
@@ -170,6 +182,20 @@ export class SqliteOutfitRepository implements OutfitRepository {
       );
       garmentIds.forEach((garmentId, position) => insertGarment.run(savedId, position, garmentId));
       this.database.prepare("DELETE FROM outfit_suggestions WHERE id = ?").run(id);
+      // Owner answer 2: the saved copy keeps the idea's place and reason in today's pick, in this same transaction.
+      const stored = this.database.prepare("SELECT pick FROM daily_pick WHERE id = 1")
+        .get() as unknown as { pick: string | null };
+      if (stored.pick !== null) {
+        const pick = JSON.parse(stored.pick) as DailyPickRecord;
+        const position = pick.order.indexOf(id);
+        if (position !== -1) {
+          pick.order[position] = savedId;
+          const pickReason = pick.reasons[id];
+          delete pick.reasons[id];
+          if (pickReason !== undefined) pick.reasons[savedId] = pickReason;
+          this.database.prepare("UPDATE daily_pick SET pick = ? WHERE id = 1").run(JSON.stringify(pick));
+        }
+      }
       return { id: savedId, occasion: row.occasion, reason: row.reason, savedAt, garmentIds };
     });
   }
@@ -264,6 +290,40 @@ export class SqliteOutfitRepository implements OutfitRepository {
 
   async setCatchUpCheckedDay(day: string): Promise<void> {
     this.database.prepare("UPDATE outfit_requests SET catch_up_checked_day = ? WHERE id = 1").run(day);
+  }
+
+  async saveLocation(at: Coordinates): Promise<void> {
+    this.database.prepare(`
+      INSERT INTO outfit_location (id, latitude, longitude) VALUES (1, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET latitude = excluded.latitude, longitude = excluded.longitude
+    `).run(at.latitude, at.longitude);
+  }
+
+  async getLocation(): Promise<Coordinates | null> {
+    const row = this.database.prepare("SELECT latitude, longitude FROM outfit_location WHERE id = 1")
+      .get() as unknown as Coordinates | undefined;
+    return row ? { latitude: row.latitude, longitude: row.longitude } : null;
+  }
+
+  async dailyPickAttemptedDay(): Promise<string | null> {
+    const row = this.database.prepare("SELECT attempted_day FROM daily_pick WHERE id = 1")
+      .get() as unknown as { attempted_day: string | null };
+    return row.attempted_day;
+  }
+
+  async setDailyPickAttemptedDay(day: string): Promise<void> {
+    this.database.prepare("UPDATE daily_pick SET attempted_day = ? WHERE id = 1").run(day);
+  }
+
+  async storeDailyPick({ day, weather, order, reasons }: DailyPickRecord): Promise<void> {
+    this.database.prepare("UPDATE daily_pick SET pick = ? WHERE id = 1")
+      .run(JSON.stringify({ day, weather, order, reasons }));
+  }
+
+  async getDailyPick(): Promise<DailyPickRecord | null> {
+    const row = this.database.prepare("SELECT pick FROM daily_pick WHERE id = 1")
+      .get() as unknown as { pick: string | null };
+    return row.pick === null ? null : JSON.parse(row.pick) as DailyPickRecord;
   }
 
   close(): void {

@@ -1,6 +1,13 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAX_SUGGESTIONS_PER_OCCASION } from "./outfitRepository.js";
 import { SqliteOutfitRepository } from "./sqliteOutfitRepository.js";
+import type { WeatherSummary } from "./weather.js";
+
+const weather: WeatherSummary = { minC: 6, maxC: 11, precipitationChancePct: 70, maxWindKph: 20, condition: "rain" };
 
 const repositories: SqliteOutfitRepository[] = [];
 function createRepository() {
@@ -131,5 +138,65 @@ describe("SQLite outfit repository", () => {
     await expect(repository.catchUpCheckedDay()).resolves.toBeNull();
     await repository.setCatchUpCheckedDay("2026-10-10");
     await expect(repository.catchUpCheckedDay()).resolves.toBe("2026-10-10");
+  });
+
+  it("keeps only the latest location in one row (decision 1)", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "wist-location-"));
+    try {
+      const path = join(directory, "outfits.sqlite");
+      const repository = new SqliteOutfitRepository(path);
+      await expect(repository.getLocation()).resolves.toBeNull();
+      await repository.saveLocation({ latitude: 52.52, longitude: 13.41 });
+      await repository.saveLocation({ latitude: 48.86, longitude: 2.35 });
+      await expect(repository.getLocation()).resolves.toEqual({ latitude: 48.86, longitude: 2.35 });
+      repository.close();
+      const database = new DatabaseSync(path);
+      expect(database.prepare("SELECT COUNT(*) AS count FROM outfit_location").get()).toEqual({ count: 1 });
+      database.close();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("records the attempt day and keeps only the latest pick (decision 8)", async () => {
+    const repository = createRepository();
+    await expect(repository.dailyPickAttemptedDay()).resolves.toBeNull();
+    await expect(repository.getDailyPick()).resolves.toBeNull();
+    await repository.setDailyPickAttemptedDay("2026-10-11");
+    await expect(repository.dailyPickAttemptedDay()).resolves.toBe("2026-10-11");
+    await expect(repository.getDailyPick()).resolves.toBeNull();
+
+    await repository.storeDailyPick({ day: "2026-10-10", weather, order: ["a", "b"], reasons: { a: "Warm." } });
+    await repository.storeDailyPick({ day: "2026-10-11", weather, order: ["b"], reasons: {} });
+    await expect(repository.getDailyPick()).resolves.toEqual({ day: "2026-10-11", weather, order: ["b"], reasons: {} });
+    await expect(repository.dailyPickAttemptedDay()).resolves.toBe("2026-10-11");
+  });
+
+  it("keeps a ranked idea's place and reason when it is saved (owner answer 2)", async () => {
+    const repository = createRepository();
+    await repository.storeSuggestions([work(["a", "b"], "First."), work(["a", "c"], "Ranked."), work(["a", "d"], "Unranked.")]);
+    const byReason = async (reason: string) => (await repository.listSuggestions()).find((s) => s.reason === reason)!;
+    const first = await byReason("First.");
+    const ranked = await byReason("Ranked.");
+    const unranked = await byReason("Unranked.");
+
+    // No stored pick: saving works and creates none.
+    await expect(repository.saveSuggestion(first.id)).resolves.not.toBeNull();
+    await expect(repository.getDailyPick()).resolves.toBeNull();
+
+    const pick = { day: "2026-10-11", weather, order: ["other", ranked.id, "last"],
+      reasons: { other: "Warm.", [ranked.id]: "Rain-ready." } };
+    await repository.storeDailyPick(pick);
+
+    // An unranked idea leaves the pick unchanged.
+    await repository.saveSuggestion(unranked.id);
+    await expect(repository.getDailyPick()).resolves.toEqual(pick);
+
+    // A ranked idea's saved copy takes its position and reason.
+    const saved = await repository.saveSuggestion(ranked.id);
+    await expect(repository.getDailyPick()).resolves.toEqual({
+      day: "2026-10-11", weather, order: ["other", saved!.id, "last"],
+      reasons: { other: "Warm.", [saved!.id]: "Rain-ready." },
+    });
   });
 });
