@@ -8,6 +8,7 @@ import type { StyleProfileRepository } from "./styleProfileRepository.js";
 import { parseWatchSizes } from "./watchedSizes.js";
 import type { WardrobeRepository } from "./wardrobeRepository.js";
 import { handleWardrobeRequest } from "./wardrobeRoutes.js";
+import { handleLocationRequest } from "./locationRoutes.js";
 import type { OutfitRepository } from "./outfitRepository.js";
 import { handleOutfitRequest } from "./outfitRoutes.js";
 import type { OutfitSuggester } from "./outfitSuggester.js";
@@ -51,6 +52,10 @@ export async function handleRequest(
 
   if (pathname === "/v1/weather") {
     return handleWeatherRequest(method, searchParams, auth, options);
+  }
+
+  if (pathname === "/v1/location") {
+    return handleLocationRequest(method, auth, options);
   }
 
   if (pathname === "/v1/wardrobe" || pathname.startsWith("/v1/wardrobe/")) {

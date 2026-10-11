@@ -79,6 +79,7 @@ const server = createServer(async (request, response) => {
     ).pathname;
     const hasJsonBody =
       (request.method === "PUT" && pathname === "/v1/profile") ||
+      (request.method === "PUT" && pathname === "/v1/location") ||
       (request.method === "POST" && pathname === "/v1/watches") ||
       (request.method === "POST" && (pathname === "/v1/wardrobe" || pathname === "/v1/wardrobe/from-item")) ||
       (request.method === "POST" && pathname === "/v1/outfits/saved") ||
@@ -115,7 +116,8 @@ const server = createServer(async (request, response) => {
       ...responseHeaders,
       "content-type": result.contentType ?? "application/json",
     });
-    response.end(Buffer.isBuffer(result.body) ? result.body : JSON.stringify(result.body));
+    if (result.status === 204) response.end();
+    else response.end(Buffer.isBuffer(result.body) ? result.body : JSON.stringify(result.body));
   } catch {
     response.writeHead(500, responseHeaders);
     response.end(JSON.stringify({ error: "internal_error" }));

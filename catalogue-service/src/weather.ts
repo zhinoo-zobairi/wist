@@ -8,6 +8,11 @@ export type WeatherSummary = {
 };
 export interface WeatherSource { today(at: Coordinates): Promise<WeatherSummary | null>; }
 
+/** Two decimals, roughly 1 km: the only precision Wist sends or stores. */
+export function roundCoordinate(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 // WMO interpretation table: https://open-meteo.com/en/docs#weathervariables
 const CONDITIONS: Record<number, WeatherSummary["condition"]> = {
   0: "clear", 1: "clear", 2: "cloudy", 3: "cloudy", 45: "fog", 48: "fog",
@@ -90,8 +95,8 @@ export class OpenMeteoWeatherSource implements WeatherSource {
     try {
       const url = new URL("https://api.open-meteo.com/v1/forecast");
       url.search = new URLSearchParams({
-        latitude: String(Math.round(at.latitude * 100) / 100),
-        longitude: String(Math.round(at.longitude * 100) / 100),
+        latitude: String(roundCoordinate(at.latitude)),
+        longitude: String(roundCoordinate(at.longitude)),
         hourly: "temperature_2m,precipitation_probability,wind_speed_10m,weather_code",
         timezone: "auto", forecast_days: "1",
       }).toString();
