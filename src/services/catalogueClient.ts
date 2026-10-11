@@ -188,10 +188,19 @@ function toStyleProfile(value: unknown): StyleProfile {
   };
 }
 
+// Backend error codes the owner can act on, written for the screen.
+const ownerErrorCopy: Record<string, string> = {
+  robots_disallowed:
+    "This shop asks automated tools not to read this page, so Wist can't watch it.",
+  storefront_timeout: "This shop didn't answer in time. Please try again later.",
+};
+
 async function responseJson(response: Response): Promise<JsonObject> {
   const value: unknown = await response.json();
   if (!isObject(value)) throw new Error("Catalogue returned invalid JSON");
   if (!response.ok) {
+    const copy = typeof value.error === "string" ? ownerErrorCopy[value.error] : undefined;
+    if (copy) throw new Error(copy);
     const message = value.message;
     throw new Error(
       typeof message === "string"

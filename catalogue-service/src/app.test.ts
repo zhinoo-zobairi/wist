@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { handleRequest } from "./app.js";
 import { SeedCatalogueRepository } from "./seedRepository.js";
@@ -200,6 +200,33 @@ describe("catalogue API", () => {
         message: "URL must be a supported product page",
       },
     });
+  });
+
+  it("maps a robots refusal to a plain code and logs only host and path", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    await expect(
+      handleRequest("POST", "/v1/watches", repository, auth, {
+        body: JSON.stringify({ url: "https://shop.test/secret/1?token=abc" }),
+        importProduct: async () => {
+          throw new Error("robots_disallowed: shop.test/secret/1");
+        },
+      }),
+    ).resolves.toEqual({ status: 422, body: { error: "robots_disallowed" } });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(warn.mock.calls[0])).toContain("shop.test/secret/1");
+    expect(JSON.stringify(warn.mock.calls[0])).not.toContain("token");
+    warn.mockRestore();
+  });
+
+  it("maps a storefront timeout to a plain code", async () => {
+    await expect(
+      handleRequest("POST", "/v1/watches", repository, auth, {
+        body: JSON.stringify({ url: "https://shop.test/p/1" }),
+        importProduct: async () => {
+          throw new DOMException("The operation timed out.", "TimeoutError");
+        },
+      }),
+    ).resolves.toEqual({ status: 422, body: { error: "storefront_timeout" } });
   });
 
   it("stores the chosen sizes and returns them in the watch list", async () => {

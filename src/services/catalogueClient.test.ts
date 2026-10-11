@@ -244,6 +244,30 @@ describe("catalogue client", () => {
     ).rejects.toThrow("URL must be a supported product page");
   });
 
+  it.each([
+    [
+      "robots_disallowed",
+      "This shop asks automated tools not to read this page, so Wist can't watch it.",
+    ],
+    [
+      "storefront_timeout",
+      "This shop didn't answer in time. Please try again later.",
+    ],
+  ])("explains a %s import failure in plain words", async (code, copy) => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ error: code }), { status: 422 }),
+    );
+
+    await expect(
+      importCatalogueWatch(
+        "https://example.com/product",
+        fetchImpl,
+        "http://catalogue.test",
+        "owner-token",
+      ),
+    ).rejects.toThrow(copy);
+  });
+
   it("loads price-drop alerts with the owner bearer token", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(

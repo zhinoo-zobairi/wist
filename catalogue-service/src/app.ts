@@ -135,6 +135,14 @@ export async function handleRequest(
           body: { itemId: item.id, watched: true },
         };
       } catch (error) {
+        if (error instanceof Error && error.message.startsWith("robots_disallowed:")) {
+          // Host and path only; the app gets a plain code, not this detail.
+          console.warn("Product import refused by robots.txt", error.message.split("?")[0]);
+          return { status: 422, body: { error: "robots_disallowed" } };
+        }
+        if (error instanceof Error && error.name === "TimeoutError") {
+          return { status: 422, body: { error: "storefront_timeout" } };
+        }
         return {
           status: 422,
           body: {
