@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it, vi } from "vitest";
 
 import { createPoliteFetch, DEFAULT_USER_AGENT } from "./politeFetch.js";
@@ -34,6 +36,29 @@ describe("product observation", () => {
     ).resolves.toMatchObject({
       brand: { id: "bobbies", name: "Bobbies" },
       item: { id: "bobbies-L-M24WO-OPE01", currentPrice: 225 },
+    });
+  });
+
+  it("routes an explicit Claudie Pierlot URL to its source adapter", async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          readFileSync(
+            new URL("./fixtures/claudie-pierlot-product.html", import.meta.url),
+            "utf8",
+          ),
+        ),
+    );
+
+    await expect(
+      fetchProductObservation(
+        "https://de.claudiepierlot.com/de_DE/p/mittellanger-lederrock/christine/CFPJU00921_C016.html",
+        fetchImpl,
+        "2026-10-11T12:00:00.000Z",
+      ),
+    ).resolves.toMatchObject({
+      brand: { id: "claudie-pierlot", name: "Claudie Pierlot" },
+      item: { id: "claudie-pierlot-CFPJU00921_C016", currentPrice: 455 },
     });
   });
 

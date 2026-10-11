@@ -1,4 +1,5 @@
 import { bobbiesStorefront } from "./bobbiesProduct.js";
+import { claudiePierlotStorefront } from "./claudiePierlotProduct.js";
 import { fetchJsonLdProduct } from "./jsonLdProduct.js";
 import type { CatalogueBrand, CatalogueItem } from "./model.js";
 import { sandroStorefront } from "./sandroProduct.js";
@@ -11,7 +12,11 @@ export type ProductObservation = {
   item: CatalogueItem;
 };
 
-const JSON_LD_STOREFRONTS = [sandroStorefront, bobbiesStorefront];
+const JSON_LD_STOREFRONTS = [
+  sandroStorefront,
+  claudiePierlotStorefront,
+  bobbiesStorefront,
+];
 
 export async function fetchProductObservation(
   productUrl: string,

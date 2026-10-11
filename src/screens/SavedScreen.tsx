@@ -74,8 +74,8 @@ export function SavedScreen({
         <Text style={styles.importLabel}>WATCH A PRODUCT</Text>
         <Text style={styles.importTitle}>Paste its shop link.</Text>
         <Text style={styles.importBody}>
-          Wist understands Shopify stores such as Goelia, plus Bobbies and
-          Sandro Germany product pages.
+          Wist understands Shopify stores such as Goelia, plus Bobbies,
+          Sandro Germany, and Claudie Pierlot Germany product pages.
         </Text>
         <TextInput
           autoCapitalize="none"
