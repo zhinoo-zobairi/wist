@@ -15,6 +15,7 @@
     "catalogue:observe": "npm run catalogue:build && node catalogue-service/dist/observeProduct.js",
     "catalogue:probe:awin": "npm run catalogue:build && node catalogue-service/dist/probeAwin.js",
     "catalogue:probe:bobbies": "npm run catalogue:build && node catalogue-service/dist/probeBobbies.js",
+    "catalogue:probe:claudie-pierlot": "npm run catalogue:build && node catalogue-service/dist/probeClaudiePierlot.js",
     "catalogue:probe:sandro": "npm run catalogue:build && node catalogue-service/dist/probeSandro.js",
     "catalogue:start": "npm run catalogue:build && node --env-file-if-exists=.env.local catalogue-service/dist/server.js",
     "typecheck": "tsc --noEmit && tsc -p catalogue-service/tsconfig.json --noEmit",

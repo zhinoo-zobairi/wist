@@ -16,7 +16,7 @@ export type CatalogueVariant = {
 
 export type CatalogueItem = {
   id: string;
-  source: "seed" | "awin" | "sandro" | "bobbies" | "shopify";
+  source: "seed" | "awin" | "sandro" | "claudie-pierlot" | "bobbies" | "shopify";
   sourceProductId: string;
   brandId: string;
   name: string;
