@@ -5,10 +5,10 @@ const CONDITIONS: Record<WeatherSummary["condition"], string> = {
   rain: "rain likely", snow: "snow likely", thunderstorm: "thunderstorms",
 };
 
-export function weatherLine(weather: WeatherSummary | null, checking: boolean): string {
-  if (weather === null) return checking ? "Checking today's weather…" : "Weather not included";
+/** The 06:00 forecast the pick used, or why there is none. */
+export function weatherLine(weather: WeatherSummary | null, loading: boolean): string {
+  if (weather === null) return loading ? "Checking today's weather…" : "Today's pick isn't ready";
   const min = Math.round(weather.minC), max = Math.round(weather.maxC);
   const range = min === max ? `${min}` : `${min}–${max}`;
-  return `${range} °C · ${CONDITIONS[weather.condition]} · ` +
-    `${weather.precipitationChancePct}% chance of rain or snow · wind up to ${Math.round(weather.maxWindKph)} km/h · Open-Meteo`;
+  return `This morning's forecast: ${range} °C · ${CONDITIONS[weather.condition]} · Open-Meteo`;
 }

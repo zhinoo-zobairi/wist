@@ -2,14 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { GarmentPhoto } from "../components/GarmentPhoto";
 import { OccasionStylePicker } from "../components/OccasionStylePicker";
-import { rankByWeather } from "../outfitRanking";
+import { orderForToday } from "../outfitOrder";
 import {
-  loadOutfits, loadWeather, removeSavedOutfit, requestMoreIdeas, saveOutfitIdea, type MoreIdeasResult,
+  loadOutfits, removeSavedOutfit, requestMoreIdeas, saveLocation, saveOutfitIdea, type MoreIdeasResult,
 } from "../services/catalogueClient";
 import { currentCoarseLocation } from "../services/location";
 import { useWistStore } from "../store/useWistStore";
 import { colors, fonts } from "../theme";
-import { OCCASION_OPTIONS, type Garment, type Occasion, type OutfitBoard, type WeatherSummary } from "../types";
+import { OCCASION_OPTIONS, type Garment, type Occasion, type OutfitBoard } from "../types";
 import { weatherLine } from "../weatherMessages";
 
 // D5: re-read stored outfits while a run is pending or running. GET is free; no Claude call.
@@ -24,13 +24,17 @@ const MORE_IDEAS_COPY: Record<MoreIdeasResult, string> = {
 
 type BoardState = { status: "loading" } | { status: "ready"; board: OutfitBoard } | { status: "error" };
 
-function OutfitCard({ label, garments, reason, missing, action, onEdit, disabled }: {
-  label: string; garments: Garment[]; reason: string; missing: number;
+function OutfitCard({ label, garments, reason, forToday, missing, action, onEdit, disabled }: {
+  label: string; garments: Garment[]; reason: string; forToday: string | undefined; missing: number;
   action: { text: string; accessibilityLabel: string; onPress: () => void }; onEdit: (garment: Garment) => void; disabled: boolean;
 }) {
   return (
     <View style={styles.card}>
       <Text style={styles.cardLabel}>{label}</Text>
+      {forToday && <View style={styles.forToday}>
+        <Text style={styles.forTodayLabel}>FOR TODAY</Text>
+        <Text style={styles.forTodayReason}>{forToday}</Text>
+      </View>}
       <View style={styles.collage}>
         {garments.map((garment) => <Pressable key={garment.id} accessibilityRole="button"
           accessibilityLabel={`Edit ${garment.name}`} onPress={() => onEdit(garment)}
@@ -59,13 +63,11 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
   const [occasion, setOccasion] = useState<Occasion | null>(() =>
     profileStatus === "answered" ? profileOccasions[0] ?? null : null);
   const [state, setState] = useState<BoardState>({ status: "loading" });
-  const [weather, setWeather] = useState<WeatherSummary | null>(null);
-  const [checkingWeather, setCheckingWeather] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const alive = useRef(true);
   const loading = useRef(0);
-  const weatherRequested = useRef(false);
+  const locationSent = useRef(false);
 
   const refresh = useCallback(async () => {
     loading.current += 1;
@@ -83,20 +85,14 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
   useEffect(() => {
     alive.current = true;
     void refresh();
-    // One lookup per visit, even if React repeats mount effects in development.
-    // It never delays the board, and the 15 s board refresh does not repeat it.
-    if (!weatherRequested.current) {
-      weatherRequested.current = true;
-      void (async () => {
-        try {
-          const location = await currentCoarseLocation();
-          if (!location || !alive.current) return;
-          const today = await loadWeather(location);
-          if (alive.current) setWeather(today);
-        } finally {
-          if (alive.current) setCheckingWeather(false);
-        }
-      })();
+    // One location save per visit, even if React repeats mount effects in development.
+    // Fire-and-forget: it never delays the board, errors and the 10 s timeout are ignored (owner answer 1),
+    // and the 15 s refresh does not repeat it.
+    if (!locationSent.current) {
+      locationSent.current = true;
+      void currentCoarseLocation()
+        .then((location) => location ? saveLocation(location) : undefined)
+        .catch(() => {});
     }
     return () => { alive.current = false; };
   }, [refresh]);
@@ -135,7 +131,9 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Dress me</Text>
-        <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{weatherLine(weather, checkingWeather)}</Text>
+        <Text accessibilityLiveRegion="polite" style={styles.subtitle}>
+          {weatherLine(state.status === "ready" ? state.board.today?.weather ?? null : null, state.status === "loading")}
+        </Text>
         <Text style={styles.subtitle}>Ideas prepared from the pieces you already own.</Text>
         <Text style={styles.label}>WHAT’S THE OCCASION?</Text>
         <OccasionStylePicker selectionMode="single" selectedColor={colors.moss} options={OCCASION_OPTIONS}
@@ -151,8 +149,10 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
 
         {state.status === "ready" && (() => {
           const { board } = state;
-          const ideas = rankByWeather(board.suggestions.filter((idea) => matches(idea.occasion)), weather);
-          const saved = rankByWeather(board.saved.filter((outfit) => matches(outfit.occasion)), weather);
+          const order = board.today?.order ?? null;
+          const forToday = (id: string) => board.today?.reasons[id];
+          const ideas = orderForToday(board.suggestions.filter((idea) => matches(idea.occasion)), order);
+          const saved = orderForToday(board.saved.filter((outfit) => matches(outfit.occasion)), order);
           return <>
             <Text style={styles.label}>IDEAS</Text>
             {ideas.length === 0 && <Text accessibilityLiveRegion="polite" style={styles.help}>
@@ -161,7 +161,7 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
             </Text>}
             <View style={styles.results}>
               {ideas.map((idea) => <OutfitCard key={idea.id} label={labelFor(idea.occasion)} garments={idea.garments}
-                reason={idea.reason} missing={0} onEdit={onEdit} disabled={busy}
+                reason={idea.reason} forToday={forToday(idea.id)} missing={0} onEdit={onEdit} disabled={busy}
                 action={{
                   text: "♡ SAVE", accessibilityLabel: `Save ${labelFor(idea.occasion).toLowerCase()} outfit: ${idea.garments.map((g) => g.name).join(", ")}`,
                   onPress: () => void act(async () => { await saveOutfitIdea(idea.id); return null; }),
@@ -180,7 +180,7 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
               <Text style={styles.label}>SAVED</Text>
               <View style={styles.results}>
                 {saved.map((outfit) => <OutfitCard key={outfit.id} label={labelFor(outfit.occasion)} garments={outfit.garments}
-                  reason={outfit.reason} missing={outfit.missingGarmentIds.length} onEdit={onEdit} disabled={busy}
+                  reason={outfit.reason} forToday={forToday(outfit.id)} missing={outfit.missingGarmentIds.length} onEdit={onEdit} disabled={busy}
                   action={{
                     text: "REMOVE", accessibilityLabel: `Remove saved ${labelFor(outfit.occasion).toLowerCase()} outfit: ${outfit.garments.map((g) => g.name).join(", ")}`,
                     onPress: () => void act(async () => { await removeSavedOutfit(outfit.id); return null; }),
@@ -214,6 +214,9 @@ const styles = StyleSheet.create({
   results: { gap: 20 },
   card: { backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.line, padding: 16 },
   cardLabel: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1, marginBottom: 16 },
+  forToday: { borderLeftColor: colors.moss, borderLeftWidth: 2, paddingLeft: 10, marginBottom: 16 },
+  forTodayLabel: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1 },
+  forTodayReason: { color: colors.ink, fontFamily: fonts.text, fontSize: 12, lineHeight: 18, marginTop: 4 },
   collage: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 14 },
   half: { width: "48%" },
   third: { width: "31%" },
