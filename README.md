@@ -527,3 +527,14 @@ SQLite, and the service owns their recurring snapshots, price-drop history,
 and single-user watches. The mobile app reads those records through an owner
 bearer token. Full authentication, multi-user data, and distributed scheduler
 coordination remain out of scope.
+
+Every storefront request, from imports, the watch scheduler and the probe and
+observe commands, goes through one polite fetcher. It identifies itself with the
+user agent `WistCatalogue/1.0 (+https://github.com/zhinoo-zobairi/wist)`, which
+`CATALOGUE_USER_AGENT` overrides. It waits at least 10 seconds between two
+requests to the same host within a process; different hosts do not wait for each
+other. It reads each host's `robots.txt` once and caches it in memory for 24
+hours; a product path that robots.txt disallows for us fails with
+`robots_disallowed`, which the scheduler counts as a failed item. A missing
+(404), unreachable, 5xx or over-128 KB robots.txt allows the request. The
+Anthropic and Open-Meteo calls are not storefront requests and are unaffected.
