@@ -58,9 +58,22 @@ function globMatches(pattern: string, path: string, anchored: boolean): boolean 
   }
 }
 
+const utf8 = new TextEncoder();
+
+// Percent-encode non-ASCII characters and uppercase %xx digits, so `/café`, `/caf%c3%a9`
+// and `/caf%C3%A9` all compare equal.
+function normaliseEncoding(text: string): string {
+  return text
+    .replace(/[^\x00-\x7F]+/gu, (run) =>
+      [...utf8.encode(run)].map((byte) => `%${byte.toString(16).toUpperCase().padStart(2, "0")}`).join(""),
+    )
+    .replace(/%[0-9a-f]{2}/gi, (escape) => escape.toUpperCase());
+}
+
 function matchLength(pattern: string, path: string): number {
-  const anchored = pattern.endsWith("$");
-  const body = anchored ? pattern.slice(0, -1) : pattern;
+  const normalised = normaliseEncoding(pattern);
+  const anchored = normalised.endsWith("$");
+  const body = anchored ? normalised.slice(0, -1) : normalised;
   return globMatches(body, path, anchored) ? body.length : -1;
 }
 
@@ -70,9 +83,10 @@ export function isAllowedByRobots(
   userAgentToken: string,
   path: string,
 ): boolean {
+  const normalisedPath = normaliseEncoding(path);
   let best = { length: -1, allow: true };
   for (const rule of parseRules(robotsTxt, userAgentToken)) {
-    const length = matchLength(rule.pattern, path);
+    const length = matchLength(rule.pattern, normalisedPath);
     if (length > best.length || (length === best.length && length >= 0 && rule.allow)) {
       best = { length, allow: rule.allow };
     }

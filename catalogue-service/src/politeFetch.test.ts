@@ -58,6 +58,16 @@ describe("isAllowedByRobots", () => {
     expect(isAllowedByRobots(robots, "OtherBot", "/p/1")).toBe(false);
   });
 
+  it("compares rules and paths in the same percent-encoding", () => {
+    const raw = "User-agent: *\nDisallow: /café";
+    const encoded = "User-agent: *\nDisallow: /caf%c3%a9";
+    for (const robots of [raw, encoded]) {
+      expect(isAllowedByRobots(robots, "WistCatalogue", "/caf%C3%A9")).toBe(false);
+      expect(isAllowedByRobots(robots, "WistCatalogue", "/café/x")).toBe(false);
+      expect(isAllowedByRobots(robots, "WistCatalogue", "/cafe")).toBe(true);
+    }
+  });
+
   it("ignores comments and an empty Disallow", () => {
     const robots = "User-agent: * # everyone\nDisallow:\n# nothing";
     expect(isAllowedByRobots(robots, "WistCatalogue", "/anything")).toBe(true);
