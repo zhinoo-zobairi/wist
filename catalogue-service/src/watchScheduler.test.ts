@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { CatalogueItem } from "./model.js";
 import { SqliteCatalogueRepository } from "./sqliteRepository.js";
-import { observeWatchedProducts } from "./watchScheduler.js";
+import { observeWatchedProducts, startWatchScheduler } from "./watchScheduler.js";
 
 const brand = { id: "bobbies", name: "Bobbies" };
 const itemAt = (id: string, price: number, observedAt: string): CatalogueItem => ({
@@ -122,6 +122,48 @@ describe("watched product observation", () => {
       silencedDrops: 1,
     });
     await expect(repository.listPriceDropAlerts()).resolves.toEqual([]);
+    repository.close();
+  });
+
+  it("counts a robots_disallowed product as failed and carries on", async () => {
+    const repository = new SqliteCatalogueRepository(":memory:");
+    const first = itemAt("bobbies-first", 200, "2026-08-14T00:00:00.000Z");
+    const second = itemAt("bobbies-second", 300, "2026-08-14T00:00:00.000Z");
+    await repository.recordObservation(brand, first);
+    await repository.recordObservation(brand, second);
+    await repository.watchItem(first.id);
+    await repository.watchItem(second.id);
+    const reportError = vi.fn();
+    const observeProduct = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("robots_disallowed: www.bobbies.com/en/bobbies-first.html"))
+      .mockResolvedValueOnce({
+        brand,
+        item: itemAt(second.id, 300, "2026-08-15T00:00:00.000Z"),
+      });
+
+    await expect(
+      observeWatchedProducts(repository, observeProduct, reportError),
+    ).resolves.toMatchObject({ checked: 1, failed: 1 });
+    expect(observeProduct).toHaveBeenCalledTimes(2);
+    repository.close();
+  });
+
+  it("observes through the function given to the scheduler", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 500 })));
+    const repository = new SqliteCatalogueRepository(":memory:");
+    const first = itemAt("bobbies-first", 200, "2026-08-14T00:00:00.000Z");
+    await repository.recordObservation(brand, first);
+    await repository.watchItem(first.id);
+    const observeProduct = vi.fn(async () => ({
+      brand,
+      item: itemAt(first.id, 200, "2026-08-15T00:00:00.000Z"),
+    }));
+
+    const stop = startWatchScheduler(repository, 1_000_000, undefined, observeProduct);
+    await vi.waitFor(() => expect(observeProduct).toHaveBeenCalledOnce());
+    stop();
+    vi.unstubAllGlobals();
     repository.close();
   });
 });

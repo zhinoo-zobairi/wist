@@ -1,3 +1,4 @@
+import { createDefaultPoliteFetch } from "./politeFetch.js";
 import { fetchSandroProduct } from "./sandroProduct.js";
 
 async function main() {
@@ -8,7 +9,7 @@ async function main() {
     );
   }
 
-  const item = await fetchSandroProduct(productUrl);
+  const item = await fetchSandroProduct(productUrl, createDefaultPoliteFetch());
   console.log(JSON.stringify(item, null, 2));
 }
 

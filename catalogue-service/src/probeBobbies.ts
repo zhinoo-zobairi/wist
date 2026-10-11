@@ -1,3 +1,4 @@
+import { createDefaultPoliteFetch } from "./politeFetch.js";
 import { fetchBobbiesProduct } from "./bobbiesProduct.js";
 
 async function main() {
@@ -8,7 +9,7 @@ async function main() {
     );
   }
 
-  const item = await fetchBobbiesProduct(productUrl);
+  const item = await fetchBobbiesProduct(productUrl, createDefaultPoliteFetch());
   console.log(JSON.stringify(item, null, 2));
 }
 

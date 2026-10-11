@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 
+import { createDefaultPoliteFetch } from "./politeFetch.js";
 import { fetchProductObservation } from "./productObservation.js";
 import { SqliteCatalogueRepository } from "./sqliteRepository.js";
 
@@ -17,7 +18,10 @@ async function main() {
   const repository = new SqliteCatalogueRepository(databasePath);
 
   try {
-    const { brand, item } = await fetchProductObservation(productUrl);
+    const { brand, item } = await fetchProductObservation(
+      productUrl,
+      createDefaultPoliteFetch(),
+    );
     const result = await repository.recordObservation(brand, item);
     console.log(JSON.stringify(result, null, 2));
   } finally {

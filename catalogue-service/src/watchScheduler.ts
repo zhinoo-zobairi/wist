@@ -53,6 +53,7 @@ export function startWatchScheduler(
   repository: CatalogueObservationRepository,
   intervalMs: number,
   reportError?: ReportError,
+  observeProduct: ObserveProduct = fetchProductObservation,
 ): () => void {
   let stopped = false;
   let timer: NodeJS.Timeout | undefined;
@@ -61,7 +62,7 @@ export function startWatchScheduler(
     try {
       const result = await observeWatchedProducts(
         repository,
-        fetchProductObservation,
+        observeProduct,
         reportError,
       );
       console.log(

@@ -178,3 +178,12 @@ export function createPoliteFetch(options: PoliteFetchOptions): typeof fetch {
     return spaced(url.hostname, () => fetchImpl(input, withUserAgent(input, init)));
   };
 }
+
+/** The one configuration every process uses: the approved spacing and robots cache. */
+export function createDefaultPoliteFetch(): typeof fetch {
+  return createPoliteFetch({
+    userAgent: process.env.CATALOGUE_USER_AGENT ?? DEFAULT_USER_AGENT,
+    minHostSpacingMs: 10_000,
+    robotsTtlMs: 24 * 60 * 60 * 1000,
+  });
+}

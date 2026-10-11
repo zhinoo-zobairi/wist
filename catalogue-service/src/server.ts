@@ -10,7 +10,9 @@ import { ClaudeOutfitPicker } from "./claudeOutfitPicker.js";
 import { ClaudeOutfitSuggester } from "./claudeOutfitSuggester.js";
 import { DiskGarmentPhotoStore, MAX_PHOTO_BYTES } from "./garmentPhotoStore.js";
 import { MAX_JSON_BODY_BYTES, readRequestBody } from "./requestBody.js";
+import { createDefaultPoliteFetch } from "./politeFetch.js";
 import { importProduct } from "./productImport.js";
+import { fetchProductObservation } from "./productObservation.js";
 import { SqliteCatalogueRepository } from "./sqliteRepository.js";
 import { SqliteStyleProfileRepository } from "./sqliteStyleProfileRepository.js";
 import { SqliteWardrobeRepository } from "./sqliteWardrobeRepository.js";
@@ -56,7 +58,15 @@ const watchIntervalMs = Number.parseInt(
 if (!Number.isFinite(watchIntervalMs) || watchIntervalMs <= 0) {
   throw new Error("CATALOGUE_WATCH_INTERVAL_MS must be a positive integer");
 }
-const stopWatchScheduler = startWatchScheduler(repository, watchIntervalMs);
+// One instance for the whole process, so imports and the scheduler share the per-host spacing.
+const politeFetch = createDefaultPoliteFetch();
+const observeProduct = (productUrl: string) => fetchProductObservation(productUrl, politeFetch);
+const stopWatchScheduler = startWatchScheduler(
+  repository,
+  watchIntervalMs,
+  undefined,
+  observeProduct,
+);
 
 const responseHeaders = {
   "access-control-allow-headers": "authorization, content-type",
@@ -102,7 +112,7 @@ const server = createServer(async (request, response) => {
         ...requestOptions,
         body: hasJsonBody ? requestOptions.bodyBytes?.toString("utf8") : undefined,
         contentType: request.headers["content-type"],
-        importProduct: (productUrl) => importProduct(repository, productUrl),
+        importProduct: (productUrl) => importProduct(repository, productUrl, observeProduct),
         profiles,
         wardrobe,
         photoStore,
