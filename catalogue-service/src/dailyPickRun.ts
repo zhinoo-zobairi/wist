@@ -22,6 +22,9 @@ export async function runDueDailyPick(deps: DailyPickDeps, now: Date): Promise<D
   try {
     const location = await deps.outfits.getLocation();
     if (!location) return "skipped";
+    // Same as the other entry points: ideas that use a deleted garment are dropped before ranking.
+    const all = await deps.wardrobe.listGarments();
+    await deps.outfits.deleteSuggestionsWithout(new Set(all.map((garment) => garment.id)));
     const outfits: PickOutfit[] = [
       ...(await deps.outfits.listSuggestions()).map(({ id, occasion, garmentIds }) => ({ id, occasion, garmentIds, saved: false })),
       ...(await deps.outfits.listSaved()).map(({ id, occasion, garmentIds }) => ({ id, occasion, garmentIds, saved: true })),

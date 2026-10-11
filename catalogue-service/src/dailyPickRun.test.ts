@@ -64,6 +64,17 @@ describe("runDueDailyPick", () => {
     });
   });
 
+  it("does not send an idea that uses a deleted garment to the picker", async () => {
+    const { deps, outfits, pick, ids } = await setup();
+    const [idea] = await outfits.listSuggestions();
+    await deps.wardrobe.deleteGarment(ids[1]!); // used only by the stored idea
+    pick.mockResolvedValue({ ok: true, order: [], top: [] });
+    await runDueDailyPick(deps, at(11, 6));
+    const sent = pick.mock.calls[0]![0];
+    expect(sent.outfits.map((outfit) => outfit.id)).not.toContain(idea!.id);
+    expect(sent.outfits).toHaveLength(1);
+  });
+
   it("is due from 06:00, once per server-local date, and never retries a failure that day", async () => {
     const { deps, pick } = await setup();
     pick.mockResolvedValue({ ok: false, reason: "api_error" });
