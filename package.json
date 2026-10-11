@@ -12,6 +12,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "catalogue:build": "tsc -p catalogue-service/tsconfig.json",
+    "catalogue:backup": "npm run catalogue:build && node --env-file-if-exists=.env.local catalogue-service/dist/backup.js",
     "catalogue:observe": "npm run catalogue:build && node catalogue-service/dist/observeProduct.js",
     "catalogue:probe:awin": "npm run catalogue:build && node catalogue-service/dist/probeAwin.js",
     "catalogue:probe:bobbies": "npm run catalogue:build && node catalogue-service/dist/probeBobbies.js",
