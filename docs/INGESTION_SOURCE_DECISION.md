@@ -76,7 +76,7 @@ also does not prove that a private partner API does not exist.
 | Brand | Affiliate evidence | Public product API | Storefront check | Assessment |
 |---|---|---|---|---|
 | Sézane | Active Awin profiles verified for US (`30299`), UK (`30297`), Switzerland (`83637`), and Denmark (`102319`). US and UK profiles publish a 15-day attribution period. | None found | German storefront returned HTTP 403 to a basic read-only client (rechecked 2026-10-11). | Awin feed is the only legitimate route; skipped until the owner has an Awin publisher account (2026-10-11). |
-| Claudie Pierlot | FlexOffers publicly lists a France programme, last modified 2025-12-20. An older Awin France account (`7159`) is explicitly inactive. | None found | `de.claudiepierlot.com` returned HTTP 200 (2026-10-11). Same Salesforce Commerce platform as Sandro; product pages under `/de_DE/p/` are allowed by robots.txt (only `/de/*` is disallowed) and carry Product JSON-LD with EUR price, SKU and availability. | Next brand: direct product pages via the shared JSON-LD parser (#15, #16). |
+| Claudie Pierlot | FlexOffers publicly lists a France programme, last modified 2025-12-20. An older Awin France account (`7159`) is explicitly inactive. | None found | `de.claudiepierlot.com` returned HTTP 200 (2026-10-11). Same Salesforce Commerce platform as Sandro; product pages under `/de_DE/p/` are allowed by robots.txt (only `/de/*` is disallowed) and carry Product JSON-LD with EUR price, SKU and availability. | Supported: direct product pages via the shared JSON-LD parser (#15, #16). Probe 2026-10-11: HTTP 200, robots allowed, single-object `offers`, EUR 455, InStock. Sizes are filled client-side and not in the markup, so watches alert on any drop. |
 | Gaala | Not researched. | None found | `gaala.com` returned HTTP 200 (2026-10-11); a Shopify storefront serving EUR to German requests (`cart_currency=EUR`); `/products/` pages are allowed by robots.txt. | Supported by the existing generic Shopify adapter for pasted product links. |
 | & Other Stories | The brand publishes official affiliate pages for US and worldwide markets. Skimlinks lists a programme. A search result for Adtraction now redirects to its generic directory, so it is not accepted as current proof. | None found | German storefront returned HTTP 403 to a basic read-only client. | Programme exists, but current provider, market coverage, and product-feed access remain unverified. |
 | Sandro | Active Awin US profile verified (`89061`) with a 30-day attribution period. | None found | German homepage and tested product page returned HTTP 200. Public sitemap and Product JSON-LD verified. | Selected direct-source proof; DE/EUR fields normalize cleanly. Recurring-use approval remains open. |
@@ -182,7 +182,7 @@ no support for that brand, never a workaround. robots.txt is honoured for every
 storefront fetch, including single pasted product URLs (#14). Product images are
 shown by linking to the brand's own image URL and are never copied. The market is
 Germany and EUR only. Discovery or crawling (#18) stays not approved. Brand order:
-Claudie Pierlot via its product pages (#16, on the shared JSON-LD parser #15);
+Claudie Pierlot is supported via its product pages (#16, on the shared JSON-LD parser #15);
 Gaala already works through the generic Shopify adapter; Sézane waits for an Awin
 publisher account (#17); & Other Stories stays deferred. Sandro and Bobbies remain
 supported as before.

@@ -40,7 +40,7 @@ try the real workflow before creating a standalone App Store-style build.
 
 For this local milestone, the Mac must remain awake and running the catalogue
 service. The app currently supports Shopify product pages such as Goelia,
-Bobbies English, and Sandro Germany. It synchronizes price-drop alerts while
+Bobbies English, Sandro Germany, and Claudie Pierlot Germany. It synchronizes price-drop alerts while
 open and then creates a local iOS notification. A continuously hosted backend
 plus remote push delivery is the next step required for notifications while
 Wist is closed.
@@ -303,7 +303,7 @@ npm run catalogue:start
 ```
 
 Products can then be imported from the Coveted screen. Shopify product pages,
-Bobbies English, and Sandro Germany are supported. The
+Bobbies English, Sandro Germany, and Claudie Pierlot Germany are supported. The
 `catalogue:observe -- <product-url>` command remains available for direct
 backend testing.
 
@@ -329,7 +329,7 @@ also persist the size availability published by the product page, which the
 product detail screen displays and lets you tap to choose which sizes matter.
 A watch with chosen sizes only turns a drop into an alert when one of those
 labels is available in the new observation; a watch with no chosen sizes alerts
-on any drop, as before. Sandro pages do not expose sizes yet, so a Sandro watch
+on any drop, as before. Sandro and Claudie Pierlot pages do not expose sizes yet, so a watch on either
 always alerts on any drop. Sizes are matched on the storefront's own published
 labels, so there is no cross-brand size normalization. There is no product
 discovery, restock notification, remote push delivery, or automatic checkout
@@ -356,6 +356,16 @@ npm run catalogue:probe:sandro -- https://de.sandro-paris.com/de/p/haargummi-mit
 The command accepts only HTTPS product URLs on `de.sandro-paris.com`, refuses
 redirects, caps the response size, and does not crawl the product sitemap. It
 is a technical feasibility probe, not permission for recurring or bulk use.
+
+### Prove direct Claudie Pierlot product access
+
+The same probe works for one explicit Claudie Pierlot Germany product page
+(`/de_DE/p/...` on `de.claudiepierlot.com`), read through the polite fetcher and
+normalized from its Product JSON-LD:
+
+```bash
+npm run catalogue:probe:claudie-pierlot -- https://de.claudiepierlot.com/de_DE/p/mittellanger-lederrock/christine/CFPJU00921_C016.html
+```
 
 ### Prove direct Bobbies product access
 
@@ -384,8 +394,8 @@ URLs from its output. Never commit the key.
 ## Use the live catalogue
 
 1. Start the catalogue service and Expo app.
-2. Open **Coveted** and paste a Shopify, Bobbies English, or Sandro Germany
-   product URL.
+2. Open **Coveted** and paste a Shopify, Bobbies English, Sandro Germany, or
+   Claudie Pierlot Germany product URL.
 3. Confirm the imported product appears in the collection.
 4. Open it to see its real image/video gallery and observation details.
 
@@ -522,7 +532,7 @@ provide products or placeholder images to the UI.
 
 The catalogue service calls brand sites only for explicitly observed products
 that are subsequently coveted; it does not crawl storefronts or discover
-products. Manual observation commands seed Bobbies or Sandro products in
+products. Manual observation commands seed Bobbies, Sandro, or Claudie Pierlot products in
 SQLite, and the service owns their recurring snapshots, price-drop history,
 and single-user watches. The mobile app reads those records through an owner
 bearer token. Full authentication, multi-user data, and distributed scheduler
