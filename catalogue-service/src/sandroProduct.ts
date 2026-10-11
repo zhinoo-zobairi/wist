@@ -14,7 +14,6 @@ export const sandroStorefront: JsonLdStorefront = {
   pageKind: "product page",
   validatePath: (url) => url.pathname.startsWith("/de/p/"),
   maxHtmlBytes: 1_000_000,
-  acceptsHttpSchemaOrg: false,
 };
 
 export function parseSandroProductPage(

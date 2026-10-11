@@ -80,7 +80,6 @@ export const bobbiesStorefront: JsonLdStorefront = {
   validatePath: (url) =>
     url.pathname.startsWith("/en/") && url.pathname.endsWith(".html"),
   maxHtmlBytes: 1_000_000,
-  acceptsHttpSchemaOrg: true,
   requiresAvailability: true,
   extend: (html, product, offers) => ({
     media: productMedia(html, product, offers),

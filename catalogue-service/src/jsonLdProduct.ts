@@ -18,8 +18,6 @@ export type JsonLdStorefront = {
   /** Product-path shape check, optional. */
   validatePath?: (url: URL) => boolean;
   maxHtmlBytes: number;
-  /** Whether http://schema.org/InStock counts as available. */
-  acceptsHttpSchemaOrg: boolean;
   /** Fail when the offer carries no availability at all. */
   requiresAvailability?: boolean;
   /** Storefront extras the JSON-LD does not carry (sizes, extra media). */
@@ -100,7 +98,7 @@ export function parseJsonLdProductPage(
     : offers.availability;
   const available =
     availability === "https://schema.org/InStock" ||
-    (store.acceptsHttpSchemaOrg && availability === "http://schema.org/InStock");
+    availability === "http://schema.org/InStock";
 
   return {
     id: `${store.brand.id}-${sourceProductId}`,

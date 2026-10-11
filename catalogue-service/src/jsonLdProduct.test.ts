@@ -13,7 +13,6 @@ const store: JsonLdStorefront = {
   pageKind: "product page",
   validatePath: (url) => url.pathname.startsWith("/p/"),
   maxHtmlBytes: 2_000,
-  acceptsHttpSchemaOrg: false,
 };
 
 const product = {
@@ -73,15 +72,17 @@ describe("shared JSON-LD product core", () => {
     expect(item.variants).toHaveLength(1);
   });
 
-  it("honours the http schema.org option and reads other values as unavailable", () => {
+  it("reads http and https schema.org InStock as available, other values not", () => {
     const withAvailability = (availability: string) =>
       ld({ ...product, offers: { ...product.offers, availability } });
-    const http = withAvailability("http://schema.org/InStock");
-    expect(parseJsonLdProductPage(store, http, at).available).toBe(false);
-    expect(
-      parseJsonLdProductPage({ ...store, acceptsHttpSchemaOrg: true }, http, at)
-        .available,
-    ).toBe(true);
+    for (const availability of [
+      "http://schema.org/InStock",
+      "https://schema.org/InStock",
+    ]) {
+      expect(
+        parseJsonLdProductPage(store, withAvailability(availability), at).available,
+      ).toBe(true);
+    }
     expect(
       parseJsonLdProductPage(store, withAvailability("https://schema.org/OutOfStock"), at)
         .available,

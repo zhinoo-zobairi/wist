@@ -119,4 +119,18 @@ describe("Sandro product", () => {
     ).rejects.toThrow("URL must be an HTTPS product page");
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+
+  it("reads an http schema.org InStock offer as available", () => {
+    const httpProduct = {
+      ...product,
+      offers: { ...product.offers, availability: "http://schema.org/InStock" },
+    };
+
+    expect(
+      parseSandroProductPage(
+        `<script type="application/ld+json">${JSON.stringify(httpProduct)}</script>`,
+        "2026-08-08T12:00:00.000Z",
+      ).available,
+    ).toBe(true);
+  });
 });
