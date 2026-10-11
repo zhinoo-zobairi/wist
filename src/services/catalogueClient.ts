@@ -645,8 +645,8 @@ function toOutfitStatus(value: unknown): OutfitStatus {
 }
 
 /**
- * Stores the phone's rounded location for the next 06:00 pick. 10,000 ms timeout and zero retries
- * (owner answer 1, same as the removed loadWeather); rejects on any failure, and callers ignore it.
+ * Stores the phone's rounded location for the next 06:00 pick. 10,000 ms timeout and zero retries;
+ * rejects on any failure, and callers ignore it.
  */
 export async function saveLocation(
   location: Coordinates, fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,

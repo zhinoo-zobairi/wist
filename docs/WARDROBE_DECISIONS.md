@@ -440,6 +440,12 @@ Verification for #7:
 
 ## Weather-ranked outfits (#10)
 
+> **Superseded in part by [Daily weather pick (C2.1)](#daily-weather-pick-c21)** on
+> 2026-10-11: the phone-side warmth ranking, `GET /v1/weather` and the phone's
+> live weather call are removed, and the backend now stores the latest rounded
+> location. The provider, location permission, precision, daytime window and
+> backend fetch limits below still apply.
+
 Approved by the owner on **2026-10-11**, including the ten checked Decisions
 in issue #10 and the additional provider-log and empty-outfit decisions in this
 session. The issue was re-scoped on 2026-10-10 around background generation
@@ -541,3 +547,54 @@ Verification for #10:
   a complete phone → backend → Open-Meteo check, iPhone permission handling,
   native rendering and device screenshots remain unverified.
 - No push, GitHub issue update/closure, or #11 implementation is performed.
+
+## Daily weather pick (C2.1)
+
+Approved by the owner on 2026-10-11; full design in
+`docs/superpowers/specs/2026-10-11-daily-weather-pick-design.md`. This replaces
+the phone-side warmth ranking from #10. The catalogue service now owns the
+owner's latest rounded location, one daily pick, and one more scheduled Claude
+call.
+
+| Rule | Approved value |
+|---|---|
+| Location source | The phone sends its location, rounded to 2 decimals (~1 km), each time Dress me opens with location permission; `PUT /v1/location` (owner token), rounded again server-side; `204`, `400 invalid_location` |
+| Phone location save | Fire-and-forget; 10,000 ms AbortController timeout, zero retries, errors ignored by the screen (same as the removed `loadWeather`; approved 2026-10-11) |
+| Location storage | Only the latest (one row, overwritten); no history. Open-Meteo request logs as already approved for #10 |
+| Schedule | 06:00 server-local — the clock of the machine running the catalogue service — one attempt per local date, recorded before any call; on the outfit scheduler's 60 s tick after the generation check; separate from the 12/day generation cap |
+| Skips | No stored location, no outfits, or no API key → no call that day (without a key the scheduler does not run) |
+| Weather | Existing Open-Meteo source (5,000 ms, zero retries, 256 KB); failure counts as the day's failed attempt, no Claude call |
+| Model | `claude-sonnet-5-5`, effort `medium`, `max_tokens` 8000, 90,000 ms timeout, 2 SDK retries, server-side refusal fallback (`server-side-fallback-2026-07-01`, `fallbacks: "default"`) |
+| Input | ID-sorted wardrobe text (cached, 5-minute TTL), then the weather, then each outfit as id, occasion, garment ids and whether it is saved; all of it is data, never instructions |
+| Output | A full ranking of every stored outfit id (ideas and saved) plus a reason of at most 200 characters for the top 3 |
+| Validation | Unknown and duplicate ids dropped; reasons kept only for the top 3 valid ids, trimmed to 200; no valid id → failed, nothing stored |
+| Failure | No retry. That day Dress me shows the server order (newest first) and "Today's pick isn't ready"; the next attempt is tomorrow at 06:00 |
+| Storage | Only the latest pick (replaced each day); served by `GET /v1/outfits` only on its own server-local date |
+| Saving a ranked idea | Keeps its place: in the same transaction as the save, the stored pick replaces the suggestion id with the new saved-outfit id in `order` and moves its `reasons` entry; unranked ideas and saves with no stored pick leave the pick unchanged (approved 2026-10-11) |
+| Display | Weather line from the pick's forecast; ranked outfits first, unranked ones (missing, or created after the pick) newest first; the top 3 in the current occasion filter marked "For today" with their reason |
+| Removed | `src/outfitRanking.ts`, `GET /v1/weather`, the phone's `loadWeather` |
+
+Accepted trade-offs: ideas generated after 06:00 are ranked the next day; on
+the first morning of a trip the pick uses the previous day's location.
+
+```text
+OutfitSuggestionsScreen (open, location allowed)
+  └→ currentCoarseLocation → saveLocation → PUT /v1/location → outfit_location (1 row)
+startOutfitScheduler (60 s tick)
+  ├→ runDueOutfitGeneration (unchanged)
+  └→ runDueDailyPick (due: hour ≥ 6 and no attempt for today's local date)
+       ├→ no location / no outfits → skipped, no call
+       ├→ weatherSource.today(location) → null → failed, no call
+       ├→ ClaudeOutfitPicker.pick (one claude-sonnet-5-5 call)
+       ├→ keepValidRanking
+       └→ outfits.storeDailyPick (replaces the previous one)
+GET /v1/outfits → { suggestions, saved, status, today }
+```
+
+Accepted edge: Saving a "For today" idea while the 06:00 pick is running (about 1–2 minutes) can leave that outfit unranked until the next morning.
+
+Prompt caching: gives no saving for this once-a-day call: its 5-minute cache expires long before the next call.
+
+Remaining limitations: the pick runs only while the catalogue service runs; a
+service started after 06:00 makes the day's attempt on its first tick. A
+location saved after 06:00 is used the next morning.
