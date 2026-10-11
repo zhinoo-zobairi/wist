@@ -5,16 +5,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FAF7F2"
-    },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.wist.app"
+      "supportsTablet": false,
+      "bundleIdentifier": "com.wist.app",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.wist.app"
@@ -44,6 +41,15 @@
           "cameraPermission": "Wist uses your camera to photograph clothes you own.",
           "photosPermission": "Wist reads the photos you choose to add clothes you own.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FAF7F2",
+          "image": "./assets/splash.png",
+          "imageWidth": 360,
+          "resizeMode": "contain"
         }
       ]
     ]
