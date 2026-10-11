@@ -109,7 +109,6 @@ const server = createServer(async (request, response) => {
         tagger,
         suggester,
         outfits,
-        weatherSource,
       },
     );
     response.writeHead(result.status, {

@@ -12,8 +12,6 @@ import { handleLocationRequest } from "./locationRoutes.js";
 import type { OutfitRepository } from "./outfitRepository.js";
 import { handleOutfitRequest } from "./outfitRoutes.js";
 import type { OutfitSuggester } from "./outfitSuggester.js";
-import type { WeatherSource } from "./weather.js";
-import { handleWeatherRequest } from "./weatherRoutes.js";
 
 export type ApiResponse = {
   status: number;
@@ -36,7 +34,6 @@ export type RequestOptions = {
   tagger?: GarmentTagger;
   suggester?: OutfitSuggester;
   outfits?: OutfitRepository;
-  weatherSource?: WeatherSource;
   bodyBytes?: Buffer;
   contentType?: string;
 };
@@ -48,11 +45,7 @@ export async function handleRequest(
   auth: RequestAuth = {},
   options: RequestOptions = {},
 ): Promise<ApiResponse> {
-  const { pathname, searchParams } = new URL(rawUrl, "http://catalogue.local");
-
-  if (pathname === "/v1/weather") {
-    return handleWeatherRequest(method, searchParams, auth, options);
-  }
+  const { pathname } = new URL(rawUrl, "http://catalogue.local");
 
   if (pathname === "/v1/location") {
     return handleLocationRequest(method, auth, options);
