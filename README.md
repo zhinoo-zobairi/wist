@@ -536,5 +536,10 @@ requests to the same host within a process; different hosts do not wait for each
 other. It reads each host's `robots.txt` once and caches it in memory for 24
 hours; a product path that robots.txt disallows for us fails with
 `robots_disallowed`, which the scheduler counts as a failed item. A missing
-(404), unreachable, 5xx or over-128 KB robots.txt allows the request. The
+(404), unreachable, 5xx or over-128 KB robots.txt allows the request. Every
+storefront request, robots.txt included, gives up after 15 seconds and is not
+retried; the timer starts when the request is sent, not while it waits for the
+10 second spacing. A product request that times out fails the import or the
+scheduler's item, and a robots.txt that times out counts as unreachable (allow,
+not cached). The
 Anthropic and Open-Meteo calls are not storefront requests and are unaffected.

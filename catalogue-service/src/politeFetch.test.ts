@@ -51,7 +51,12 @@ describe("isAllowedByRobots", () => {
 
 const USER_AGENT = "WistCatalogue/1.0 (+https://github.com/zhinoo-zobairi/wist)";
 
-function setup(robots: Record<string, () => Response> = {}) {
+function setup(
+  robots: Record<string, (init?: RequestInit) => Response | Promise<Response>> = {},
+  product: (init?: RequestInit) => Response | Promise<Response> = () =>
+    new Response("product", { status: 200 }),
+  requestTimeoutMs?: number,
+) {
   let clock = 1_000_000;
   const sleeps: number[] = [];
   const requests: { url: string; headers: Headers; init?: RequestInit }[] = [];
@@ -61,14 +66,15 @@ function setup(robots: Record<string, () => Response> = {}) {
     const parsed = new URL(url);
     if (parsed.pathname === "/robots.txt") {
       const make = robots[parsed.hostname];
-      return make ? make() : new Response("", { status: 404 });
+      return make ? make(init) : new Response("", { status: 404 });
     }
-    return new Response("product", { status: 200 });
+    return product(init);
   }) as typeof fetch;
   const politeFetch = createPoliteFetch({
     userAgent: USER_AGENT,
     minHostSpacingMs: 10_000,
     robotsTtlMs: 86_400_000,
+    requestTimeoutMs,
     fetchImpl,
     now: () => clock,
     sleep: async (ms) => {
@@ -175,5 +181,44 @@ describe("createPoliteFetch", () => {
         new Response("User-agent: *\nDisallow: /\n" + "#".repeat(128 * 1024), { status: 200 }),
     });
     await expect(politeFetch("https://big.test/p/1")).resolves.toBeInstanceOf(Response);
+  });
+
+  describe("request timeout", () => {
+    const hangUntilAborted = (init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+      });
+
+    it("gives every request a 15 second timeout signal by default", async () => {
+      const { politeFetch, requests } = setup();
+      await politeFetch("https://shop.test/p/1");
+      expect(requests).toHaveLength(2);
+      for (const request of requests) {
+        expect(request.init?.signal).toBeInstanceOf(AbortSignal);
+        expect(request.init?.signal?.aborted).toBe(false);
+      }
+    });
+
+    it("fails a product request that does not answer in time and does not wedge the host queue", async () => {
+      let calls = 0;
+      const { politeFetch } = setup(
+        {},
+        (init) => (++calls === 1 ? hangUntilAborted(init) : new Response("ok", { status: 200 })),
+        20,
+      );
+      await expect(politeFetch("https://shop.test/p/1")).rejects.toThrow();
+      await expect(politeFetch("https://shop.test/p/2")).resolves.toBeInstanceOf(Response);
+    });
+
+    it("treats a robots.txt that times out as unreachable: allow, and ask again next time", async () => {
+      const { politeFetch, requests } = setup(
+        { "slow.test": hangUntilAborted },
+        undefined,
+        20,
+      );
+      await expect(politeFetch("https://slow.test/p/1")).resolves.toBeInstanceOf(Response);
+      await politeFetch("https://slow.test/p/2");
+      expect(robotsRequests(requests)).toHaveLength(2);
+    });
   });
 });

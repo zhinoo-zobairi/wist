@@ -67,6 +67,8 @@ export type PoliteFetchOptions = {
   userAgent: string;
   minHostSpacingMs: number;
   robotsTtlMs: number;
+  /** Per-request timeout; defaults to the approved 15 seconds. */
+  requestTimeoutMs?: number;
   fetchImpl?: typeof fetch;
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
@@ -101,6 +103,7 @@ export function createPoliteFetch(options: PoliteFetchOptions): typeof fetch {
   const now = options.now ?? Date.now;
   const sleep =
     options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const requestTimeoutMs = options.requestTimeoutMs ?? 15_000;
   const userAgentToken = options.userAgent.split(/[\s/]/)[0] ?? options.userAgent;
 
   const tails = new Map<string, Promise<unknown>>();
@@ -136,6 +139,7 @@ export function createPoliteFetch(options: PoliteFetchOptions): typeof fetch {
         fetchImpl(`${origin}/robots.txt`, {
           headers: { accept: "text/plain", "user-agent": options.userAgent },
           redirect: "error",
+          signal: AbortSignal.timeout(requestTimeoutMs),
         }),
       );
       if (response.status === 404) return "";
@@ -175,7 +179,12 @@ export function createPoliteFetch(options: PoliteFetchOptions): typeof fetch {
     if (!isAllowedByRobots(robotsTxt, userAgentToken, url.pathname + url.search)) {
       throw new Error(`robots_disallowed: ${url.hostname}${url.pathname}`);
     }
-    return spaced(url.hostname, () => fetchImpl(input, withUserAgent(input, init)));
+    // The timeout starts when the request is sent, not while it waits in the host queue.
+    return spaced(url.hostname, () => {
+      const timeout = AbortSignal.timeout(requestTimeoutMs);
+      const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+      return fetchImpl(input, { ...withUserAgent(input, init), signal });
+    });
   };
 }
 
