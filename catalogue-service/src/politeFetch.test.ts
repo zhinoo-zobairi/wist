@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isAllowedByRobots } from "./politeFetch.js";
+import { createPoliteFetch, isAllowedByRobots } from "./politeFetch.js";
 
 describe("isAllowedByRobots", () => {
   it("allows everything when the file is empty", () => {
@@ -46,5 +46,134 @@ describe("isAllowedByRobots", () => {
   it("shares rules across stacked User-agent lines", () => {
     const robots = "User-agent: a\nUser-agent: WistCatalogue\nDisallow: /x";
     expect(isAllowedByRobots(robots, "WistCatalogue", "/x")).toBe(false);
+  });
+});
+
+const USER_AGENT = "WistCatalogue/1.0 (+https://github.com/zhinoo-zobairi/wist)";
+
+function setup(robots: Record<string, () => Response> = {}) {
+  let clock = 1_000_000;
+  const sleeps: number[] = [];
+  const requests: { url: string; headers: Headers; init?: RequestInit }[] = [];
+  const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    requests.push({ url, headers: new Headers(init?.headers), init });
+    const parsed = new URL(url);
+    if (parsed.pathname === "/robots.txt") {
+      const make = robots[parsed.hostname];
+      return make ? make() : new Response("", { status: 404 });
+    }
+    return new Response("product", { status: 200 });
+  }) as typeof fetch;
+  const politeFetch = createPoliteFetch({
+    userAgent: USER_AGENT,
+    minHostSpacingMs: 10_000,
+    robotsTtlMs: 86_400_000,
+    fetchImpl,
+    now: () => clock,
+    sleep: async (ms) => {
+      sleeps.push(ms);
+      clock += ms;
+    },
+  });
+  return { politeFetch, sleeps, requests, advance: (ms: number) => (clock += ms) };
+}
+
+const robotsRequests = (requests: { url: string }[]) =>
+  requests.filter((request) => request.url.endsWith("/robots.txt"));
+
+describe("createPoliteFetch", () => {
+  it("sets the user agent and keeps the caller's other options", async () => {
+    const { politeFetch, requests } = setup();
+    await politeFetch("https://shop.test/p/1", {
+      headers: { accept: "text/html" },
+      redirect: "error",
+    });
+    for (const request of requests) {
+      expect(request.headers.get("user-agent")).toBe(USER_AGENT);
+    }
+    const product = requests.find((request) => request.url === "https://shop.test/p/1")!;
+    expect(product.headers.get("accept")).toBe("text/html");
+    expect(product.init?.redirect).toBe("error");
+  });
+
+  it("waits at least the spacing between two requests to the same host", async () => {
+    const { politeFetch, sleeps } = setup();
+    await politeFetch("https://shop.test/p/1");
+    await politeFetch("https://shop.test/p/2");
+    expect(sleeps.length).toBeGreaterThan(0);
+    expect(sleeps.every((ms) => ms >= 0)).toBe(true);
+    // robots.txt, p/1, p/2 are three spaced requests: two waits of the full 10 s.
+    expect(sleeps).toEqual([10_000, 10_000]);
+  });
+
+  it("does not delay requests to a different host", async () => {
+    const { politeFetch, sleeps } = setup();
+    await politeFetch("https://one.test/p/1");
+    sleeps.length = 0;
+    await politeFetch("https://two.test/p/1");
+    expect(sleeps).toEqual([10_000]); // only its own robots.txt then product, no wait on one.test
+  });
+
+  it("queues concurrent calls to one host in order", async () => {
+    const { politeFetch, requests } = setup();
+    await Promise.all([
+      politeFetch("https://shop.test/p/1"),
+      politeFetch("https://shop.test/p/2"),
+      politeFetch("https://shop.test/p/3"),
+    ]);
+    expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+      "/robots.txt",
+      "/p/1",
+      "/p/2",
+      "/p/3",
+    ]);
+    expect(robotsRequests(requests)).toHaveLength(1);
+  });
+
+  it("fetches robots.txt once within the TTL and again after it", async () => {
+    const { politeFetch, requests, advance } = setup();
+    await politeFetch("https://shop.test/p/1");
+    await politeFetch("https://shop.test/p/2");
+    expect(robotsRequests(requests)).toHaveLength(1);
+    advance(86_400_000 + 1);
+    await politeFetch("https://shop.test/p/3");
+    expect(robotsRequests(requests)).toHaveLength(2);
+  });
+
+  it("throws robots_disallowed without fetching the product", async () => {
+    const { politeFetch, requests } = setup({
+      "shop.test": () => new Response("User-agent: *\nDisallow: /secret", { status: 200 }),
+    });
+    await expect(politeFetch("https://shop.test/secret/1")).rejects.toThrow(
+      "robots_disallowed: shop.test/secret/1",
+    );
+    expect(requests.some((request) => request.url.includes("/secret"))).toBe(false);
+  });
+
+  it("allows everything when robots.txt is 404", async () => {
+    const { politeFetch } = setup();
+    await expect(politeFetch("https://shop.test/p/1")).resolves.toBeInstanceOf(Response);
+  });
+
+  it("allows when robots.txt is a 5xx or the network fails, and retries next time", async () => {
+    const { politeFetch, requests } = setup({
+      "five.test": () => new Response("User-agent: *\nDisallow: /", { status: 503 }),
+      "down.test": () => {
+        throw new TypeError("network down");
+      },
+    });
+    await expect(politeFetch("https://five.test/p/1")).resolves.toBeInstanceOf(Response);
+    await expect(politeFetch("https://down.test/p/1")).resolves.toBeInstanceOf(Response);
+    await politeFetch("https://five.test/p/2");
+    expect(robotsRequests(requests).filter((r) => r.url.includes("five.test"))).toHaveLength(2);
+  });
+
+  it("treats a robots.txt over 128 KB as unreachable", async () => {
+    const { politeFetch } = setup({
+      "big.test": () =>
+        new Response("User-agent: *\nDisallow: /\n" + "#".repeat(128 * 1024), { status: 200 }),
+    });
+    await expect(politeFetch("https://big.test/p/1")).resolves.toBeInstanceOf(Response);
   });
 });

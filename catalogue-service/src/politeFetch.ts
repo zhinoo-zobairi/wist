@@ -57,3 +57,124 @@ export function isAllowedByRobots(
   }
   return best.allow;
 }
+
+export const DEFAULT_USER_AGENT =
+  "WistCatalogue/1.0 (+https://github.com/zhinoo-zobairi/wist)";
+
+const maxRobotsBytes = 128 * 1024;
+
+export type PoliteFetchOptions = {
+  userAgent: string;
+  minHostSpacingMs: number;
+  robotsTtlMs: number;
+  fetchImpl?: typeof fetch;
+  now?: () => number;
+  sleep?: (ms: number) => Promise<void>;
+};
+
+async function readBoundedText(response: Response): Promise<string | undefined> {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const chunks: string[] = [];
+  let bytesRead = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytesRead += value.byteLength;
+    if (bytesRead > maxRobotsBytes) {
+      await reader.cancel();
+      return undefined;
+    }
+    chunks.push(decoder.decode(value, { stream: true }));
+  }
+  chunks.push(decoder.decode());
+  return chunks.join("");
+}
+
+/**
+ * A drop-in `fetch` that identifies Wist, spaces requests per host and honours
+ * robots.txt. One instance per process, so every caller shares the spacing.
+ */
+export function createPoliteFetch(options: PoliteFetchOptions): typeof fetch {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const now = options.now ?? Date.now;
+  const sleep =
+    options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const userAgentToken = options.userAgent.split(/[\s/]/)[0] ?? options.userAgent;
+
+  const tails = new Map<string, Promise<unknown>>();
+  const nextAllowedAt = new Map<string, number>();
+  const robotsCache = new Map<string, { robotsTxt: string; fetchedAt: number }>();
+  const robotsInFlight = new Map<string, Promise<string>>();
+
+  // Spacing only. Never call robotsFor from inside `send`, or the chain deadlocks.
+  function spaced<T>(host: string, send: () => Promise<T>): Promise<T> {
+    const run = (tails.get(host) ?? Promise.resolve()).then(async () => {
+      const wait = (nextAllowedAt.get(host) ?? 0) - now();
+      if (wait > 0) await sleep(wait);
+      try {
+        return await send();
+      } finally {
+        nextAllowedAt.set(host, now() + options.minHostSpacingMs);
+      }
+    });
+    tails.set(host, run.catch(() => undefined));
+    return run;
+  }
+
+  function withUserAgent(input: RequestInfo | URL, init?: RequestInit): RequestInit {
+    const headers = new Headers(input instanceof Request ? input.headers : undefined);
+    new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
+    headers.set("user-agent", options.userAgent);
+    return { ...init, headers };
+  }
+
+  async function downloadRobots(origin: string, host: string): Promise<string | undefined> {
+    try {
+      const response = await spaced(host, () =>
+        fetchImpl(`${origin}/robots.txt`, {
+          headers: { accept: "text/plain", "user-agent": options.userAgent },
+          redirect: "error",
+        }),
+      );
+      if (response.status === 404) return "";
+      if (!response.ok) {
+        await response.body?.cancel();
+        return undefined;
+      }
+      return await readBoundedText(response);
+    } catch {
+      return undefined;
+    }
+  }
+
+  // Returns the robots.txt text; "" (allow everything) when unreachable, which is not cached.
+  async function robotsFor(origin: string, host: string): Promise<string> {
+    const cached = robotsCache.get(host);
+    if (cached && now() - cached.fetchedAt < options.robotsTtlMs) return cached.robotsTxt;
+
+    const pending = robotsInFlight.get(host);
+    if (pending) return pending;
+
+    const lookup = (async () => {
+      const robotsTxt = await downloadRobots(origin, host);
+      if (robotsTxt === undefined) return "";
+      robotsCache.set(host, { robotsTxt, fetchedAt: now() });
+      return robotsTxt;
+    })().finally(() => robotsInFlight.delete(host));
+    robotsInFlight.set(host, lookup);
+    return lookup;
+  }
+
+  return async (input, init) => {
+    const url = new URL(
+      typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+    );
+    const robotsTxt = await robotsFor(url.origin, url.hostname);
+    if (!isAllowedByRobots(robotsTxt, userAgentToken, url.pathname + url.search)) {
+      throw new Error(`robots_disallowed: ${url.hostname}${url.pathname}`);
+    }
+    return spaced(url.hostname, () => fetchImpl(input, withUserAgent(input, init)));
+  };
+}
