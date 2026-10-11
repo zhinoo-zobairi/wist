@@ -164,7 +164,11 @@ export function createPoliteFetch(options: PoliteFetchOptions): typeof fetch {
           signal: AbortSignal.timeout(requestTimeoutMs),
         }),
       );
-      if (response.status === 404) return "";
+      // RFC 9309: a client error other than 429 means "no robots.txt", so allow everything.
+      if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+        await response.body?.cancel();
+        return "";
+      }
       if (!response.ok) {
         await response.body?.cancel();
         return undefined;

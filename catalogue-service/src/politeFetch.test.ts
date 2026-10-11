@@ -182,6 +182,19 @@ describe("createPoliteFetch", () => {
     await expect(politeFetch("https://shop.test/p/1")).resolves.toBeInstanceOf(Response);
   });
 
+  it("treats a robots.txt 4xx other than 429 as allow-all and caches it", async () => {
+    const { politeFetch, requests } = setup({
+      "forbidden.test": () => new Response("User-agent: *\nDisallow: /", { status: 403 }),
+      "limited.test": () => new Response("User-agent: *\nDisallow: /", { status: 429 }),
+    });
+    await politeFetch("https://forbidden.test/p/1");
+    await politeFetch("https://forbidden.test/p/2");
+    expect(robotsRequests(requests).filter((r) => r.url.includes("forbidden.test"))).toHaveLength(1);
+    await politeFetch("https://limited.test/p/1");
+    await politeFetch("https://limited.test/p/2");
+    expect(robotsRequests(requests).filter((r) => r.url.includes("limited.test"))).toHaveLength(2);
+  });
+
   it("allows when robots.txt is a 5xx or the network fails, and retries next time", async () => {
     const { politeFetch, requests } = setup({
       "five.test": () => new Response("User-agent: *\nDisallow: /", { status: 503 }),

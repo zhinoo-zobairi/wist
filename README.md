@@ -536,7 +536,9 @@ requests to the same host within a process; different hosts do not wait for each
 other. It reads each host's `robots.txt` once and caches it in memory for 24
 hours; a product path that robots.txt disallows for us fails with
 `robots_disallowed`, which the scheduler counts as a failed item. A missing
-(404), unreachable, 5xx or over-128 KB robots.txt allows the request. Every
+robots.txt (any 4xx except 429) allows everything and is cached like a real
+one. An unreachable (5xx, 429, network error), timed-out or over-128 KB one also
+allows the request but is not cached. Every
 storefront request, robots.txt included, gives up after 15 seconds and is not
 retried; the timer starts when the request is sent, not while it waits for the
 10 second spacing. A product request that times out fails the import or the
