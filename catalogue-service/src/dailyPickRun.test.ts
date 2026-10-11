@@ -116,9 +116,12 @@ describe("runDueDailyPick", () => {
   });
 
   it("ends as failed when the picker throws", async () => {
-    const { deps, pick } = await setup();
+    const { deps, outfits, pick } = await setup();
     vi.spyOn(console, "error").mockImplementation(() => {});
     pick.mockRejectedValue(new Error("boom"));
     await expect(runDueDailyPick(deps, at(11, 6))).resolves.toBe("failed");
+    await expect(outfits.dailyPickAttemptedDay()).resolves.toBe("2026-10-11");
+    await expect(outfits.getDailyPick()).resolves.toBeNull();
+    await expect(runDueDailyPick(deps, at(11, 7))).resolves.toBeNull();
   });
 });

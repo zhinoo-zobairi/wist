@@ -130,4 +130,26 @@ describe("runDueOutfitGeneration", () => {
     expect(pick).toHaveBeenCalledTimes(1);
     expect(console.error).toHaveBeenCalledWith("Outfit scheduler tick failed", { errorClass: "Error" });
   });
+
+  it("keeps generation running on later ticks when the daily pick step throws", async () => {
+    const { deps, outfits, suggest, wardrobe, ids } = await setup();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.setSystemTime(at(9, 10));
+    vi.spyOn(outfits, "setDailyPickAttemptedDay").mockRejectedValueOnce(new Error("disk"));
+    const pick = vi.fn<OutfitPicker["pick"]>().mockResolvedValue({ ok: false, reason: "api_error" });
+
+    const stop = startOutfitScheduler({ ...deps, weatherSource: { today: vi.fn() }, picker: { pick } }, 20);
+    try {
+      await vi.waitFor(() => expect(console.error).toHaveBeenCalledWith("Daily pick tick failed", { errorClass: "Error" }));
+      await vi.waitFor(() => expect(suggest).toHaveBeenCalledTimes(1));
+      // A later edit makes generation due again; the next ticks must still run it.
+      vi.setSystemTime(at(9, 12));
+      await wardrobe.replaceGarment(ids[2]!, { ...input, name: "Edited" });
+      vi.setSystemTime(at(9, 22));
+      await vi.waitFor(() => expect(suggest).toHaveBeenCalledTimes(2));
+    } finally {
+      stop();
+    }
+  });
 });
