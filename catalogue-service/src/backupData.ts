@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, readdirSync, renameSync, rmSync, existsSync } from "node:fs";
+import { cpSync, mkdirSync, readdirSync, renameSync, rmSync, existsSync, statSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { dirname, join } from "node:path";
 
@@ -48,4 +48,27 @@ function deleteOldBackups(destination: string): void {
   for (const name of completed.slice(0, Math.max(0, completed.length - BACKUPS_TO_KEEP))) {
     rmSync(join(destination, name), { recursive: true, force: true });
   }
+}
+
+// Puts a backup's database and photos back. The service must be stopped: a stopped service has
+// checkpointed and removed its WAL file, so a WAL file with content means the database is in use
+// (or was not shut down cleanly) and restoring over it would lose or corrupt data.
+export function restoreBackup(options: { backupFolder: string; databasePath: string }): void {
+  const { backupFolder, databasePath } = options;
+  const walPath = `${databasePath}-wal`;
+  if (existsSync(walPath) && statSync(walPath).size > 0) {
+    throw new Error(`${walPath} has content: stop the service first (sudo systemctl stop wist-catalogue)`);
+  }
+  const backupDatabase = join(backupFolder, "wist.sqlite");
+  const backupPhotos = join(backupFolder, "wardrobe-photos");
+  if (!existsSync(backupDatabase) || !existsSync(backupPhotos)) {
+    throw new Error(`${backupFolder} is not a completed backup folder`);
+  }
+  const photosFolder = join(dirname(databasePath), "wardrobe-photos");
+  mkdirSync(dirname(databasePath), { recursive: true });
+  rmSync(walPath, { force: true });
+  rmSync(`${databasePath}-shm`, { force: true });
+  cpSync(backupDatabase, databasePath);
+  rmSync(photosFolder, { recursive: true, force: true });
+  cpSync(backupPhotos, photosFolder, { recursive: true });
 }
