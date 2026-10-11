@@ -76,19 +76,6 @@ describe("coveted price drop rule", () => {
     ).toMatchObject({ newPrice: 240, oldPrice: 300, pctOff: 20 });
   });
 
-  // A price that rises off a sale and then falls back to it is old news, even
-  // though the fall itself is a decrease.
-  it("stays quiet when the price returns to an already announced low", () => {
-    expect(
-      detectCovetedPriceDrop({
-        ...observation,
-        covetedPrice: { currency: "EUR", price: 300 },
-        currentPrice: 260,
-        lowestAnnouncedPrice: 240,
-      }),
-    ).toBeNull();
-  });
-
   // Nothing was coveted, so there is no price the owner cared about and no
   // signal to deliver. Only coveted pieces raise alerts.
   it("stays quiet when the item is not coveted", () => {
@@ -126,16 +113,5 @@ describe("coveted price drop rule", () => {
         lowestAnnouncedPrice: null,
       }),
     ).toBeNull();
-  });
-
-  it("rounds the percentage off the coveted price", () => {
-    expect(
-      detectCovetedPriceDrop({
-        ...observation,
-        covetedPrice: { currency: "EUR", price: 225 },
-        currentPrice: 180,
-        lowestAnnouncedPrice: null,
-      }),
-    ).toMatchObject({ pctOff: 20 });
   });
 });

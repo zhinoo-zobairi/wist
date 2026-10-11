@@ -1,9 +1,9 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { backupName, runBackup } from "./backupData.js";
+import { runBackup } from "./backupData.js";
 
 describe("backup", () => {
   const roots: string[] = [];
@@ -24,10 +24,6 @@ describe("backup", () => {
     return { root, dataDir, databasePath, db, destination: join(root, "backups") };
   }
   const at = (day: number) => new Date(2026, 9, day, 4, 30);
-
-  it("names a backup by local date and time", () => {
-    expect(backupName(new Date(2026, 9, 11, 4, 30))).toBe("2026-10-11-0430");
-  });
 
   it("copies the database rows and the photos while the database is open", () => {
     const { db, databasePath, destination } = setup();

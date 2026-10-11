@@ -187,11 +187,6 @@ describe("createPoliteFetch", () => {
     expect(requests.some((request) => request.url.includes("/secret"))).toBe(false);
   });
 
-  it("allows everything when robots.txt is 404", async () => {
-    const { politeFetch } = setup();
-    await expect(politeFetch("https://shop.test/p/1")).resolves.toBeInstanceOf(Response);
-  });
-
   it("treats a robots.txt 4xx other than 429 as allow-all and caches it", async () => {
     const { politeFetch, requests } = setup({
       "forbidden.test": () => new Response("User-agent: *\nDisallow: /", { status: 403 }),

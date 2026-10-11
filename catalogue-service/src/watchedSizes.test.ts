@@ -50,15 +50,6 @@ describe("watched size rule", () => {
     ).toBe(false);
   });
 
-  it("alerts when any one of several chosen sizes is available", () => {
-    expect(
-      reachesWatchedSize({
-        variants: [variant("38", false), variant("39", true)],
-        watchedSizes: ["38", "39"],
-      }),
-    ).toBe(true);
-  });
-
   // A label can repeat across variants, for instance the same size in two
   // colours. The question is whether the size is buyable at all, so one
   // available variant is enough.

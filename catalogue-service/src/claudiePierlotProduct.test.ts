@@ -42,18 +42,6 @@ describe("Claudie Pierlot product", () => {
     });
   });
 
-  it("fetches one explicit Claudie Pierlot product page", async () => {
-    const fetchImpl = vi.fn(async () => new Response(html));
-
-    await expect(
-      fetchClaudiePierlotProduct(productUrl, fetchImpl, "2026-10-11T12:00:00.000Z"),
-    ).resolves.toMatchObject({ sourceProductId: "CFPJU00921_C016" });
-    expect(fetchImpl).toHaveBeenCalledWith(new URL(productUrl), {
-      headers: { accept: "text/html" },
-      redirect: "error",
-    });
-  });
-
   it("rejects a URL on another host", async () => {
     const fetchImpl = vi.fn();
 

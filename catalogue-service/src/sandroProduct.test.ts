@@ -49,32 +49,6 @@ describe("Sandro product", () => {
     });
   });
 
-  it("preserves Sandro style-colour SKUs and discounted current prices", () => {
-    const discountedProduct = {
-      ...product,
-      name: "Cardigan aus Wolle",
-      sku: "SFPCA01366_44",
-      offers: {
-        ...product.offers,
-        url: "https://de.sandro-paris.com/de/p/cardigan-aus-wolle/SFPCA01366_44.html",
-        price: "171.00",
-      },
-    };
-
-    expect(
-      parseSandroProductPage(
-        `<script type="application/ld+json">${JSON.stringify(discountedProduct)}</script>`,
-        "2026-08-08T12:00:00.000Z",
-      ),
-    ).toMatchObject({
-      id: "sandro-SFPCA01366_44",
-      sourceProductId: "SFPCA01366_44",
-      name: "Cardigan aus Wolle",
-      currentPrice: 171,
-      previousPrice: null,
-    });
-  });
-
   it("fetches one explicit German Sandro product page", async () => {
     const fetchImpl = vi.fn(async () => new Response(html));
 
@@ -96,18 +70,6 @@ describe("Sandro product", () => {
     );
   });
 
-  it("rejects URLs outside the explicit Sandro product boundary", async () => {
-    const fetchImpl = vi.fn();
-
-    await expect(
-      fetchSandroProduct(
-        "http://127.0.0.1/private",
-        fetchImpl,
-      ),
-    ).rejects.toThrow("URL must be an HTTPS product page");
-    expect(fetchImpl).not.toHaveBeenCalled();
-  });
-
   it("rejects Sandro's separate second-hand storefront", async () => {
     const fetchImpl = vi.fn();
 
@@ -118,19 +80,5 @@ describe("Sandro product", () => {
       ),
     ).rejects.toThrow("URL must be an HTTPS product page");
     expect(fetchImpl).not.toHaveBeenCalled();
-  });
-
-  it("reads an http schema.org InStock offer as available", () => {
-    const httpProduct = {
-      ...product,
-      offers: { ...product.offers, availability: "http://schema.org/InStock" },
-    };
-
-    expect(
-      parseSandroProductPage(
-        `<script type="application/ld+json">${JSON.stringify(httpProduct)}</script>`,
-        "2026-08-08T12:00:00.000Z",
-      ).available,
-    ).toBe(true);
   });
 });

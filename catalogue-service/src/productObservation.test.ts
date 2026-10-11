@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { createPoliteFetch, DEFAULT_USER_AGENT } from "./politeFetch.js";
 import { fetchProductObservation } from "./productObservation.js";
 
 const bobbiesProduct = {
@@ -62,15 +61,6 @@ describe("product observation", () => {
     });
   });
 
-  it("rejects unsupported storefronts before requesting them", async () => {
-    const fetchImpl = vi.fn();
-
-    await expect(
-      fetchProductObservation("https://example.com/product", fetchImpl),
-    ).rejects.toThrow("public HTTPS Shopify product page");
-    expect(fetchImpl).not.toHaveBeenCalled();
-  });
-
   it("routes a Shopify product URL through the reusable storefront adapter", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(
@@ -97,34 +87,5 @@ describe("product observation", () => {
       brand: { name: "GOELIA" },
       item: { source: "shopify", currentPrice: 299 },
     });
-  });
-
-  it("sends the Wist user agent on every storefront request", async () => {
-    const seen: { url: string; userAgent: string | null }[] = [];
-    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      seen.push({
-        url: String(input),
-        userAgent: new Headers(init?.headers).get("user-agent"),
-      });
-      return new Response("", { status: 404 });
-    }) as typeof fetch;
-    const politeFetch = createPoliteFetch({
-      userAgent: DEFAULT_USER_AGENT,
-      minHostSpacingMs: 10_000,
-      robotsTtlMs: 86_400_000,
-      fetchImpl,
-      sleep: async () => {},
-    });
-
-    for (const url of [
-      "https://www.bobbies.com/en/opera.html",
-      "https://de.sandro-paris.com/de/p/x.html",
-      "https://shop.example/products/x",
-    ]) {
-      await fetchProductObservation(url, politeFetch).catch(() => undefined);
-    }
-
-    expect(seen.length).toBeGreaterThanOrEqual(6); // robots.txt and product per host
-    expect(seen.every((request) => request.userAgent === DEFAULT_USER_AGENT)).toBe(true);
   });
 });

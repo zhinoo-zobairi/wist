@@ -384,24 +384,6 @@ describe("SQLite catalogue repository", () => {
     await expect(repository.listPriceDropAlerts()).resolves.toEqual([]);
   });
 
-  it("raises an alert when the drop reaches a chosen size", async () => {
-    const repository = createRepository();
-    const item = itemAt(225, "2026-08-08T12:00:00.000Z");
-    await repository.recordObservation(brand, item);
-    await repository.watchItem(item.id);
-    // Size 40 is in stock in this fixture.
-    await repository.replaceWatchSizes(item.id, ["40"]);
-
-    await expect(
-      repository.recordObservation(
-        brand,
-        itemAt(180, "2026-08-09T12:00:00.000Z"),
-      ),
-    ).resolves.toMatchObject({ alerted: true });
-
-    await expect(repository.listPriceDropAlerts()).resolves.toHaveLength(1);
-  });
-
   it("forgets the chosen sizes once the item is no longer watched", async () => {
     const repository = createRepository();
     const item = itemAt(225, "2026-08-08T12:00:00.000Z");

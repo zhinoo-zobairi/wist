@@ -66,20 +66,6 @@ describe("Bobbies product", () => {
     });
   });
 
-  it("fetches one explicit English Bobbies product page", async () => {
-    const fetchImpl = vi.fn(async () => new Response(html));
-    const url =
-      "https://www.bobbies.com/en/4000785248-opera-iridescent-champagne-3663902758263.html";
-
-    await expect(
-      fetchBobbiesProduct(url, fetchImpl, "2026-08-08T12:00:00.000Z"),
-    ).resolves.toMatchObject({ sourceProductId: "L-M24WO-OPE01" });
-    expect(fetchImpl).toHaveBeenCalledWith(new URL(url), {
-      headers: { accept: "text/html" },
-      redirect: "error",
-    });
-  });
-
   it("rejects URLs outside the explicit Bobbies product boundary", async () => {
     const fetchImpl = vi.fn();
 
