@@ -6,6 +6,7 @@ import { handleRequest } from "./app.js";
 import { ClaudeGarmentTagger } from "./claudeGarmentTagger.js";
 import { SqliteOutfitRepository } from "./sqliteOutfitRepository.js";
 import { startOutfitScheduler } from "./outfitScheduler.js";
+import { ClaudeOutfitPicker } from "./claudeOutfitPicker.js";
 import { ClaudeOutfitSuggester } from "./claudeOutfitSuggester.js";
 import { DiskGarmentPhotoStore, MAX_PHOTO_BYTES } from "./garmentPhotoStore.js";
 import { MAX_JSON_BODY_BYTES, readRequestBody } from "./requestBody.js";
@@ -32,6 +33,7 @@ const anthropic = process.env.ANTHROPIC_API_KEY
   : undefined;
 const tagger = anthropic ? new ClaudeGarmentTagger(anthropic) : undefined;
 const suggester = anthropic ? new ClaudeOutfitSuggester(anthropic) : undefined;
+const picker = anthropic ? new ClaudeOutfitPicker(anthropic) : undefined;
 const outfits = new SqliteOutfitRepository(databasePath);
 const weatherSource = new OpenMeteoWeatherSource();
 // A run cut short by a crash is marked failed at every start, with or without an API key.
@@ -39,9 +41,10 @@ const weatherSource = new OpenMeteoWeatherSource();
 outfits.failInterruptedRuns().catch((error) => {
   console.error("Failing interrupted outfit runs failed", { errorClass: error instanceof Error ? error.name : "UnknownError" });
 });
-// Without an API key there is no generator, so no background runs (decision 12).
-const stopOutfitScheduler = suggester
-  ? startOutfitScheduler({ wardrobe, outfits, profiles, suggester })
+// Without an API key there is no generator or picker, so no background runs and no daily pick.
+// The daily pick's 06:00 is this machine's local time.
+const stopOutfitScheduler = suggester && picker
+  ? startOutfitScheduler({ wardrobe, outfits, profiles, suggester, weatherSource, picker })
   : () => {};
 const port = Number.parseInt(process.env.PORT ?? "4000", 10);
 const ownerToken = process.env.CATALOGUE_OWNER_TOKEN;

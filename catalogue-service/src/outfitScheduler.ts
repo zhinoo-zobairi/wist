@@ -1,5 +1,8 @@
+import { runDueDailyPick, type DailyPickDeps } from "./dailyPickRun.js";
 import { runOutfitGeneration, type GenerationDeps } from "./outfitGeneration.js";
 import { capDay, capDayStart, decideRun, type RunTrigger } from "./outfitSchedule.js";
+
+export type SchedulerDeps = GenerationDeps & DailyPickDeps;
 
 export const OUTFIT_TICK_MS = 60_000;
 const RUN_LOG_RETENTION_MS = 7 * 24 * 60 * 60_000;
@@ -23,7 +26,7 @@ export async function runDueOutfitGeneration(deps: GenerationDeps, now: Date): P
   return trigger;
 }
 
-export function startOutfitScheduler(deps: GenerationDeps, tickMs = OUTFIT_TICK_MS): () => void {
+export function startOutfitScheduler(deps: SchedulerDeps, tickMs = OUTFIT_TICK_MS): () => void {
   let stopped = false;
   let timer: NodeJS.Timeout | undefined;
   const tick = async () => {
@@ -33,7 +36,14 @@ export function startOutfitScheduler(deps: GenerationDeps, tickMs = OUTFIT_TICK_
     } catch (error) {
       console.error("Outfit scheduler tick failed", { errorClass: error instanceof Error ? error.name : "UnknownError" });
     }
-    // Ticks are sequential, so at most one run is ever in progress.
+    // Same tick, after generation: a generation error never blocks the morning pick.
+    try {
+      const outcome = await runDueDailyPick(deps, new Date());
+      if (outcome) console.log(`Daily pick finished (${outcome})`);
+    } catch (error) {
+      console.error("Daily pick tick failed", { errorClass: error instanceof Error ? error.name : "UnknownError" });
+    }
+    // Ticks are sequential, so at most one Claude call is ever in progress.
     if (!stopped) timer = setTimeout(tick, tickMs);
   };
   void tick();

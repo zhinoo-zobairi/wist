@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GenerationDeps } from "./outfitGeneration.js";
-import { runDueOutfitGeneration } from "./outfitScheduler.js";
+import type { OutfitPicker } from "./outfitPicker.js";
+import { runDueOutfitGeneration, startOutfitScheduler } from "./outfitScheduler.js";
 import type { OutfitSuggester } from "./outfitSuggester.js";
 import { capDay } from "./outfitSchedule.js";
 import { SqliteOutfitRepository } from "./sqliteOutfitRepository.js";
 import { SqliteStyleProfileRepository } from "./sqliteStyleProfileRepository.js";
 import { SqliteWardrobeRepository } from "./sqliteWardrobeRepository.js";
 import type { GarmentInput } from "./wardrobe.js";
+import type { WeatherSource } from "./weather.js";
 
 const input: GarmentInput = { name: "Piece", category: "top", colors: ["navy"], formality: "casual", warmth: "light", occasions: [], notes: null };
 const closers: { close: () => void }[] = [];
@@ -105,5 +107,27 @@ describe("runDueOutfitGeneration", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     await expect(runDueOutfitGeneration(deps, at(9, 10))).resolves.toBe("debounced");
     await expect(outfits.runSummary(new Date(0))).resolves.toMatchObject({ running: false, lastRun: { status: "failed" } });
+  });
+  it("runs the daily pick on the same tick, even when the generation step fails", async () => {
+    const { deps, outfits, ids } = await setup();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.setSystemTime(at(9, 5));
+    await outfits.saveLocation({ latitude: 52.52, longitude: 13.41 });
+    await outfits.storeSuggestions([{ occasion: "work", garmentIds: [ids[0]!, ids[1]!], reason: "Idea." }]);
+    const [idea] = await outfits.listSuggestions();
+    vi.spyOn(outfits, "runSummary").mockRejectedValueOnce(new Error("disk"));
+    const today = vi.fn<WeatherSource["today"]>().mockResolvedValue(
+      { minC: 6, maxC: 11, precipitationChancePct: 70, maxWindKph: 20, condition: "rain" });
+    const pick = vi.fn<OutfitPicker["pick"]>().mockResolvedValue({ ok: true, order: [idea!.id], top: [] });
+
+    const stop = startOutfitScheduler({ ...deps, weatherSource: { today }, picker: { pick } }, 60_000);
+    try {
+      await vi.waitFor(async () => expect(await outfits.getDailyPick()).toMatchObject({ order: [idea!.id] }));
+    } finally {
+      stop();
+    }
+    expect(pick).toHaveBeenCalledTimes(1);
+    expect(console.error).toHaveBeenCalledWith("Outfit scheduler tick failed", { errorClass: "Error" });
   });
 });
