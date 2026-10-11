@@ -46,6 +46,18 @@ describe("isAllowedByRobots", () => {
     expect(performance.now() - started).toBeLessThan(200);
   });
 
+  it("uses our own group even when it only has an empty Disallow", () => {
+    const robots = [
+      "User-agent: *",
+      "Disallow: /",
+      "",
+      "User-agent: WistCatalogue",
+      "Disallow:",
+    ].join("\n");
+    expect(isAllowedByRobots(robots, "WistCatalogue", "/p/1")).toBe(true);
+    expect(isAllowedByRobots(robots, "OtherBot", "/p/1")).toBe(false);
+  });
+
   it("ignores comments and an empty Disallow", () => {
     const robots = "User-agent: * # everyone\nDisallow:\n# nothing";
     expect(isAllowedByRobots(robots, "WistCatalogue", "/anything")).toBe(true);

@@ -4,6 +4,7 @@ function parseRules(robotsTxt: string, userAgentToken: string): Rule[] {
   const token = userAgentToken.toLowerCase();
   const specific: Rule[] = [];
   const wildcard: Rule[] = [];
+  let sawSpecific = false;
   let agents: string[] = [];
   let collectingAgents = false;
 
@@ -18,6 +19,7 @@ function parseRules(robotsTxt: string, userAgentToken: string): Rule[] {
       if (!collectingAgents) agents = [];
       agents.push(value.toLowerCase());
       collectingAgents = true;
+      if (value.toLowerCase() === token) sawSpecific = true;
       continue;
     }
     collectingAgents = false;
@@ -28,7 +30,7 @@ function parseRules(robotsTxt: string, userAgentToken: string): Rule[] {
     if (agents.includes("*")) wildcard.push(rule);
   }
 
-  return specific.length > 0 ? specific : wildcard;
+  return sawSpecific ? specific : wildcard;
 }
 
 // Linear-time glob match: `*` matches any run, and we only ever backtrack to the last `*`.
