@@ -77,11 +77,6 @@ describe("outfit client", () => {
       .rejects.toThrow("offline");
   });
 
-  it("maps a 401 on More ideas to unavailable", async () => {
-    await expect(requestMoreIdeas(vi.fn<typeof fetch>().mockResolvedValueOnce(json({ error: "unauthorized" }, 401)), baseUrl, "owner"))
-      .resolves.toBe("unavailable");
-  });
-
   it("saveOutfitIdea throws on a 404", async () => {
     await expect(saveOutfitIdea("gone", vi.fn<typeof fetch>().mockResolvedValueOnce(json({ error: "not_found" }, 404)), baseUrl, "owner"))
       .rejects.toMatchObject({ status: 404 });

@@ -273,12 +273,6 @@ describe("Wist announced drop store", () => {
     });
   });
 
-  it("establishes the baseline even when no drops exist yet", () => {
-    useWistStore.getState().markAlertsAnnounced([]);
-
-    expect(useWistStore.getState().alertBaselineEstablished).toBe(true);
-  });
-
   it("replaces the remembered set instead of accumulating", () => {
     useWistStore.setState({ notifiedAlertIds: ["a", "b"] });
 

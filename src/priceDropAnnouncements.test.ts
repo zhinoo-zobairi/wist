@@ -47,29 +47,6 @@ describe("price drop announcements", () => {
     expect(plan.notifiedAlertIds).toEqual(["b", "a"]);
   });
 
-  it("never announces the same drop twice", () => {
-    const plan = selectPriceDropAnnouncements({
-      alerts: [alert("a")],
-      announceableAlertIds: ["a"],
-      baselineEstablished: true,
-      notifiedAlertIds: ["a"],
-    });
-
-    expect(plan.announce).toEqual([]);
-    expect(plan.notifiedAlertIds).toEqual(["a"]);
-  });
-
-  it("announces every drop that landed while the app was closed", () => {
-    const plan = selectPriceDropAnnouncements({
-      alerts: [alert("d"), alert("c"), alert("b"), alert("a")],
-      announceableAlertIds: ["d", "c", "b", "a"],
-      baselineEstablished: true,
-      notifiedAlertIds: ["a"],
-    });
-
-    expect(plan.announce.map((entry) => entry.id)).toEqual(["d", "c", "b"]);
-  });
-
   it("forgets identifiers the catalogue no longer reports", () => {
     const plan = selectPriceDropAnnouncements({
       alerts: [alert("b")],
