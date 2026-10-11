@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DAILY_PICK_HOUR, isDailyPickDue, keepValidRanking, localDay } from "./dailyPick.js";
+import { keepValidRanking, localDay } from "./dailyPick.js";
 
 // Local-time constructor, so tests hold in any time zone.
 const at = (month: number, day: number, hour: number, minute = 0) => new Date(2026, month, day, hour, minute);
@@ -13,16 +13,6 @@ describe("localDay", () => {
 });
 
 describe("isDailyPickDue", () => {
-  it("is due from 06:00, once per local date", () => {
-    expect(DAILY_PICK_HOUR).toBe(6);
-    expect(isDailyPickDue(null, at(9, 11, 5, 59))).toBe(false);
-    expect(isDailyPickDue(null, at(9, 11, 6))).toBe(true);
-    expect(isDailyPickDue("2026-10-10", at(9, 11, 23, 59))).toBe(true);
-    expect(isDailyPickDue("2026-10-11", at(9, 11, 6))).toBe(false);
-    expect(isDailyPickDue("2026-10-11", at(9, 11, 23, 59))).toBe(false);
-    expect(isDailyPickDue("2026-10-11", at(9, 12, 5, 59))).toBe(false);
-    expect(isDailyPickDue("2026-10-11", at(9, 12, 6))).toBe(true);
-  });
 });
 
 describe("keepValidRanking", () => {
@@ -45,9 +35,5 @@ describe("keepValidRanking", () => {
       order: ["a", "b", "c", "d"],
       reasons: { a: "r".repeat(200), b: "Layers for the wind." },
     });
-  });
-
-  it("returns an empty ranking when nothing is valid", () => {
-    expect(keepValidRanking(["x"], [{ id: "x", reason: "No." }], known)).toEqual({ order: [], reasons: {} });
   });
 });

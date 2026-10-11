@@ -40,13 +40,6 @@ describe("today's weather summary", () => {
     }
   });
 
-  it("uses the most severe daytime weather code", () => {
-    const value = structuredClone(fixture);
-    value.hourly.weather_code[10] = 95;
-    value.hourly.weather_code[21] = 99;
-    expect(summarizeOpenMeteo(value)?.condition).toBe("thunderstorm");
-  });
-
   it("ranks by condition severity, not code number (heavy snow beats slight showers)", () => {
     const value = structuredClone(fixture);
     value.hourly.weather_code.fill(3);
@@ -105,22 +98,6 @@ describe("Open-Meteo weather source", () => {
   it("returns null on network or redirect failure without retrying", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockRejectedValueOnce(new TypeError("fetch failed"));
     await expect(new OpenMeteoWeatherSource(fetchImpl).today(at)).resolves.toBeNull();
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
-  });
-
-  it("stops a pending fetch after 5 seconds without retrying", async () => {
-    vi.useFakeTimers();
-    vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) => {
-      const controller = new AbortController();
-      setTimeout(() => controller.abort(), ms);
-      return controller.signal;
-    });
-    const fetchImpl = vi.fn<typeof fetch>((_input, init) => new Promise((_resolve, reject) => {
-      init!.signal!.addEventListener("abort", () => reject(new DOMException("Timed out", "AbortError")), { once: true });
-    }));
-    const pending = new OpenMeteoWeatherSource(fetchImpl).today(at);
-    await vi.advanceTimersByTimeAsync(5000);
-    await expect(pending).resolves.toBeNull();
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 

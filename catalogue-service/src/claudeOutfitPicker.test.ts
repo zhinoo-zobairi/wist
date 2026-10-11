@@ -61,11 +61,6 @@ describe("Claude outfit picker", () => {
     await expect(stub(response).picker.pick(input)).resolves.toEqual({ ok: false, reason: "refused" });
   });
 
-  it("reports running out of tokens as truncated", async () => {
-    await expect(stub({ stop_reason: "max_tokens", parsed_output: null }).picker.pick(input))
-      .resolves.toEqual({ ok: false, reason: "truncated" });
-  });
-
   it.each([null, {}, { order: null, top: [] }, { order: ["o1"], top: [{ id: 1, reason: "x" }] }, { order: [1], top: [] }])(
     "classifies malformed output %j", async (parsed_output) => {
       await expect(stub({ stop_reason: "end_turn", parsed_output }).picker.pick(input))

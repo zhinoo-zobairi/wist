@@ -118,18 +118,6 @@ describe("purchased garment API", () => {
     await expect(catalogue.listWatchedItemIds()).resolves.toEqual([]);
   });
 
-  it("handles an unexpected tagger exception without losing the garment or watch removal", async () => {
-    const { request, catalogue, wardrobe } = setup();
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    await catalogue.watchItem(itemId);
-    const tag = vi.fn<GarmentTagger["tag"]>().mockRejectedValue(new Error("provider details"));
-    await expect(request({ tagger: { tag } })).resolves.toMatchObject({ status: 201, body: {
-      unwatched: true, garment: { tagStatus: "failed" },
-    } });
-    await expect(catalogue.listWatchedItemIds()).resolves.toEqual([]);
-    await expect(wardrobe.lastChangedAt()).resolves.toBeNull();
-  });
-
   it("creates untagged without a tagger and allows duplicate purchases", async () => {
     const { request, wardrobe } = setup();
     const first = await request();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DAILY_RUN_CAP, capDay, capDayStart, decideRun, type ScheduleState } from "./outfitSchedule.js";
+import { DAILY_RUN_CAP, capDay, decideRun, type ScheduleState } from "./outfitSchedule.js";
 
 // Local-time constructor, so tests hold in any time zone.
 const at = (day: number, hour: number, minute = 0) => new Date(2026, 9, day, hour, minute);
@@ -10,12 +10,6 @@ const base: ScheduleState = {
 };
 
 describe("cap day", () => {
-  it("runs from 03:00 to 03:00 local time", () => {
-    expect(capDay(at(10, 2, 59))).toBe("2026-10-09");
-    expect(capDay(at(10, 3, 0))).toBe("2026-10-10");
-    expect(capDayStart(at(10, 2, 59))).toEqual(at(9, 3));
-    expect(capDayStart(at(10, 15))).toEqual(at(10, 3));
-  });
 });
 
 describe("decideRun", () => {

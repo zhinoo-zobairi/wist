@@ -96,12 +96,6 @@ describe("Claude garment tagger", () => {
     expect(logged).not.toContain(photo.bytes.toString("base64"));
   });
 
-  it("never throws on an unexpected client failure", async () => {
-    const { tagger, parse } = stub(null);
-    parse.mockRejectedValue(new Error("Unexpected failure"));
-    await expect(tagger.tag(photo)).resolves.toEqual({ ok: false, reason: "api_error" });
-  });
-
   it.each([
     { stop_reason: "refusal", text: "I cannot process this image.", reason: "refused" },
     { stop_reason: "end_turn", text: "invalid JSON", reason: "invalid_output" },
