@@ -11,6 +11,7 @@ const auth = { ownerToken: "owner", authorization: "Bearer owner" };
 const catalogue = new SeedCatalogueRepository();
 const input: GarmentInput = { name: "Shirt", category: "top", colors: ["navy"], formality: "smart_casual", warmth: "light", occasions: ["work"], notes: null };
 const closers: { close: () => void }[] = [];
+const weather = { minC: 6, maxC: 11, precipitationChancePct: 70, maxWindKph: 20, condition: "rain" as const };
 
 function setup() {
   const wardrobe = new SqliteWardrobeRepository(":memory:");
@@ -118,5 +119,24 @@ describe("outfits API", () => {
   it("no longer serves the waiting endpoint (decision 11)", async () => {
     const { request } = setup();
     await expect(request("POST", "/v1/outfits/suggestions")).resolves.toEqual({ status: 404, body: { error: "not_found" } });
+  });
+
+  it("serves today's pick only on its own server-local date", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(2026, 9, 11, 7));
+      const { outfits, request } = setup();
+      const today = async () => ((await request("GET", "/v1/outfits")).body as { today: unknown }).today;
+      await expect(today()).resolves.toBeNull();
+
+      const pick = { day: "2026-10-11", weather, order: ["b", "a"], reasons: { b: "The coat keeps the rain off." } };
+      await outfits.storeDailyPick(pick);
+      await expect(today()).resolves.toEqual(pick);
+
+      vi.setSystemTime(new Date(2026, 9, 12, 5, 59));
+      await expect(today()).resolves.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

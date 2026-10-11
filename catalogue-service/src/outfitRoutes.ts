@@ -1,5 +1,6 @@
 import type { ApiResponse, RequestAuth, RequestOptions } from "./app.js";
 import type { SavedOutfitRecord } from "./outfitRepository.js";
+import { localDay } from "./dailyPick.js";
 import { DAILY_RUN_CAP, capDayStart } from "./outfitSchedule.js";
 import { ownerAuthError } from "./ownerAuth.js";
 import type { Garment } from "./wardrobe.js";
@@ -32,6 +33,11 @@ export async function handleOutfitRequest(
     const unattempted = lastChangedAt !== null &&
       (summary.lastAttemptedChangedAt === null || lastChangedAt > summary.lastAttemptedChangedAt);
     const generationEnabled = suggester !== undefined;
+    // Only today's pick is served: before 06:00 or after a failed attempt there is none (decision 6).
+    const pick = await outfits.getDailyPick();
+    const today = pick && pick.day === localDay(new Date())
+      ? { day: pick.day, weather: pick.weather, order: pick.order, reasons: pick.reasons }
+      : null;
     return { status: 200, body: {
       suggestions: (await outfits.listSuggestions())
         .filter((record) => record.garmentIds.every((id) => byId.has(id)))
@@ -48,6 +54,7 @@ export async function handleOutfitRequest(
         runsLeftToday: Math.max(0, DAILY_RUN_CAP - summary.runsThisCapDay),
         generationEnabled,
       },
+      today,
     } };
   }
 
