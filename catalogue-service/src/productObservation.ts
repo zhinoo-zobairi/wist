@@ -1,6 +1,7 @@
-import { fetchBobbiesProduct } from "./bobbiesProduct.js";
+import { bobbiesStorefront } from "./bobbiesProduct.js";
+import { fetchJsonLdProduct } from "./jsonLdProduct.js";
 import type { CatalogueBrand, CatalogueItem } from "./model.js";
-import { fetchSandroProduct } from "./sandroProduct.js";
+import { sandroStorefront } from "./sandroProduct.js";
 import { fetchShopifyProduct } from "./shopifyProduct.js";
 
 type Fetch = typeof fetch;
@@ -9,6 +10,8 @@ export type ProductObservation = {
   brand: CatalogueBrand;
   item: CatalogueItem;
 };
+
+const JSON_LD_STOREFRONTS = [sandroStorefront, bobbiesStorefront];
 
 export async function fetchProductObservation(
   productUrl: string,
@@ -22,17 +25,11 @@ export async function fetchProductObservation(
     throw new Error("A valid supported product URL is required");
   }
 
-  if (hostname === "www.bobbies.com") {
+  const storefront = JSON_LD_STOREFRONTS.find((store) => store.host === hostname);
+  if (storefront) {
     return {
-      brand: { id: "bobbies", name: "Bobbies" },
-      item: await fetchBobbiesProduct(productUrl, fetchImpl, observedAt),
-    };
-  }
-
-  if (hostname === "de.sandro-paris.com") {
-    return {
-      brand: { id: "sandro", name: "Sandro" },
-      item: await fetchSandroProduct(productUrl, fetchImpl, observedAt),
+      brand: storefront.brand,
+      item: await fetchJsonLdProduct(storefront, productUrl, fetchImpl, observedAt),
     };
   }
 
