@@ -745,24 +745,3 @@ export async function requestMoreIdeas(
     return "unavailable";
   }
 }
-
-export async function loadWeather(
-  location: Coordinates, fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
-): Promise<WeatherSummary | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10_000);
-  try {
-    const query = new URLSearchParams({
-      latitude: String(Math.round(location.latitude * 100) / 100),
-      longitude: String(Math.round(location.longitude * 100) / 100),
-    });
-    const body = await wardrobeJson(await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/weather?${query}`, {
-      headers: authorizationHeaders(ownerToken), signal: controller.signal,
-    }));
-    return toWeatherSummary(body.weather);
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
