@@ -31,15 +31,35 @@ function parseRules(robotsTxt: string, userAgentToken: string): Rule[] {
   return specific.length > 0 ? specific : wildcard;
 }
 
+// Linear-time glob match: `*` matches any run, and we only ever backtrack to the last `*`.
+// Unanchored patterns match as a prefix; anchored ones (trailing `$`) must consume the path.
+function globMatches(pattern: string, path: string, anchored: boolean): boolean {
+  let p = 0;
+  let i = 0;
+  let star = -1;
+  let mark = 0;
+  while (true) {
+    if (p === pattern.length) {
+      if (!anchored || i === path.length) return true;
+    } else if (pattern[p] === "*") {
+      star = p++;
+      mark = i;
+      continue;
+    } else if (i < path.length && pattern[p] === path[i]) {
+      p++;
+      i++;
+      continue;
+    }
+    if (star < 0 || mark >= path.length) return false;
+    p = star + 1;
+    i = ++mark;
+  }
+}
+
 function matchLength(pattern: string, path: string): number {
   const anchored = pattern.endsWith("$");
   const body = anchored ? pattern.slice(0, -1) : pattern;
-  const expression = body
-    .split("*")
-    .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
-    .join(".*");
-  const matches = new RegExp(`^${expression}${anchored ? "$" : ""}`).test(path);
-  return matches ? body.length : -1;
+  return globMatches(body, path, anchored) ? body.length : -1;
 }
 
 /** Pure robots.txt check: longest matching rule wins, Allow wins a tie. */

@@ -38,6 +38,14 @@ describe("isAllowedByRobots", () => {
     expect(isAllowedByRobots(robots, "WistCatalogue", "/cart123/x")).toBe(false);
   });
 
+  it("matches a pathological wildcard pattern in linear time", () => {
+    const robots = `User-agent: *\nDisallow: /${"*a".repeat(12)}b`;
+    const started = performance.now();
+    expect(isAllowedByRobots(robots, "WistCatalogue", `/${"a".repeat(40)}`)).toBe(true);
+    expect(isAllowedByRobots(robots, "WistCatalogue", `/${"a".repeat(40)}b`)).toBe(false);
+    expect(performance.now() - started).toBeLessThan(200);
+  });
+
   it("ignores comments and an empty Disallow", () => {
     const robots = "User-agent: * # everyone\nDisallow:\n# nothing";
     expect(isAllowedByRobots(robots, "WistCatalogue", "/anything")).toBe(true);
