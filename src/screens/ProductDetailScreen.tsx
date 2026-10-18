@@ -184,7 +184,7 @@ export function ProductDetailScreen({
         <Text style={styles.name}>{item.name}</Text>
         <View style={styles.priceRow}>
           <Text style={styles.price}>{formatPrice(item.currentPrice, item.currency)}</Text>
-          {item.previousPrice !== null && item.previousPrice !== undefined ? (
+          {item.previousPrice !== null && item.previousPrice !== undefined && item.previousPrice !== item.currentPrice ? (
             <Text style={styles.previous}>{formatPrice(item.previousPrice, item.currency)}</Text>
           ) : null}
         </View>
