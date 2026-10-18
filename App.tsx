@@ -40,6 +40,7 @@ import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { WardrobeScreen } from "./src/screens/WardrobeScreen";
 import { GarmentEditScreen } from "./src/screens/GarmentEditScreen";
 import { OutfitSuggestionsScreen } from "./src/screens/OutfitSuggestionsScreen";
+import { IntroScreen } from "./src/screens/IntroScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { resolveProfileGate } from "./src/profileGate";
 import { synchronizeStyleProfile } from "./src/styleProfileCommit";
@@ -88,6 +89,9 @@ export default function App() {
   );
   const setStarredItem = useWistStore((state) => state.setStarredItem);
   const profileStatus = useWistStore((state) => state.profileStatus);
+  const introSeen = useWistStore((state) => state.introSeen);
+  const setIntroSeen = useWistStore((state) => state.setIntroSeen);
+  const markProfileSkipped = useWistStore((state) => state.markProfileSkipped);
   const replaceStyleProfile = useWistStore(
     (state) => state.replaceStyleProfile,
   );
@@ -251,6 +255,7 @@ export default function App() {
 
   const profileGate = resolveProfileGate({
     fontsLoaded,
+    introSeen,
     profileLookupComplete,
     profileStatus,
     storeHydrated,
@@ -265,12 +270,21 @@ export default function App() {
     );
   }
 
-  if (profileGate === "onboarding") {
+  if (profileGate === "intro" || profileGate === "onboarding") {
+    // Skipping the intro on a first run also skips the style questions.
+    const skipIntro = () => {
+      setIntroSeen(true);
+      if (profileStatus === "unknown") markProfileSkipped();
+    };
     return (
       <SafeAreaProvider style={[styles.root, layout.wide && styles.rootWide]}>
         <SafeAreaView edges={["top", "bottom"]} style={[styles.container, layout.wide && styles.containerWide]}>
           <StatusBar style="dark" />
-          <OnboardingScreen />
+          {profileGate === "intro" ? (
+            <IntroScreen onBegin={() => setIntroSeen(true)} onSkip={skipIntro} />
+          ) : (
+            <OnboardingScreen />
+          )}
         </SafeAreaView>
       </SafeAreaProvider>
     );
@@ -417,7 +431,13 @@ export default function App() {
           onBack={() => setProfileView({ screen: "profile" })}
           onDressMe={() => setProfileView({ screen: "outfits" })}
           onEdit={(id) => setProfileView({ screen: "edit", id })} />;
-        return <ProfileScreen brands={brands} onOpenWardrobe={() => setProfileView({ screen: "wardrobe" })} />;
+        return (
+          <ProfileScreen
+            brands={brands}
+            onOpenWardrobe={() => setProfileView({ screen: "wardrobe" })}
+            onReplayIntro={() => setIntroSeen(false)}
+          />
+        );
       case "feed":
       default:
         return (

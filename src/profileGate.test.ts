@@ -7,6 +7,7 @@ describe("style profile startup gate", () => {
     expect(
       resolveProfileGate({
         fontsLoaded: true,
+        introSeen: true,
         profileLookupComplete: false,
         profileStatus: "unknown",
         storeHydrated: true,
@@ -18,6 +19,7 @@ describe("style profile startup gate", () => {
     expect(
       resolveProfileGate({
         fontsLoaded: true,
+        introSeen: true,
         profileLookupComplete: true,
         profileStatus: "unknown",
         storeHydrated: true,
@@ -31,6 +33,7 @@ describe("style profile startup gate", () => {
       expect(
         resolveProfileGate({
           fontsLoaded: true,
+          introSeen: true,
           profileLookupComplete: false,
           profileStatus,
           storeHydrated: true,
@@ -38,4 +41,31 @@ describe("style profile startup gate", () => {
       ).toBe("app");
     },
   );
+
+  it.each(["unknown", "answered", "skipped"] as const)(
+    "plays the intro first on a device that has not seen it (%s)",
+    (profileStatus) => {
+      expect(
+        resolveProfileGate({
+          fontsLoaded: true,
+          introSeen: false,
+          profileLookupComplete: true,
+          profileStatus,
+          storeHydrated: true,
+        }),
+      ).toBe("intro");
+    },
+  );
+
+  it("keeps the intro behind the loading screen", () => {
+    expect(
+      resolveProfileGate({
+        fontsLoaded: true,
+        introSeen: false,
+        profileLookupComplete: false,
+        profileStatus: "unknown",
+        storeHydrated: true,
+      }),
+    ).toBe("loading");
+  });
 });

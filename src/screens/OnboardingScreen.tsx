@@ -16,10 +16,9 @@ import {
   type Occasion,
   type Style,
 } from "../types";
-import { IntroScreen } from "./IntroScreen";
 
 export function OnboardingScreen() {
-  const [step, setStep] = useState<"intro" | "occasions" | "styles">("intro");
+  const [step, setStep] = useState<"occasions" | "styles">("occasions");
   const [occasions, setOccasions] = useState<Occasion[]>([]);
   const [styles, setStyles] = useState<Style[]>([]);
   const markProfileSkipped = useWistStore(
@@ -30,10 +29,6 @@ export function OnboardingScreen() {
   );
   const layout = useLayout();
   const { wide } = layout;
-
-  if (step === "intro") {
-    return <IntroScreen onBegin={() => setStep("occasions")} onSkip={markProfileSkipped} />;
-  }
 
   const continueOnboarding = async () => {
     if (step === "occasions") {

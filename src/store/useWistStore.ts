@@ -39,6 +39,8 @@ type WistState = {
   occasions: Occasion[];
   styles: Style[];
   profileStatus: ProfileStatus;
+  /** The magazine intro has played once on this device. */
+  introSeen: boolean;
   toggleFollow: (brandId: string) => void;
   addFollowedBrands: (brandIds: string[]) => void;
   replaceStarredItems: (itemIds: string[]) => void;
@@ -52,6 +54,7 @@ type WistState = {
   markAlertsAnnounced: (alertIds: string[]) => void;
   restoreSeedPrices: () => void;
   markProfileSkipped: () => void;
+  setIntroSeen: (seen: boolean) => void;
   replaceStyleProfile: (occasions: Occasion[], styles: Style[]) => void;
 };
 
@@ -183,6 +186,7 @@ export const useWistStore = create<WistState>()(
       occasions: [],
       styles: [],
       profileStatus: "unknown",
+      introSeen: false,
       toggleFollow: (brandId) =>
         set((state) => ({
           followedBrandIds: toggleId(state.followedBrandIds, brandId),
@@ -362,6 +366,7 @@ export const useWistStore = create<WistState>()(
           return { priceRevision: state.priceRevision + 1 };
         }),
       markProfileSkipped: () => set({ profileStatus: "skipped" }),
+      setIntroSeen: (introSeen) => set({ introSeen }),
       replaceStyleProfile: (occasions, styles) =>
         set({
           occasions: [...occasions],
@@ -376,6 +381,7 @@ export const useWistStore = create<WistState>()(
         alertBaselineEstablished,
         alerts,
         followedBrandIds,
+        introSeen,
         notifiedAlertIds,
         occasions,
         priceOverrides,
@@ -388,6 +394,7 @@ export const useWistStore = create<WistState>()(
         alertBaselineEstablished,
         alerts,
         followedBrandIds,
+        introSeen,
         notifiedAlertIds,
         occasions,
         priceOverrides,
