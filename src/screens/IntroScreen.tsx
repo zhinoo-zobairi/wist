@@ -16,11 +16,14 @@ import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { Wordmark } from "../components/Wordmark";
 import { editorial, type EditorialImage } from "../data/editorialImages";
+import { useLayout } from "../layout";
 import { colors, fonts, radii, spacing, typography } from "../theme";
 
 // react-native-web has no native animated module; it would only warn.
 const NATIVE_DRIVER = Platform.OS !== "web";
 const PAGES = 4;
+// On wide windows each page is an open magazine: plates left, copy right.
+const RIGHT_PAGE_SHARE = 0.44;
 
 type Props = {
   onBegin: () => void;
@@ -129,6 +132,7 @@ const FEATURES = [
 ];
 
 export function IntroScreen({ onBegin, onSkip }: Props) {
+  const { wide } = useLayout();
   const [stage, setStage] = useState<Stage>({ width: 0, height: 0 });
   const [reduceMotion, setReduceMotion] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -171,11 +175,15 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
 
   const motionFor = (index: number): Motion => ({ index, scrollY, stage, reduceMotion });
   const { width, height } = stage;
+  // The plates live on the left page on wide windows, on the whole page on compact.
+  const plateArea = wide ? width - Math.round(width * RIGHT_PAGE_SHARE) : width;
   const page = { width, height };
+  const platesStyle = wide ? styles.leftPage : StyleSheet.absoluteFill;
+  const copyStyle = (compact: object) => (wide ? styles.copyWide : compact);
 
   return (
     <View style={styles.screen}>
-      <View style={styles.topline}>
+      <View style={[styles.topline, wide && styles.toplineWide]}>
         <Wordmark />
         <ActionLink color={colors.muted} label="Skip" onPress={onSkip} />
       </View>
@@ -190,114 +198,130 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
             showsVerticalScrollIndicator={false}
           >
             {/* 01 · Cover: a full-bleed plate with a smaller print laid over it. */}
-            <View style={[styles.page, page]}>
-              <Plate
-                fillHeight={Math.round(height * 1.24)}
-                image={editorial.cover}
-                motion={motionFor(0)}
-                speed={0.12}
-                style={[styles.coverPlate, { top: -Math.round(height * 0.12) }]}
-                width={width}
-              />
-              <Plate
-                image={editorial.coverInset}
-                motion={motionFor(0)}
-                speed={0.3}
-                style={[styles.print, { right: spacing.gutter, top: height * 0.08 }]}
-                width={Math.round(width * 0.42)}
-              />
-              <Copy motion={motionFor(0)} style={styles.coverCopy}>
-                <Text style={styles.kicker}>ISSUE 01 · THE QUIET WAY TO WANT</Text>
-                <Text accessibilityRole="header" style={styles.masthead}>Wist.</Text>
-                <Text style={styles.body}>From Kurdish: to want something deeply, and to wait for it.</Text>
-                <Credit image={editorial.cover} />
-              </Copy>
-              <Folio index={0} />
+            <View style={[styles.page, page, wide && styles.pageWide]}>
+              <View style={platesStyle}>
+                <Plate
+                  fillHeight={Math.round(height * 1.24)}
+                  image={editorial.cover}
+                  motion={motionFor(0)}
+                  speed={0.12}
+                  style={[styles.coverPlate, { top: -Math.round(height * 0.12) }]}
+                  width={plateArea}
+                />
+                <Plate
+                  image={editorial.coverInset}
+                  motion={motionFor(0)}
+                  speed={0.3}
+                  style={[styles.print, { right: spacing.gutter, top: height * 0.08 }]}
+                  width={Math.round(plateArea * 0.42)}
+                />
+              </View>
+              <View style={wide ? styles.rightPage : null}>
+                <Copy motion={motionFor(0)} style={copyStyle(styles.coverCopy)}>
+                  <Text style={styles.kicker}>ISSUE 01 · THE QUIET WAY TO WANT</Text>
+                  <Text accessibilityRole="header" style={styles.masthead}>Wist.</Text>
+                  <Text style={styles.body}>From Kurdish: to want something deeply, and to wait for it.</Text>
+                  <Credit image={editorial.cover} />
+                </Copy>
+                <Folio index={0} />
+              </View>
             </View>
 
             {/* 02 · Covet: two prints overlapping, headline below. */}
-            <View style={[styles.page, page]}>
-              <Plate
-                image={editorial.covet}
-                motion={motionFor(1)}
-                speed={0.14}
-                style={{ left: 0, top: 0 }}
-                width={Math.round(width * 0.7)}
-              />
-              <Plate
-                image={editorial.covetInset}
-                motion={motionFor(1)}
-                speed={0.32}
-                style={[styles.print, { right: spacing.gutter, top: height * 0.24 }]}
-                width={Math.round(width * 0.46)}
-              />
-              <Copy motion={motionFor(1)} style={styles.lowerCopy}>
-                <View style={styles.heartRow}>
-                  <Icon color={colors.wine} filled name="heart" size={22} />
-                  <Text style={styles.kicker}>A SHORT LIST, NOT A WISHLIST</Text>
-                </View>
-                <Text accessibilityRole="header" style={styles.headline}>You covet a piece.</Text>
-                <Text style={styles.body}>Only the things you truly want, in the sizes you actually wear.</Text>
-                <Credit image={editorial.covet} />
-              </Copy>
-              <Folio index={1} />
+            <View style={[styles.page, page, wide && styles.pageWide]}>
+              <View style={platesStyle}>
+                <Plate
+                  image={editorial.covet}
+                  motion={motionFor(1)}
+                  speed={0.14}
+                  style={{ left: 0, top: 0 }}
+                  width={Math.round(plateArea * 0.7)}
+                />
+                <Plate
+                  image={editorial.covetInset}
+                  motion={motionFor(1)}
+                  speed={0.32}
+                  style={[styles.print, { right: spacing.gutter, top: height * 0.24 }]}
+                  width={Math.round(plateArea * 0.46)}
+                />
+              </View>
+              <View style={wide ? styles.rightPage : null}>
+                <Copy motion={motionFor(1)} style={copyStyle(styles.lowerCopy)}>
+                  <View style={styles.heartRow}>
+                    <Icon color={colors.wine} filled name="heart" size={22} />
+                    <Text style={styles.kicker}>A SHORT LIST, NOT A WISHLIST</Text>
+                  </View>
+                  <Text accessibilityRole="header" style={styles.headline}>You covet a piece.</Text>
+                  <Text style={styles.body}>Only the things you truly want, in the sizes you actually wear.</Text>
+                  <Credit image={editorial.covet} />
+                </Copy>
+                <Folio index={1} />
+              </View>
             </View>
 
             {/* 03 · Watch: one plate with a price card drifting over it. */}
-            <View style={[styles.page, page]}>
-              <Plate
-                image={editorial.watch}
-                motion={motionFor(2)}
-                speed={0.12}
-                style={{ right: 0, top: 0 }}
-                width={Math.round(width * 0.72)}
-              />
-              <Copy motion={motionFor(2)} style={[styles.priceCard, { left: spacing.gutter, top: height * 0.3 }]}>
-                <Text style={styles.priceKicker}>OBSERVED TODAY</Text>
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceOld}>€ 550</Text>
-                  <Text style={styles.priceNew}>€ 385</Text>
-                </View>
-                <Text style={styles.priceOff}>−30% · A NEW LOW</Text>
-              </Copy>
-              <Copy motion={motionFor(2)} style={styles.lowerCopy}>
-                <Text style={styles.kicker}>EVERY DAY, WITHOUT NOISE</Text>
-                <Text accessibilityRole="header" style={styles.headline}>Wist watches its price, quietly.</Text>
-                <Text style={styles.body}>No feed to scroll, nothing to check. It only speaks when something changes.</Text>
-                <Credit image={editorial.watch} />
-              </Copy>
-              <Folio index={2} />
+            <View style={[styles.page, page, wide && styles.pageWide]}>
+              <View style={platesStyle}>
+                <Plate
+                  image={editorial.watch}
+                  motion={motionFor(2)}
+                  speed={0.12}
+                  style={{ right: 0, top: 0 }}
+                  width={Math.round(plateArea * 0.72)}
+                />
+                <Copy motion={motionFor(2)} style={[styles.priceCard, { left: spacing.gutter, top: height * 0.3 }]}>
+                  <Text style={styles.priceKicker}>OBSERVED TODAY</Text>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceOld}>€ 550</Text>
+                    <Text style={styles.priceNew}>€ 385</Text>
+                  </View>
+                  <Text style={styles.priceOff}>−30% · A NEW LOW</Text>
+                </Copy>
+              </View>
+              <View style={wide ? styles.rightPage : null}>
+                <Copy motion={motionFor(2)} style={copyStyle(styles.lowerCopy)}>
+                  <Text style={styles.kicker}>EVERY DAY, WITHOUT NOISE</Text>
+                  <Text accessibilityRole="header" style={styles.headline}>Wist watches its price, quietly.</Text>
+                  <Text style={styles.body}>No feed to scroll, nothing to check. It only speaks when something changes.</Text>
+                  <Credit image={editorial.watch} />
+                </Copy>
+                <Folio index={2} />
+              </View>
             </View>
 
             {/* 04 · Hero: what the agent does, on wine, with a print tucked in the corner. */}
-            <View style={[styles.page, styles.pageWine, page]}>
-              <Plate
-                image={editorial.hero}
-                motion={motionFor(3)}
-                speed={0.26}
-                style={[styles.print, styles.printTilted, { right: -8, top: -12 }]}
-                width={Math.round(width * 0.4)}
-              />
-              <Copy motion={motionFor(3)} style={styles.heroCopy}>
-                <Text style={[styles.kicker, styles.onWineMuted]}>WHAT WIST DOES FOR YOU</Text>
-                <Text accessibilityRole="header" style={[styles.headline, styles.onWine]}>When it drops, you know first.</Text>
-                <View style={styles.features}>
-                  {FEATURES.map((feature, index) => (
-                    <View key={feature.title} style={styles.feature}>
-                      <Text style={[styles.featureIndex, styles.onWineMuted]}>{String(index + 1).padStart(2, "0")}</Text>
-                      <View style={styles.featureCopy}>
-                        <Text style={[styles.featureTitle, styles.onWine]}>{feature.title}</Text>
-                        <Text style={[styles.featureBody, styles.onWineSoft]}>{feature.body}</Text>
+            <View style={[styles.page, styles.pageWine, page, wide && styles.pageWide]}>
+              <View style={[platesStyle, wide && styles.leftPageWine]}>
+                <Plate
+                  image={editorial.hero}
+                  motion={motionFor(3)}
+                  speed={0.26}
+                  style={[styles.print, styles.printTilted, wide ? { left: spacing.gutterWide, top: height * 0.12 } : { right: -8, top: -12 }]}
+                  width={Math.round(plateArea * (wide ? 0.62 : 0.4))}
+                />
+              </View>
+              <View style={wide ? styles.rightPage : null}>
+                <Copy motion={motionFor(3)} style={copyStyle(styles.heroCopy)}>
+                  <Text style={[styles.kicker, styles.onWineMuted]}>WHAT WIST DOES FOR YOU</Text>
+                  <Text accessibilityRole="header" style={[styles.headline, styles.onWine]}>When it drops, you know first.</Text>
+                  <View style={styles.features}>
+                    {FEATURES.map((feature, index) => (
+                      <View key={feature.title} style={styles.feature}>
+                        <Text style={[styles.featureIndex, styles.onWineMuted]}>{String(index + 1).padStart(2, "0")}</Text>
+                        <View style={styles.featureCopy}>
+                          <Text style={[styles.featureTitle, styles.onWine]}>{feature.title}</Text>
+                          <Text style={[styles.featureBody, styles.onWineSoft]}>{feature.body}</Text>
+                        </View>
                       </View>
-                    </View>
-                  ))}
-                </View>
-                <View style={styles.begin}>
-                  <Button color={colors.card} label="Begin" labelColor={colors.wine} onPress={onBegin} />
-                </View>
-                <Credit image={editorial.hero} light />
-              </Copy>
-              <Folio index={3} light />
+                    ))}
+                  </View>
+                  <View style={styles.begin}>
+                    <Button color={colors.card} label="Begin" labelColor={colors.wine} onPress={onBegin} />
+                  </View>
+                  <Credit image={editorial.hero} light />
+                </Copy>
+                <Folio index={3} light />
+              </View>
             </View>
           </Animated.ScrollView>
         ) : null}
@@ -320,9 +344,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.gutter,
     paddingVertical: 14,
   },
+  toplineWide: { paddingHorizontal: spacing.gutterWide },
   stage: { flex: 1 },
   page: { overflow: "hidden", position: "relative" },
+  pageWide: { flexDirection: "row" },
   pageWine: { backgroundColor: colors.wine },
+  // Wide: the open magazine. Plates on the left page, copy on the right, a fold between.
+  leftPage: {
+    borderRightColor: colors.line,
+    borderRightWidth: 1,
+    flex: 1,
+    overflow: "hidden",
+    position: "relative",
+  },
+  leftPageWine: { borderRightColor: colors.onWineLine },
+  rightPage: {
+    justifyContent: "center",
+    paddingHorizontal: 56,
+    position: "relative",
+    width: `${RIGHT_PAGE_SHARE * 100}%`,
+  },
+  copyWide: { maxWidth: 440 },
   plate: { backgroundColor: colors.wash, overflow: "hidden", position: "absolute" },
   coverPlate: { left: 0 },
   // A print laid on the spread: a paper mat around it and a soft shadow.
