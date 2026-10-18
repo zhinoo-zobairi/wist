@@ -3,6 +3,7 @@ import {
   AccessibilityInfo,
   Animated,
   Easing,
+  Image,
   type LayoutChangeEvent,
   Platform,
   StyleSheet,
@@ -14,47 +15,121 @@ import { ActionLink } from "../components/ActionLink";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { Wordmark } from "../components/Wordmark";
-import { colors, fonts, spacing, typography } from "../theme";
+import { editorial, type EditorialImage } from "../data/editorialImages";
+import { colors, fonts, radii, spacing, typography } from "../theme";
 
 // react-native-web has no native animated module; it would only warn.
 const NATIVE_DRIVER = Platform.OS !== "web";
-const PANEL_COUNT = 4;
+const PAGES = 4;
 
 type Props = {
   onBegin: () => void;
   onSkip: () => void;
 };
 
-function Panel({
-  children,
-  dark = false,
-  height,
-  index,
-  reduceMotion,
-  scrollY,
-}: {
-  children: ReactNode;
-  dark?: boolean;
-  height: number;
+type Stage = { width: number; height: number };
+
+type Motion = {
   index: number;
-  reduceMotion: boolean;
   scrollY: Animated.Value;
+  stage: Stage;
+  reduceMotion: boolean;
+};
+
+/** Three points on the scroll: the page before, this page centred, the page after. */
+const range = ({ index, stage }: Motion) => [
+  (index - 1) * stage.height,
+  index * stage.height,
+  (index + 1) * stage.height,
+];
+
+/**
+ * A photograph that drifts as the reader scrolls. `speed` is the share of the
+ * page height it travels between the page before and the page after; the back
+ * plate moves slowly, the inset laid on top moves faster, which is what makes
+ * the spread feel layered.
+ */
+function Plate({
+  fillHeight,
+  image,
+  motion,
+  speed,
+  style,
+  width,
+}: {
+  /** Crop to this height instead of the photograph's own proportion. */
+  fillHeight?: number;
+  image: EditorialImage;
+  motion: Motion;
+  speed: number;
+  style?: object;
+  width: number;
 }) {
-  // Fully visible when the panel is centred, faded and shifted one panel away.
-  const inputRange = [(index - 1) * height, index * height, (index + 1) * height];
-  const opacity = scrollY.interpolate({ inputRange, outputRange: [0, 1, 0], extrapolate: "clamp" });
-  const translateY = scrollY.interpolate({ inputRange, outputRange: [36, 0, -36], extrapolate: "clamp" });
+  const inputRange = range(motion);
+  const travel = motion.stage.height * speed;
+  const translateY = motion.scrollY.interpolate({
+    inputRange,
+    outputRange: [travel, 0, -travel],
+    extrapolate: "clamp",
+  });
+  const height = fillHeight ?? Math.round(width / image.aspect);
   return (
-    <View style={[styles.panel, { height }, dark && styles.panelDark]}>
-      <Animated.View style={[styles.panelBody, { opacity, transform: reduceMotion ? [] : [{ translateY }] }]}>
-        {children}
-      </Animated.View>
-    </View>
+    <Animated.View
+      style={[
+        styles.plate,
+        { width, height },
+        style,
+        { transform: motion.reduceMotion ? [] : [{ translateY }] },
+      ]}
+    >
+      <Image
+        accessibilityLabel={image.alt}
+        resizeMode="cover"
+        source={{ uri: image.url }}
+        style={{ height, width }}
+      />
+    </Animated.View>
   );
 }
 
+/** Copy that fades and rises into place as its page arrives. */
+function Copy({ motion, children, style }: { motion: Motion; children: ReactNode; style?: object }) {
+  const inputRange = range(motion);
+  const opacity = motion.scrollY.interpolate({ inputRange, outputRange: [0, 1, 0], extrapolate: "clamp" });
+  const translateY = motion.scrollY.interpolate({ inputRange, outputRange: [28, 0, -28], extrapolate: "clamp" });
+  return (
+    <Animated.View style={[style, { opacity, transform: motion.reduceMotion ? [] : [{ translateY }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+function Credit({ image, light = false }: { image: EditorialImage; light?: boolean }) {
+  const host = image.sourceUrl.replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "");
+  return (
+    <Text style={[styles.credit, light && styles.creditLight]}>
+      PHOTOGRAPHY · {image.brand.toUpperCase()} · {host.toUpperCase()}
+    </Text>
+  );
+}
+
+function Folio({ index, light = false }: { index: number; light?: boolean }) {
+  return (
+    <Text style={[styles.folio, light && styles.creditLight]}>
+      {String(index + 1).padStart(2, "0")} / {String(PAGES).padStart(2, "0")}
+    </Text>
+  );
+}
+
+const FEATURES = [
+  { title: "Price drops, in your size", body: "Covet a piece, pick the sizes you wear, and Wist checks the shop for you." },
+  { title: "Alerts that speak once", body: "A drop is announced when it is a new low, and never twice." },
+  { title: "Your wardrobe, by photo", body: "Photograph what you own and it is read, named and tagged for you." },
+  { title: "Dressed for today", body: "Outfits composed from your own pieces, for the occasion and the weather." },
+];
+
 export function IntroScreen({ onBegin, onSkip }: Props) {
-  const [height, setHeight] = useState(0);
+  const [stage, setStage] = useState<Stage>({ width: 0, height: 0 });
   const [reduceMotion, setReduceMotion] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const hint = useRef(new Animated.Value(0)).current;
@@ -80,16 +155,23 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
     return () => loop.stop();
   }, [hint, reduceMotion]);
 
-  const onLayout = (event: LayoutChangeEvent) => setHeight(Math.round(event.nativeEvent.layout.height));
+  const onLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    setStage({ width: Math.round(width), height: Math.round(height) });
+  };
 
-  const safeHeight = Math.max(height, 1);
+  const ready = stage.width > 0 && stage.height > 0;
+  const safeHeight = Math.max(stage.height, 1);
   const hintOpacity = scrollY.interpolate({
-    inputRange: [(PANEL_COUNT - 2) * safeHeight, (PANEL_COUNT - 1) * safeHeight],
+    inputRange: [(PAGES - 2) * safeHeight, (PAGES - 1) * safeHeight],
     outputRange: [1, 0],
     extrapolate: "clamp",
   });
   const hintTranslate = hint.interpolate({ inputRange: [0, 1], outputRange: [0, 8], extrapolate: "clamp" });
-  const panelProps = { height, reduceMotion, scrollY };
+
+  const motionFor = (index: number): Motion => ({ index, scrollY, stage, reduceMotion });
+  const { width, height } = stage;
+  const page = { width, height };
 
   return (
     <View style={styles.screen}>
@@ -98,7 +180,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
         <ActionLink color={colors.muted} label="Skip" onPress={onSkip} />
       </View>
       <View onLayout={onLayout} style={styles.stage}>
-        {height > 0 ? (
+        {ready ? (
           <Animated.ScrollView
             accessibilityLabel="Introduction"
             bounces={false}
@@ -107,32 +189,116 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
           >
-            <Panel index={0} {...panelProps}>
-              <Text style={styles.kicker}>WIST · /WIːST/</Text>
-              <Text accessibilityRole="header" style={styles.display}>Wist.</Text>
-              <Text style={styles.body}>From Kurdish. To want something deeply, and to wait for it.</Text>
-            </Panel>
-            <Panel index={1} {...panelProps}>
-              <Icon color={colors.wine} filled name="heart" size={34} />
-              <Text accessibilityRole="header" style={[styles.display, styles.afterIcon]}>You covet a piece.</Text>
-              <Text style={styles.body}>Not a wishlist. A short list of things you truly want, in the sizes you wear.</Text>
-            </Panel>
-            <Panel index={2} {...panelProps}>
-              <Text style={styles.kicker}>EVERY DAY, WITHOUT NOISE</Text>
-              <Text accessibilityRole="header" style={styles.display}>Wist watches its price, quietly.</Text>
-              <Text style={styles.body}>No feed to scroll, nothing to check. It only speaks when something changes.</Text>
-            </Panel>
-            <Panel dark index={3} {...panelProps}>
-              <Text style={[styles.kicker, styles.onWineKicker]}>A COVETED PIECE JUST DROPPED</Text>
-              <Text accessibilityRole="header" style={[styles.display, styles.onWine]}>When it drops, you know first.</Text>
-              <View style={styles.priceRow}>
-                <Text style={styles.oldPrice}>€ 550</Text>
-                <Text style={styles.newPrice}>€ 385</Text>
-              </View>
-              <View style={styles.begin}>
-                <Button color={colors.card} label="Begin" labelColor={colors.wine} onPress={onBegin} />
-              </View>
-            </Panel>
+            {/* 01 · Cover: a full-bleed plate with a smaller print laid over it. */}
+            <View style={[styles.page, page]}>
+              <Plate
+                fillHeight={Math.round(height * 1.24)}
+                image={editorial.cover}
+                motion={motionFor(0)}
+                speed={0.12}
+                style={[styles.coverPlate, { top: -Math.round(height * 0.12) }]}
+                width={width}
+              />
+              <Plate
+                image={editorial.coverInset}
+                motion={motionFor(0)}
+                speed={0.3}
+                style={[styles.print, { right: spacing.gutter, top: height * 0.08 }]}
+                width={Math.round(width * 0.42)}
+              />
+              <Copy motion={motionFor(0)} style={styles.coverCopy}>
+                <Text style={styles.kicker}>ISSUE 01 · THE QUIET WAY TO WANT</Text>
+                <Text accessibilityRole="header" style={styles.masthead}>Wist.</Text>
+                <Text style={styles.body}>From Kurdish: to want something deeply, and to wait for it.</Text>
+                <Credit image={editorial.cover} />
+              </Copy>
+              <Folio index={0} />
+            </View>
+
+            {/* 02 · Covet: two prints overlapping, headline below. */}
+            <View style={[styles.page, page]}>
+              <Plate
+                image={editorial.covet}
+                motion={motionFor(1)}
+                speed={0.14}
+                style={{ left: 0, top: 0 }}
+                width={Math.round(width * 0.7)}
+              />
+              <Plate
+                image={editorial.covetInset}
+                motion={motionFor(1)}
+                speed={0.32}
+                style={[styles.print, { right: spacing.gutter, top: height * 0.24 }]}
+                width={Math.round(width * 0.46)}
+              />
+              <Copy motion={motionFor(1)} style={styles.lowerCopy}>
+                <View style={styles.heartRow}>
+                  <Icon color={colors.wine} filled name="heart" size={22} />
+                  <Text style={styles.kicker}>A SHORT LIST, NOT A WISHLIST</Text>
+                </View>
+                <Text accessibilityRole="header" style={styles.headline}>You covet a piece.</Text>
+                <Text style={styles.body}>Only the things you truly want, in the sizes you actually wear.</Text>
+                <Credit image={editorial.covet} />
+              </Copy>
+              <Folio index={1} />
+            </View>
+
+            {/* 03 · Watch: one plate with a price card drifting over it. */}
+            <View style={[styles.page, page]}>
+              <Plate
+                image={editorial.watch}
+                motion={motionFor(2)}
+                speed={0.12}
+                style={{ right: 0, top: 0 }}
+                width={Math.round(width * 0.72)}
+              />
+              <Copy motion={motionFor(2)} style={[styles.priceCard, { left: spacing.gutter, top: height * 0.3 }]}>
+                <Text style={styles.priceKicker}>OBSERVED TODAY</Text>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceOld}>€ 550</Text>
+                  <Text style={styles.priceNew}>€ 385</Text>
+                </View>
+                <Text style={styles.priceOff}>−30% · A NEW LOW</Text>
+              </Copy>
+              <Copy motion={motionFor(2)} style={styles.lowerCopy}>
+                <Text style={styles.kicker}>EVERY DAY, WITHOUT NOISE</Text>
+                <Text accessibilityRole="header" style={styles.headline}>Wist watches its price, quietly.</Text>
+                <Text style={styles.body}>No feed to scroll, nothing to check. It only speaks when something changes.</Text>
+                <Credit image={editorial.watch} />
+              </Copy>
+              <Folio index={2} />
+            </View>
+
+            {/* 04 · Hero: what the agent does, on wine, with a print tucked in the corner. */}
+            <View style={[styles.page, styles.pageWine, page]}>
+              <Plate
+                image={editorial.hero}
+                motion={motionFor(3)}
+                speed={0.26}
+                style={[styles.print, styles.printTilted, { right: -8, top: -12 }]}
+                width={Math.round(width * 0.4)}
+              />
+              <Copy motion={motionFor(3)} style={styles.heroCopy}>
+                <Text style={[styles.kicker, styles.onWineMuted]}>WHAT WIST DOES FOR YOU</Text>
+                <Text accessibilityRole="header" style={[styles.headline, styles.onWine]}>When it drops, you know first.</Text>
+                <View style={styles.features}>
+                  {FEATURES.map((feature, index) => (
+                    <View key={feature.title} style={styles.feature}>
+                      <Text style={[styles.featureIndex, styles.onWineMuted]}>{String(index + 1).padStart(2, "0")}</Text>
+                      <View style={styles.featureCopy}>
+                        <Text style={[styles.featureTitle, styles.onWine]}>{feature.title}</Text>
+                        <Text style={[styles.featureBody, styles.onWineSoft]}>{feature.body}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.begin}>
+                  <Button color={colors.card} label="Begin" labelColor={colors.wine} onPress={onBegin} />
+                </View>
+                <Credit image={editorial.hero} light />
+              </Copy>
+              <Folio index={3} light />
+            </View>
           </Animated.ScrollView>
         ) : null}
         <Animated.View
@@ -155,18 +321,65 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   stage: { flex: 1 },
-  panel: { justifyContent: "center", paddingHorizontal: spacing.gutter + 6 },
-  panelDark: { backgroundColor: colors.wine },
-  panelBody: { maxWidth: 360 },
-  kicker: { ...typography.kicker, color: colors.wine, marginBottom: 14 },
-  onWineKicker: { color: colors.onWineMuted },
-  display: { color: colors.ink, fontFamily: fonts.display, fontSize: 48, lineHeight: 50 },
-  afterIcon: { marginTop: 18 },
+  page: { overflow: "hidden", position: "relative" },
+  pageWine: { backgroundColor: colors.wine },
+  plate: { backgroundColor: colors.wash, overflow: "hidden", position: "absolute" },
+  coverPlate: { left: 0 },
+  // A print laid on the spread: a paper mat around it and a soft shadow.
+  print: {
+    borderColor: colors.paper,
+    borderWidth: 6,
+    boxShadow: "0 14px 22px rgba(24, 23, 21, 0.22)",
+  },
+  printTilted: { transform: [{ rotate: "4deg" }] },
+  coverCopy: {
+    backgroundColor: colors.paper,
+    bottom: 56,
+    left: 0,
+    maxWidth: "86%",
+    paddingHorizontal: spacing.gutter,
+    paddingVertical: 18,
+    position: "absolute",
+  },
+  lowerCopy: {
+    backgroundColor: colors.paper,
+    bottom: 56,
+    left: 0,
+    maxWidth: "90%",
+    paddingHorizontal: spacing.gutter,
+    paddingTop: 16,
+    position: "absolute",
+  },
+  heroCopy: { bottom: 56, left: 0, paddingHorizontal: spacing.gutter, position: "absolute", right: 0 },
+  kicker: { ...typography.kicker, color: colors.wine },
+  masthead: { color: colors.ink, fontFamily: fonts.display, fontSize: 84, lineHeight: 84, marginTop: 6 },
+  headline: { color: colors.ink, fontFamily: fonts.display, fontSize: 42, lineHeight: 44, marginTop: 10 },
+  body: { ...typography.body, color: colors.ink, marginTop: 12 },
+  heartRow: { alignItems: "center", flexDirection: "row", gap: 10 },
+  credit: { ...typography.label, color: colors.muted, fontSize: 9, letterSpacing: 1.2, marginTop: 14 },
+  creditLight: { color: colors.onWineMuted },
+  folio: { ...typography.label, bottom: 18, color: colors.muted, position: "absolute", right: spacing.gutter },
+  priceCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.card,
+    boxShadow: "0 12px 20px rgba(24, 23, 21, 0.18)",
+    padding: 16,
+    position: "absolute",
+  },
+  priceKicker: { ...typography.kicker },
+  priceRow: { alignItems: "baseline", flexDirection: "row", gap: 10, marginTop: 6 },
+  priceOld: { color: colors.muted, fontFamily: fonts.display, fontSize: 22, textDecorationLine: "line-through" },
+  priceNew: { color: colors.wine, fontFamily: fonts.display, fontSize: 34 },
+  priceOff: { ...typography.label, color: colors.wine, marginTop: 6 },
   onWine: { color: colors.card },
-  body: { ...typography.body, fontSize: 15, lineHeight: 23, marginTop: 16 },
-  priceRow: { alignItems: "baseline", flexDirection: "row", gap: 14, marginTop: 22 },
-  oldPrice: { color: colors.onWineMuted, fontFamily: fonts.display, fontSize: 28, textDecorationLine: "line-through" },
-  newPrice: { color: colors.card, fontFamily: fonts.display, fontSize: 40 },
-  begin: { alignSelf: "stretch", marginTop: 34 },
+  onWineMuted: { color: colors.onWineMuted },
+  onWineSoft: { color: colors.onWineSoft },
+  features: { gap: 14, marginTop: 22 },
+  feature: { flexDirection: "row", gap: 12 },
+  featureIndex: { ...typography.label, paddingTop: 4, width: 22 },
+  featureCopy: { flex: 1 },
+  featureTitle: { fontFamily: fonts.display, fontSize: 22, lineHeight: 24 },
+  featureBody: { ...typography.caption, marginTop: 2 },
+  begin: { marginTop: 26 },
   hint: { alignItems: "center", bottom: 18, left: 0, pointerEvents: "none", position: "absolute", right: 0 },
 });
