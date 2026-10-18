@@ -1,9 +1,9 @@
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { runBackup } from "./backupData.js";
+import { restoreBackup, runBackup } from "./backupData.js";
 
 describe("backup", () => {
   const roots: string[] = [];
@@ -68,5 +68,20 @@ describe("backup", () => {
     expect(() => runBackup({ databasePath, destination, now: at(2) })).toThrow(/photos/);
     db.close();
     expect(readdirSync(destination)).toEqual(["2026-10-01-0430"]);
+  });
+
+  it("restores a backup over the data folder and refuses while a WAL file has content", () => {
+    const { db, databasePath, destination, dataDir } = setup();
+    runBackup({ databasePath, destination, now: at(1) });
+    db.exec("INSERT INTO garments VALUES ('c', 'hat')");
+    expect(existsSync(`${databasePath}-wal`)).toBe(true);
+    expect(() => restoreBackup({ backupFolder: join(destination, "2026-10-01-0430"), databasePath })).toThrow(/stop the service/i);
+    db.close();
+    writeFileSync(join(dataDir, "wardrobe-photos", "extra.jpg"), "x");
+    restoreBackup({ backupFolder: join(destination, "2026-10-01-0430"), databasePath });
+    const restored = new DatabaseSync(databasePath);
+    expect(restored.prepare("SELECT count(*) AS n FROM garments").get()).toEqual({ n: 2 });
+    restored.close();
+    expect(readdirSync(join(dataDir, "wardrobe-photos"))).toEqual(["a.jpg"]);
   });
 });
