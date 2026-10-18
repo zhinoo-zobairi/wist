@@ -1,27 +1,24 @@
 import { useState } from "react";
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { ActionLink } from "../components/ActionLink";
+import { Button } from "../components/Button";
 import { OccasionStylePicker } from "../components/OccasionStylePicker";
+import { Wordmark } from "../components/Wordmark";
 import { saveStyleProfile } from "../services/catalogueClient";
 import { commitStyleProfile } from "../styleProfileCommit";
 import { useWistStore } from "../store/useWistStore";
-import { colors, fonts, radii } from "../theme";
+import { colors, radii, spacing, typography } from "../theme";
 import {
   OCCASION_OPTIONS,
   STYLE_OPTIONS,
   type Occasion,
   type Style,
 } from "../types";
+import { IntroScreen } from "./IntroScreen";
 
 export function OnboardingScreen() {
-  const [step, setStep] = useState<"occasions" | "styles">("occasions");
+  const [step, setStep] = useState<"intro" | "occasions" | "styles">("intro");
   const [occasions, setOccasions] = useState<Occasion[]>([]);
   const [styles, setStyles] = useState<Style[]>([]);
   const markProfileSkipped = useWistStore(
@@ -30,6 +27,10 @@ export function OnboardingScreen() {
   const replaceStyleProfile = useWistStore(
     (state) => state.replaceStyleProfile,
   );
+
+  if (step === "intro") {
+    return <IntroScreen onBegin={() => setStep("occasions")} onSkip={markProfileSkipped} />;
+  }
 
   const continueOnboarding = async () => {
     if (step === "occasions") {
@@ -62,10 +63,8 @@ export function OnboardingScreen() {
       style={screenStyles.screen}
     >
       <View style={screenStyles.topline}>
-        <Text style={screenStyles.wordmark}>WIST</Text>
-        <Pressable onPress={markProfileSkipped}>
-          <Text style={screenStyles.skip}>SKIP</Text>
-        </Pressable>
+        <Wordmark />
+        <ActionLink color={colors.muted} label="Skip" onPress={markProfileSkipped} />
       </View>
 
       <View style={screenStyles.intro}>
@@ -108,14 +107,13 @@ export function OnboardingScreen() {
             style={[screenStyles.dot, !isOccasionStep && screenStyles.dotActive]}
           />
         </View>
-        <Pressable
-          onPress={() => void continueOnboarding()}
-          style={screenStyles.continueButton}
-        >
-          <Text style={screenStyles.continueText}>
-            {isOccasionStep ? "CONTINUE" : "SAVE MY PROFILE"}
-          </Text>
-        </Pressable>
+        <View style={screenStyles.continueButton}>
+          <Button
+            color={colors.wine}
+            label={isOccasionStep ? "Continue" : "Save my profile"}
+            onPress={() => void continueOnboarding()}
+          />
+        </View>
       </View>
     </ScrollView>
   );
@@ -123,46 +121,16 @@ export function OnboardingScreen() {
 
 const screenStyles = StyleSheet.create({
   screen: { backgroundColor: colors.paper, flex: 1 },
-  content: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 22 },
+  content: { flexGrow: 1, paddingHorizontal: spacing.gutter + 2, paddingVertical: 22 },
   topline: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
   },
-  wordmark: {
-    color: colors.ink,
-    fontFamily: fonts.display,
-    fontSize: 20,
-    letterSpacing: 3,
-  },
-  skip: {
-    color: colors.muted,
-    fontFamily: fonts.textSemibold,
-    fontSize: 9,
-    letterSpacing: 1.4,
-    padding: 8,
-  },
   intro: { marginTop: 70, maxWidth: 480 },
-  kicker: {
-    color: colors.wine,
-    fontFamily: fonts.textSemibold,
-    fontSize: 9,
-    letterSpacing: 1.7,
-  },
-  title: {
-    color: colors.ink,
-    fontFamily: fonts.display,
-    fontSize: 43,
-    lineHeight: 46,
-    marginTop: 12,
-  },
-  subtitle: {
-    color: colors.muted,
-    fontFamily: fonts.text,
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 12,
-  },
+  kicker: { ...typography.kicker, color: colors.wine },
+  title: { ...typography.titleXL, marginTop: 12 },
+  subtitle: { ...typography.body, marginTop: 12 },
   picker: { marginTop: 38 },
   footer: { marginTop: "auto", paddingTop: 42 },
   progress: { flexDirection: "row", gap: 7, justifyContent: "center" },
@@ -173,18 +141,5 @@ const screenStyles = StyleSheet.create({
     width: 22,
   },
   dotActive: { backgroundColor: colors.wine },
-  continueButton: {
-    alignItems: "center",
-    backgroundColor: colors.wine,
-    borderRadius: radii.pill,
-    justifyContent: "center",
-    marginTop: 20,
-    minHeight: 52,
-  },
-  continueText: {
-    color: colors.card,
-    fontFamily: fonts.textSemibold,
-    fontSize: 10,
-    letterSpacing: 1.4,
-  },
+  continueButton: { marginTop: 20 },
 });
