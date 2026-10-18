@@ -16,6 +16,8 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 
 import { BottomTabBar, type TabId } from "./src/components/BottomTabBar";
+import { TopNav } from "./src/components/TopNav";
+import { useLayout } from "./src/layout";
 import { Wordmark } from "./src/components/Wordmark";
 import {
   importCatalogueWatch,
@@ -51,6 +53,7 @@ type ProfileView = { screen: "profile" | "wardrobe" | "outfits" }
   | { screen: "edit"; id: string; from?: "outfits"; initialGarment?: Garment; notice?: string };
 
 export default function App() {
+  const layout = useLayout();
   const [liveCatalogue, setLiveCatalogue] = useState<Catalogue>({
     brands: [],
     items: [],
@@ -431,17 +434,21 @@ export default function App() {
     }
   };
 
+  const changeTab = (tab: TabId) => {
+    setSelectedItemId(null);
+    setProfileView({ screen: "profile" });
+    setActiveTab(tab);
+  };
+  const hasUnreadAlerts = alerts.some((alert) => !alert.read);
+
   return (
-    <SafeAreaProvider style={styles.root}>
-      <SafeAreaView edges={["top"]} style={styles.container}>
+    <SafeAreaProvider style={[styles.root, layout.wide && styles.rootWide]}>
+      <SafeAreaView edges={["top"]} style={[styles.container, layout.wide && styles.containerWide]}>
         <StatusBar style="dark" />
+        {layout.wide ? <TopNav activeTab={activeTab} hasUnreadAlerts={hasUnreadAlerts} onChange={changeTab} /> : null}
         <View style={styles.content}>{renderScreen()}</View>
-        {!selectedItemId ? <SafeAreaView edges={["bottom"]} style={styles.navSafeArea}>
-          <BottomTabBar
-            activeTab={activeTab}
-            hasUnreadAlerts={alerts.some((alert) => !alert.read)}
-            onChange={(tab) => { setProfileView({ screen: "profile" }); setActiveTab(tab); }}
-          />
+        {!layout.wide && !selectedItemId ? <SafeAreaView edges={["bottom"]} style={styles.navSafeArea}>
+          <BottomTabBar activeTab={activeTab} hasUnreadAlerts={hasUnreadAlerts} onChange={changeTab} />
         </SafeAreaView> : null}
       </SafeAreaView>
     </SafeAreaProvider>
@@ -463,6 +470,7 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     width: "100%",
   },
+  containerWide: { maxWidth: undefined },
   content: {
     flex: 1,
   },
@@ -473,4 +481,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.line,
     flex: 1,
   },
+  rootWide: { backgroundColor: colors.paper },
 });

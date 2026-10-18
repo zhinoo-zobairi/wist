@@ -42,6 +42,7 @@ export const spacing = {
   lg: 20,
   xl: 28,
   gutter: 22,
+  gutterWide: 40,
 } as const;
 
 // Named text styles. Screens spread these and may override colour:
