@@ -14,6 +14,8 @@ type Props = {
   labelColor?: string;
   busy?: boolean;
   disabled?: boolean;
+  /** Announced as the selected state, e.g. a covet toggle. */
+  selected?: boolean;
   icon?: IconName;
   iconFilled?: boolean;
   /** 38 px tall, for inline actions such as FOLLOW. */
@@ -29,6 +31,7 @@ export function Button({
   labelColor,
   busy = false,
   disabled = false,
+  selected,
   icon,
   iconFilled = false,
   compact = false,
@@ -42,7 +45,7 @@ export function Button({
     <Pressable
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
-      accessibilityState={{ busy, disabled: inactive }}
+      accessibilityState={{ busy, disabled: inactive, selected }}
       disabled={inactive}
       onPress={onPress}
       style={({ pressed }) => [

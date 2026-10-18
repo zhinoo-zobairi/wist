@@ -6,7 +6,7 @@ import { colors, typography } from "../theme";
 export function BackLink({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable
-      accessibilityLabel={`Back to ${label.toLowerCase()}`}
+      accessibilityLabel={label === "Back" ? "Back" : `Back to ${label.toLowerCase()}`}
       accessibilityRole="button"
       hitSlop={8}
       onPress={onPress}
