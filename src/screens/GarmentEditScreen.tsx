@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActionLink } from "../components/ActionLink";
+import { BackLink } from "../components/BackLink";
+import { Button } from "../components/Button";
 import { GarmentPhoto } from "../components/GarmentPhoto";
 import { OccasionStylePicker } from "../components/OccasionStylePicker";
 import { UncertainWardrobeRequestError, WardrobeApiError } from "../services/catalogueClient";
 import { useWistStore } from "../store/useWistStore";
-import { colors, fonts } from "../theme";
+import { colors, fonts, radii, spacing, typography } from "../theme";
 import { garmentEditErrorMessage } from "../wardrobeMessages";
 import { FORMALITY_OPTIONS, GARMENT_CATEGORY_OPTIONS, OCCASION_OPTIONS, WARMTH_OPTIONS, type Garment, type GarmentInput } from "../types";
 
@@ -76,8 +79,8 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE", not
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
       <View style={styles.topline}>
-        <Pressable accessibilityRole="button" onPress={onBack}><Text style={styles.action}>‹ {backLabel}</Text></Pressable>
-        <Pressable accessibilityRole="button" disabled={!!busy || uncertain} onPress={save}><Text style={[styles.action, (!!busy || uncertain) && styles.disabled]}>SAVE</Text></Pressable>
+        <BackLink label={backLabel} onPress={onBack} />
+        <ActionLink color={colors.moss} disabled={!!busy || uncertain} label="Save" onPress={save} />
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <Text style={styles.title}>Garment details</Text>
@@ -86,11 +89,11 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE", not
         {garment.tagStatus !== "tagged" && <Text style={styles.help}>{garment.tagStatus === "failed" ? `Couldn't tag this ${imageLabel}. Edit the details below or re-read it.` : `Not tagged. Edit the details below or re-read the ${imageLabel}.`}</Text>}
         {busy && <View style={styles.notice}><ActivityIndicator color={colors.moss} /><Text style={styles.help}>{busy}</Text></View>}
         {error && <Text accessibilityRole="alert" style={styles.help}>{error}</Text>}
-        {uncertain && <Pressable accessibilityRole="button" disabled={!!busy} onPress={() => void run("Refreshing…", async () => {
+        {uncertain && <ActionLink color={colors.moss} disabled={!!busy} label="Refresh garment" onPress={() => void run("Refreshing…", async () => {
           await refresh();
           const current = useWistStore.getState().wardrobe.find((entry) => entry.id === garment.id);
           if (alive.current) { if (current) apply(current); else onBack(); }
-        })}><Text style={styles.choice}>REFRESH GARMENT</Text></Pressable>}
+        })} />}
         <Text style={styles.label}>NAME</Text>
         <TextInput accessibilityLabel="Garment name" editable={!busy} maxLength={80} value={draft.name}
           onChangeText={(name) => setDraft({ ...draft, name })} style={styles.input} />
@@ -112,24 +115,24 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE", not
         <Text style={styles.label}>NOTES · OPTIONAL</Text>
         <TextInput accessibilityLabel="Garment notes" editable={!busy} multiline maxLength={280} value={draft.notes ?? ""}
           onChangeText={(notes) => setDraft({ ...draft, notes })} style={[styles.input, styles.notes]} />
-        <Pressable accessibilityRole="button" disabled={!!busy || uncertain} onPress={save} style={styles.save}>
-          <Text style={styles.saveText}>SAVE CHANGES</Text>
-        </Pressable>
+        <View style={styles.save}>
+          <Button color={colors.moss} disabled={!!busy || uncertain} label="Save changes" onPress={save} />
+        </View>
         {garment.photoUrl && <>
-          <Pressable accessibilityRole="button" disabled={!!busy || uncertain} onPress={() => setConfirmRetag(!confirmRetag)}><Text style={styles.choice}>{productImage ? "RE-READ PRODUCT IMAGE" : "RE-READ PHOTO"}</Text></Pressable>
+          <ActionLink color={colors.moss} disabled={!!busy || uncertain} label={productImage ? "Re-read product image" : "Re-read photo"} onPress={() => setConfirmRetag(!confirmRetag)} />
           {confirmRetag && <View style={styles.confirm}>
             <Text style={styles.help}>{productImage ? "Re-reading replaces your saved details, plus any unsaved edits. Your notes are kept." : "Re-reading replaces your saved details and notes, plus any unsaved edits."} It may incur another processing charge.</Text>
-            <Pressable accessibilityRole="button" disabled={!!busy} onPress={reread}><Text style={styles.choice}>RE-READ AND REPLACE DETAILS</Text></Pressable>
-            <Pressable accessibilityRole="button" disabled={!!busy} onPress={() => setConfirmRetag(false)}><Text style={styles.choice}>CANCEL</Text></Pressable>
+            <ActionLink color={colors.moss} disabled={!!busy} label="Re-read and replace details" onPress={reread} />
+            <ActionLink color={colors.moss} disabled={!!busy} label="Cancel" onPress={() => setConfirmRetag(false)} />
           </View>}
         </>}
-        <Pressable accessibilityRole="button" disabled={!!busy} onPress={() => setConfirmDelete(!confirmDelete)}><Text style={styles.choice}>DELETE GARMENT</Text></Pressable>
+        <ActionLink color={colors.moss} disabled={!!busy} label="Delete garment" onPress={() => setConfirmDelete(!confirmDelete)} />
         {confirmDelete && <View style={styles.confirm}>
           <Text style={styles.help}>{productImage ? "Delete this garment permanently? This cannot be undone." : "Delete this garment and its photo permanently? This cannot be undone."}</Text>
-          <Pressable accessibilityRole="button" disabled={!!busy} onPress={() => void run("Deleting…", async () => {
+          <ActionLink color={colors.moss} disabled={!!busy} label="Delete permanently" onPress={() => void run("Deleting…", async () => {
             await remove(garment.id); if (alive.current) onBack();
-          })}><Text style={styles.choice}>DELETE PERMANENTLY</Text></Pressable>
-          <Pressable accessibilityRole="button" disabled={!!busy} onPress={() => setConfirmDelete(false)}><Text style={styles.choice}>CANCEL</Text></Pressable>
+          })} />
+          <ActionLink color={colors.moss} disabled={!!busy} label="Cancel" onPress={() => setConfirmDelete(false)} />
         </View>}
       </ScrollView>
     </KeyboardAvoidingView>
@@ -138,19 +141,15 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE", not
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
-  topline: { flexDirection: "row", justifyContent: "space-between", padding: 22 },
-  action: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 11, letterSpacing: 1 },
-  disabled: { opacity: 0.4 },
-  content: { paddingHorizontal: 22, paddingBottom: 32 },
-  title: { color: colors.ink, fontFamily: fonts.display, fontSize: 38, marginBottom: 20 },
+  topline: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", padding: spacing.gutter },
+  content: { paddingHorizontal: spacing.gutter, paddingBottom: 32 },
+  title: { ...typography.titleXL, fontSize: 38, lineHeight: 40, marginBottom: 20 },
   photo: { width: "65%", alignSelf: "center", marginBottom: 16 },
-  help: { color: colors.muted, fontFamily: fonts.text, fontSize: 12, lineHeight: 19, marginVertical: 8 },
+  help: { ...typography.body, marginVertical: 8 },
   notice: { alignItems: "center", gap: 8 },
-  label: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 10, letterSpacing: 1, marginTop: 25, marginBottom: 12 },
-  input: { borderColor: colors.ring, borderWidth: 1, borderRadius: 12, padding: 14, color: colors.ink, fontFamily: fonts.text, fontSize: 14 },
+  label: { ...typography.kicker, marginTop: 25, marginBottom: 12 },
+  input: { borderColor: colors.ring, borderRadius: radii.card, borderWidth: 1, color: colors.ink, fontFamily: fonts.text, fontSize: 14, padding: 14 },
   notes: { minHeight: 90, textAlignVertical: "top" },
-  save: { backgroundColor: colors.moss, borderRadius: 999, padding: 18, alignItems: "center", marginTop: 26 },
-  saveText: { color: colors.card, fontFamily: fonts.textSemibold, fontSize: 11, letterSpacing: 1 },
-  choice: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 11, paddingVertical: 18 },
-  confirm: { backgroundColor: colors.wash, borderRadius: 20, padding: 16 },
+  save: { marginTop: 26, marginBottom: 12 },
+  confirm: { backgroundColor: colors.wash, borderRadius: radii.card, gap: 6, marginVertical: 8, padding: 16 },
 });

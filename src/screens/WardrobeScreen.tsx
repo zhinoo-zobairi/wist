@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { ActionLink } from "../components/ActionLink";
+import { BackLink } from "../components/BackLink";
+import { Button } from "../components/Button";
 import { GarmentPhoto } from "../components/GarmentPhoto";
+import { ScreenHeader } from "../components/ScreenHeader";
 import { UncertainWardrobeRequestError } from "../services/catalogueClient";
 import { prepareGarmentPhoto } from "../services/garmentPhoto";
 import { useWistStore } from "../store/useWistStore";
-import { colors, fonts } from "../theme";
+import { colors, radii, spacing, typography } from "../theme";
 import type { Garment } from "../types";
 import { WardrobeNotice, captureErrorMessage } from "../wardrobeMessages";
 
@@ -87,30 +91,22 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
   return (
     <View style={styles.screen}>
       <View style={styles.topline}>
-        <Pressable accessibilityRole="button" onPress={onBack}><Text style={styles.action}>‹ PROFILE</Text></Pressable>
-        <Pressable accessibilityRole="button" disabled={!!busy || status === "loading"} onPress={() => setChooser(!chooser)}>
-          <Text style={[styles.action, !!busy && styles.disabled]}>+ ADD</Text>
-        </Pressable>
+        <BackLink label="Profile" onPress={onBack} />
+        <ActionLink color={colors.moss} disabled={!!busy || status === "loading"} label="+ Add" onPress={() => setChooser(!chooser)} />
       </View>
-      <View style={styles.heading}>
-        <Text style={styles.title}>Your wardrobe</Text>
-        <Text style={styles.subtitle}>{wardrobe.length} pieces you own.</Text>
-        <Pressable accessibilityRole="button" disabled={!!busy} onPress={onDressMe}
-          style={[styles.dressMe, !!busy && styles.disabled]}>
-          <Text style={styles.dressMeText}>DRESS ME</Text>
-        </Pressable>
+      <ScreenHeader subtitle={`${wardrobe.length} pieces you own.`} title="Your wardrobe" />
+      <View style={styles.dressMe}>
+        <Button color={colors.moss} disabled={!!busy} label="Dress me" onPress={onDressMe} />
       </View>
       {chooser && <View style={styles.chooser}>
-        <Pressable accessibilityRole="button" onPress={() => void capture("camera")}><Text style={styles.choice}>Take a photo</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => void capture("library")}><Text style={styles.choice}>Choose from library</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => setChooser(false)}><Text style={styles.choice}>Cancel</Text></Pressable>
+        <ActionLink color={colors.ink} label="Take a photo" onPress={() => void capture("camera")} />
+        <ActionLink color={colors.ink} label="Choose from library" onPress={() => void capture("library")} />
+        <ActionLink color={colors.ink} label="Cancel" onPress={() => setChooser(false)} />
       </View>}
       {busy && <View style={styles.notice}><ActivityIndicator color={colors.moss} /><Text style={styles.subtitle}>{busy}</Text></View>}
       {error && <View style={styles.notice}>
         <Text accessibilityRole="alert" style={styles.subtitle}>{error}</Text>
-        <Pressable accessibilityRole="button" disabled={!!busy || status === "loading"} onPress={() => void refreshList()}>
-          <Text style={styles.action}>RETRY · REFRESH WARDROBE</Text>
-        </Pressable>
+        <ActionLink color={colors.moss} disabled={!!busy || status === "loading"} label="Retry · Refresh wardrobe" onPress={() => void refreshList()} />
       </View>}
       <FlatList
         data={wardrobe} keyExtractor={(garment) => garment.id} numColumns={2}
@@ -118,12 +114,13 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
         refreshing={status === "loading"} onRefresh={() => { if (!busy) void refreshList(); }}
         ListEmptyComponent={<Text style={styles.empty}>{status === "loading" ? "Loading your wardrobe…" : "Start with a few pieces you love. Add a photo, then check its details."}</Text>}
         renderItem={({ item }) => <View style={styles.card}>
-          <Pressable accessibilityRole="button" disabled={!!busy} onPress={() => onEdit(item.id)}>
+          <Pressable accessibilityRole="button" disabled={!!busy} onPress={() => onEdit(item.id)}
+            style={({ pressed }) => [pressed && styles.pressed]}>
             <GarmentPhoto garment={item} />
             <Text style={styles.name}>{item.name}</Text>
           </Pressable>
           {item.tagStatus !== "tagged" && <Pressable accessibilityRole="button" disabled={!!busy}
-            onPress={() => void retryTag(item)} style={styles.tagChip}>
+            onPress={() => void retryTag(item)} style={({ pressed }) => [styles.tagChip, pressed && styles.pressed]}>
             <Text style={styles.tagText}>{item.tagStatus === "failed" ? "Couldn't tag · Retry" : "Not tagged · Retry"}</Text>
           </Pressable>}
         </View>}
@@ -134,22 +131,26 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
-  topline: { flexDirection: "row", justifyContent: "space-between", padding: 22 },
-  action: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 11, letterSpacing: 1 },
-  disabled: { opacity: 0.4 },
-  heading: { paddingHorizontal: 22, paddingBottom: 20 },
-  dressMe: { backgroundColor: colors.moss, borderRadius: 999, padding: 16, alignItems: "center", marginTop: 18 },
-  dressMeText: { color: colors.card, fontFamily: fonts.textSemibold, fontSize: 11, letterSpacing: 1 },
-  title: { color: colors.ink, fontFamily: fonts.display, fontSize: 40 },
-  subtitle: { color: colors.muted, fontFamily: fonts.text, fontSize: 12, lineHeight: 19 },
-  chooser: { backgroundColor: colors.wash, paddingHorizontal: 22, marginHorizontal: 22, borderRadius: 20 },
-  choice: { color: colors.ink, fontFamily: fonts.textMedium, fontSize: 14, paddingVertical: 16 },
-  notice: { paddingHorizontal: 22, paddingBottom: 16, gap: 10 },
-  grid: { paddingHorizontal: 22, paddingBottom: 24, gap: 20 },
+  topline: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", padding: spacing.gutter },
+  dressMe: { marginHorizontal: spacing.gutter, marginBottom: 20 },
+  subtitle: typography.body,
+  chooser: {
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    gap: 6,
+    marginHorizontal: spacing.gutter,
+    paddingHorizontal: spacing.gutter,
+    paddingVertical: 12,
+  },
+  notice: { paddingHorizontal: spacing.gutter, paddingBottom: 16, gap: 10 },
+  grid: { paddingHorizontal: spacing.gutter, paddingBottom: 24, gap: 20 },
   row: { gap: 14 },
   card: { width: "48%" },
-  name: { color: colors.ink, fontFamily: fonts.display, fontSize: 22, marginTop: 9 },
-  tagChip: { alignSelf: "flex-start", backgroundColor: colors.wash, borderRadius: 20, marginTop: 7, padding: 8 },
-  tagText: { color: colors.moss, fontFamily: fonts.textMedium, fontSize: 10 },
-  empty: { color: colors.muted, fontFamily: fonts.text, fontSize: 14, lineHeight: 22, paddingVertical: 40 },
+  name: { ...typography.titleM, marginTop: 9 },
+  tagChip: { alignSelf: "flex-start", backgroundColor: colors.wash, borderRadius: radii.card, marginTop: 7, padding: 8 },
+  tagText: { ...typography.caption, color: colors.moss },
+  empty: { ...typography.body, fontSize: 14, lineHeight: 22, paddingVertical: 40 },
+  pressed: { opacity: 0.85 },
 });

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { BackLink } from "../components/BackLink";
+import { Button } from "../components/Button";
 import { GarmentPhoto } from "../components/GarmentPhoto";
 import { OccasionStylePicker } from "../components/OccasionStylePicker";
 import { orderForToday } from "../outfitOrder";
@@ -8,7 +10,7 @@ import {
 } from "../services/catalogueClient";
 import { currentCoarseLocation } from "../services/location";
 import { useWistStore } from "../store/useWistStore";
-import { colors, fonts } from "../theme";
+import { colors, fonts, radii, spacing, typography } from "../theme";
 import { OCCASION_OPTIONS, type Garment, type Occasion, type OutfitBoard } from "../types";
 import { weatherLine } from "../weatherMessages";
 
@@ -38,18 +40,17 @@ function OutfitCard({ label, garments, reason, forToday, missing, action, onEdit
       <View style={styles.collage}>
         {garments.map((garment) => <Pressable key={garment.id} accessibilityRole="button"
           accessibilityLabel={`Edit ${garment.name}`} onPress={() => onEdit(garment)}
-          style={garments.length === 3 || garments.length >= 5 ? styles.third : styles.half}>
+          style={({ pressed }) => [garments.length === 3 || garments.length >= 5 ? styles.third : styles.half, pressed && styles.pressed]}>
           <GarmentPhoto garment={garment} />
           <Text style={styles.garmentName}>{garment.name}</Text>
         </Pressable>)}
       </View>
       {missing > 0 && <Text style={styles.help}>Missing a piece</Text>}
       <Text style={styles.reason}>{reason}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={action.accessibilityLabel} disabled={disabled}
-        onPress={action.onPress}
-        style={[styles.secondary, disabled && styles.disabled]}>
-        <Text style={styles.secondaryText}>{action.text}</Text>
-      </Pressable>
+      <View style={styles.secondary}>
+        <Button accessibilityLabel={action.accessibilityLabel} color={colors.moss} disabled={disabled}
+          label={action.text} onPress={action.onPress} variant="secondary" />
+      </View>
     </View>
   );
 }
@@ -127,7 +128,7 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
   return (
     <View style={styles.screen}>
       <View style={styles.topline}>
-        <Pressable accessibilityRole="button" onPress={onBack}><Text style={styles.action}>‹ WARDROBE</Text></Pressable>
+        <BackLink label="Wardrobe" onPress={onBack} />
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Dress me</Text>
@@ -142,9 +143,9 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
         {state.status === "loading" && <ActivityIndicator style={styles.loading} color={colors.moss} />}
         {state.status === "error" && <View style={styles.notice}>
           <Text accessibilityRole="alert" style={styles.error}>Couldn't load your outfits.</Text>
-          <Pressable accessibilityRole="button" style={styles.button} onPress={() => void refresh()}>
-            <Text style={styles.buttonText}>RETRY</Text>
-          </Pressable>
+          <View style={styles.button}>
+            <Button color={colors.moss} label="Retry" onPress={() => void refresh()} />
+          </View>
         </View>}
 
         {state.status === "ready" && (() => {
@@ -168,11 +169,10 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
                 }} />)}
             </View>
             {board.status.generationEnabled && <>
-              <Pressable accessibilityRole="button" disabled={busy || waiting}
-                onPress={() => void act(async () => MORE_IDEAS_COPY[await requestMoreIdeas()])}
-                style={[styles.button, (busy || waiting) && styles.disabled]}>
-                <Text style={styles.buttonText}>{waiting ? "PREPARING IDEAS…" : "MORE IDEAS"}</Text>
-              </Pressable>
+              <View style={styles.button}>
+                <Button color={colors.moss} disabled={busy || waiting} label={waiting ? "Preparing ideas…" : "More ideas"}
+                  onPress={() => void act(async () => MORE_IDEAS_COPY[await requestMoreIdeas()])} />
+              </View>
               <Text style={styles.footnote}>Each new batch of ideas may incur a processing charge.</Text>
             </>}
             {notice && <Text accessibilityRole="alert" style={styles.help}>{notice}</Text>}
@@ -196,31 +196,28 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
-  topline: { padding: 22 },
-  action: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 11, letterSpacing: 1 },
-  content: { paddingHorizontal: 22, paddingBottom: 32 },
-  title: { color: colors.ink, fontFamily: fonts.display, fontSize: 40 },
-  subtitle: { color: colors.muted, fontFamily: fonts.text, fontSize: 12, lineHeight: 19, marginTop: 4 },
-  label: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 10, letterSpacing: 1, marginTop: 28, marginBottom: 14 },
+  topline: { padding: spacing.gutter },
+  content: { paddingHorizontal: spacing.gutter, paddingBottom: 32 },
+  title: { ...typography.titleXL, fontSize: 40, lineHeight: 42 },
+  subtitle: { ...typography.body, marginTop: 4 },
+  label: { ...typography.kicker, marginTop: 28, marginBottom: 14 },
   loading: { marginTop: 32 },
-  help: { color: colors.muted, fontFamily: fonts.text, fontSize: 12, lineHeight: 19, marginTop: 16, textAlign: "center" },
-  button: { backgroundColor: colors.moss, borderRadius: 999, padding: 18, alignItems: "center", marginTop: 24, minHeight: 50 },
-  buttonText: { color: colors.card, fontFamily: fonts.textSemibold, fontSize: 11, letterSpacing: 1 },
-  secondary: { borderColor: colors.moss, borderWidth: 1, borderRadius: 999, padding: 14, alignItems: "center", marginTop: 20 },
-  secondaryText: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 11, letterSpacing: 1 },
-  disabled: { opacity: 0.45 },
+  help: { ...typography.body, marginTop: 16, textAlign: "center" },
+  button: { marginTop: 24 },
+  secondary: { marginTop: 20 },
   notice: { marginTop: 24 },
-  error: { color: colors.ink, fontFamily: fonts.text, fontSize: 14, lineHeight: 21 },
+  error: { ...typography.body, color: colors.ink, fontSize: 14, lineHeight: 21 },
   results: { gap: 20 },
-  card: { backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.line, padding: 16 },
-  cardLabel: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1, marginBottom: 16 },
+  card: { backgroundColor: colors.card, borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, padding: 16 },
+  cardLabel: { ...typography.kicker, marginBottom: 16 },
   forToday: { borderLeftColor: colors.moss, borderLeftWidth: 2, paddingLeft: 10, marginBottom: 16 },
-  forTodayLabel: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1 },
-  forTodayReason: { color: colors.ink, fontFamily: fonts.text, fontSize: 12, lineHeight: 18, marginTop: 4 },
+  forTodayLabel: { ...typography.kicker, color: colors.moss },
+  forTodayReason: { ...typography.body, color: colors.ink, marginTop: 4 },
   collage: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 14 },
   half: { width: "48%" },
   third: { width: "31%" },
-  garmentName: { color: colors.ink, fontFamily: fonts.text, fontSize: 11, lineHeight: 16, marginTop: 7 },
+  garmentName: { ...typography.caption, color: colors.ink, marginTop: 7 },
   reason: { color: colors.ink, fontFamily: fonts.displayItalic, fontSize: 25, lineHeight: 29, marginTop: 20 },
-  footnote: { color: colors.muted, fontFamily: fonts.text, fontSize: 10, lineHeight: 16, marginTop: 16, textAlign: "center" },
+  footnote: { ...typography.caption, marginTop: 16, textAlign: "center" },
+  pressed: { opacity: 0.85 },
 });
