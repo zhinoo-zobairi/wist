@@ -10,7 +10,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -20,6 +19,7 @@ import { ActionLink } from "../components/ActionLink";
 import { BackLink } from "../components/BackLink";
 import { Button } from "../components/Button";
 import { Wordmark } from "../components/Wordmark";
+import { pageStyle, useLayout } from "../layout";
 import { formatPrice } from "../money";
 import { colors, fonts, radii, spacing, typography } from "../theme";
 import type { Brand, Item } from "../types";
@@ -76,8 +76,10 @@ export function ProductDetailScreen({
   onBought,
   watchBusy = false,
 }: Props) {
-  const { width } = useWindowDimensions();
-  const mediaWidth = Math.min(width, 480);
+  const layout = useLayout();
+  const { wide, width } = layout;
+  const [mediaColumnWidth, setMediaColumnWidth] = useState(0);
+  const mediaWidth = wide ? mediaColumnWidth : Math.min(width, 480);
   const mediaHeight = mediaWidth * 1.25;
   const media =
     item.media && item.media.length > 0
@@ -137,177 +139,179 @@ export function ProductDetailScreen({
   };
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} style={styles.screen}>
+    <ScrollView contentContainerStyle={pageStyle(layout)} showsVerticalScrollIndicator={false} style={styles.screen}>
       <View style={styles.topbar}>
         <BackLink label="Back" onPress={onBack} />
-        <Wordmark />
+        {wide ? null : <Wordmark />}
       </View>
 
-      <View>
-        <ScrollView
-          horizontal
-          onMomentumScrollEnd={updateActiveMedia}
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-        >
-          {media.map((entry, index) =>
-            entry.type === "video" ? (
-              <ProductVideo
-                height={mediaHeight}
-                key={`${entry.url}-${index}`}
-                url={entry.url}
-                width={mediaWidth}
-              />
-            ) : (
-              <Image
-                key={`${entry.url}-${index}`}
-                resizeMode="cover"
-                source={{ uri: entry.url }}
-                style={{
-                  backgroundColor: colors.line,
-                  height: mediaHeight,
-                  width: mediaWidth,
-                }}
-              />
-            ),
-          )}
-        </ScrollView>
-        {media.length > 1 ? (
-          <View style={styles.mediaCount}>
-            <Text style={styles.mediaCountText}>{activeMediaIndex + 1} / {media.length}</Text>
-          </View>
-        ) : null}
-      </View>
-
-      <View style={styles.body}>
-        <Text style={styles.brand}>{brand.name.toUpperCase()}</Text>
-        <Text style={styles.name}>{item.name}</Text>
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>{formatPrice(item.currentPrice, item.currency)}</Text>
-          {item.previousPrice !== null && item.previousPrice !== undefined && item.previousPrice !== item.currentPrice ? (
-            <Text style={styles.previous}>{formatPrice(item.previousPrice, item.currency)}</Text>
+      <View style={wide && styles.columns}>
+        <View onLayout={(event) => setMediaColumnWidth(event.nativeEvent.layout.width)} style={wide && styles.mediaColumn}>
+          <ScrollView
+            horizontal
+            onMomentumScrollEnd={updateActiveMedia}
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+          >
+            {media.map((entry, index) =>
+              entry.type === "video" ? (
+                <ProductVideo
+                  height={mediaHeight}
+                  key={`${entry.url}-${index}`}
+                  url={entry.url}
+                  width={mediaWidth}
+                />
+              ) : (
+                <Image
+                  key={`${entry.url}-${index}`}
+                  resizeMode="cover"
+                  source={{ uri: entry.url }}
+                  style={{
+                    backgroundColor: colors.line,
+                    height: mediaHeight,
+                    width: mediaWidth,
+                  }}
+                />
+              ),
+            )}
+          </ScrollView>
+          {media.length > 1 ? (
+            <View style={styles.mediaCount}>
+              <Text style={styles.mediaCountText}>{activeMediaIndex + 1} / {media.length}</Text>
+            </View>
           ) : null}
         </View>
 
-        <View style={styles.covet}>
-          <Button
-            disabled={buyBusy || watchBusy}
-            icon="heart"
-            iconFilled={coveted}
-            label={coveted ? "Coveted — Wist is watching" : "Covet this piece"}
-            onPress={onToggleCovet}
-            selected={coveted}
-            variant={coveted ? "primary" : "secondary"}
-          />
-        </View>
+        <View style={[styles.body, wide && styles.bodyWide]}>
+          <Text style={styles.brand}>{brand.name.toUpperCase()}</Text>
+          <Text style={styles.name}>{item.name}</Text>
+          <View style={styles.priceRow}>
+            <Text style={styles.price}>{formatPrice(item.currentPrice, item.currency)}</Text>
+            {item.previousPrice !== null && item.previousPrice !== undefined && item.previousPrice !== item.currentPrice ? (
+              <Text style={styles.previous}>{formatPrice(item.previousPrice, item.currency)}</Text>
+            ) : null}
+          </View>
 
-        {coveted && !recovery && !confirmBuy && (
-          <View style={styles.bought}>
+          <View style={styles.covet}>
             <Button
-              color={colors.moss}
               disabled={buyBusy || watchBusy}
-              label="I bought this"
-              onPress={() => setConfirmBuy(true)}
-              variant="secondary"
+              icon="heart"
+              iconFilled={coveted}
+              label={coveted ? "Coveted — Wist is watching" : "Covet this piece"}
+              onPress={onToggleCovet}
+              selected={coveted}
+              variant={coveted ? "primary" : "secondary"}
             />
           </View>
-        )}
-        <Modal animationType="slide" presentationStyle="pageSheet" visible={confirmBuy}
-          onRequestClose={() => !buyBusy && setConfirmBuy(false)}>
-          <SafeAreaView edges={["top", "bottom"]} style={styles.buySheet}>
-          <Text style={styles.buyHelp}>Add to your wardrobe? You'll stop getting price alerts for it.</Text>
-          <View style={styles.buyActions}>
-            <Button
-              color={colors.moss}
-              disabled={buyBusy || watchBusy}
-              label="Add to wardrobe"
-              onPress={() => void addBoughtPiece()}
-            />
-            <Button
-              color={colors.moss}
-              disabled={buyBusy}
-              label="Cancel"
-              onPress={() => setConfirmBuy(false)}
-              variant="secondary"
-            />
-          </View>
-          </SafeAreaView>
-        </Modal>
-        {buyBusy && <View style={styles.buyNotice}><ActivityIndicator color={colors.moss} />
-          <Text style={styles.buyHelp}>{recovery === "refresh" ? "Refreshing…" : "Adding to wardrobe…"}</Text>
-        </View>}
-        {buyError && <Text accessibilityRole="alert" style={styles.buyHelp}>{buyError}</Text>}
-        {recovery === "refresh" && (
-          <ActionLink color={colors.moss} disabled={buyBusy} label="Refresh" onPress={() => void refreshBoughtPiece()} />
-        )}
-        {recovery === "owned" && <Text accessibilityRole="alert" style={styles.buyHelp}>This piece is in your wardrobe.</Text>}
-        {recovery === "repeat" && coveted && <View style={styles.buyNotice}>
-          <Text style={styles.buyHelp}>This piece is still in Coveted. Trying again can add a duplicate and repeat paid tagging.</Text>
-          <ActionLink color={colors.moss} disabled={buyBusy || watchBusy} label="Try again" onPress={() => void addBoughtPiece()} />
-        </View>}
 
-        {item.variants && item.variants.length > 0 ? (
-          <View style={styles.variants}>
-            <Text style={styles.variantsTitle}>OBSERVED SIZES</Text>
-            <View style={styles.variantGrid}>
-              {item.variants.map((variant) => {
-                const selected = selectedSizes.includes(variant.label);
-                return (
-                  <Pressable
-                    accessibilityLabel={`Size ${variant.label}, ${variant.available ? "available" : "unavailable"}`}
-                    accessibilityState={{ selected }}
-                    disabled={!coveted || buyBusy || watchBusy}
-                    key={variant.id}
-                    onPress={() => onToggleSize(variant.label)}
-                    style={({ pressed }) => [
-                      styles.variant,
-                      !variant.available && styles.variantUnavailable,
-                      selected && styles.variantSelected,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.variantLabel,
-                        !variant.available && styles.variantLabelUnavailable,
-                        selected && styles.variantLabelSelected,
+          {coveted && !recovery && !confirmBuy && (
+            <View style={styles.bought}>
+              <Button
+                color={colors.moss}
+                disabled={buyBusy || watchBusy}
+                label="I bought this"
+                onPress={() => setConfirmBuy(true)}
+                variant="secondary"
+              />
+            </View>
+          )}
+          <Modal animationType="slide" presentationStyle="pageSheet" visible={confirmBuy}
+            onRequestClose={() => !buyBusy && setConfirmBuy(false)}>
+            <SafeAreaView edges={["top", "bottom"]} style={styles.buySheet}>
+            <Text style={styles.buyHelp}>Add to your wardrobe? You'll stop getting price alerts for it.</Text>
+            <View style={styles.buyActions}>
+              <Button
+                color={colors.moss}
+                disabled={buyBusy || watchBusy}
+                label="Add to wardrobe"
+                onPress={() => void addBoughtPiece()}
+              />
+              <Button
+                color={colors.moss}
+                disabled={buyBusy}
+                label="Cancel"
+                onPress={() => setConfirmBuy(false)}
+                variant="secondary"
+              />
+            </View>
+            </SafeAreaView>
+          </Modal>
+          {buyBusy && <View style={styles.buyNotice}><ActivityIndicator color={colors.moss} />
+            <Text style={styles.buyHelp}>{recovery === "refresh" ? "Refreshing…" : "Adding to wardrobe…"}</Text>
+          </View>}
+          {buyError && <Text accessibilityRole="alert" style={styles.buyHelp}>{buyError}</Text>}
+          {recovery === "refresh" && (
+            <ActionLink color={colors.moss} disabled={buyBusy} label="Refresh" onPress={() => void refreshBoughtPiece()} />
+          )}
+          {recovery === "owned" && <Text accessibilityRole="alert" style={styles.buyHelp}>This piece is in your wardrobe.</Text>}
+          {recovery === "repeat" && coveted && <View style={styles.buyNotice}>
+            <Text style={styles.buyHelp}>This piece is still in Coveted. Trying again can add a duplicate and repeat paid tagging.</Text>
+            <ActionLink color={colors.moss} disabled={buyBusy || watchBusy} label="Try again" onPress={() => void addBoughtPiece()} />
+          </View>}
+
+          {item.variants && item.variants.length > 0 ? (
+            <View style={styles.variants}>
+              <Text style={styles.variantsTitle}>OBSERVED SIZES</Text>
+              <View style={styles.variantGrid}>
+                {item.variants.map((variant) => {
+                  const selected = selectedSizes.includes(variant.label);
+                  return (
+                    <Pressable
+                      accessibilityLabel={`Size ${variant.label}, ${variant.available ? "available" : "unavailable"}`}
+                      accessibilityState={{ selected }}
+                      disabled={!coveted || buyBusy || watchBusy}
+                      key={variant.id}
+                      onPress={() => onToggleSize(variant.label)}
+                      style={({ pressed }) => [
+                        styles.variant,
+                        !variant.available && styles.variantUnavailable,
+                        selected && styles.variantSelected,
+                        pressed && styles.pressed,
                       ]}
                     >
-                      {variant.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                      <Text
+                        style={[
+                          styles.variantLabel,
+                          !variant.available && styles.variantLabelUnavailable,
+                          selected && styles.variantLabelSelected,
+                        ]}
+                      >
+                        {variant.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={styles.variantNote}>
+                {coveted
+                  ? "Tap the sizes you want. WIST only alerts you when a drop lands in a chosen size — pick sold-out ones too."
+                  : "Faded sizes were unavailable at the last check."}
+              </Text>
             </View>
-            <Text style={styles.variantNote}>
-              {coveted
-                ? "Tap the sizes you want. WIST only alerts you when a drop lands in a chosen size — pick sold-out ones too."
-                : "Faded sizes were unavailable at the last check."}
-            </Text>
-          </View>
-        ) : null}
+          ) : null}
 
-        <View style={styles.facts}>
-          <View style={styles.fact}>
-            <Text style={styles.factLabel}>AVAILABILITY</Text>
-            <Text style={styles.factValue}>{item.available ? "In stock" : "Unavailable"}</Text>
+          <View style={styles.facts}>
+            <View style={styles.fact}>
+              <Text style={styles.factLabel}>AVAILABILITY</Text>
+              <Text style={styles.factValue}>{item.available ? "In stock" : "Unavailable"}</Text>
+            </View>
+            <View style={styles.fact}>
+              <Text style={styles.factLabel}>PRODUCT ID</Text>
+              <Text style={styles.factValue}>{item.sourceProductId ?? item.id}</Text>
+            </View>
+            <View style={styles.fact}>
+              <Text style={styles.factLabel}>LAST CHECKED</Text>
+              <Text style={styles.factValue}>{observedOn(item.observedAt)}</Text>
+            </View>
           </View>
-          <View style={styles.fact}>
-            <Text style={styles.factLabel}>PRODUCT ID</Text>
-            <Text style={styles.factValue}>{item.sourceProductId ?? item.id}</Text>
-          </View>
-          <View style={styles.fact}>
-            <Text style={styles.factLabel}>LAST CHECKED</Text>
-            <Text style={styles.factValue}>{observedOn(item.observedAt)}</Text>
-          </View>
-        </View>
 
-        <View style={styles.official}>
-          <Button icon="arrow" label={`View on ${brand.name}`} onPress={() => void Linking.openURL(item.url)} />
+          <View style={styles.official}>
+            <Button icon="arrow" label={`View on ${brand.name}`} onPress={() => void Linking.openURL(item.url)} />
+          </View>
+          <Text style={styles.note}>
+            Product details and checkout remain authoritative on the brand’s official page.
+          </Text>
         </View>
-        <Text style={styles.note}>
-          Product details and checkout remain authoritative on the brand’s official page.
-        </Text>
       </View>
     </ScrollView>
   );
@@ -319,6 +323,9 @@ const styles = StyleSheet.create({
   mediaCount: { backgroundColor: colors.card, borderRadius: radii.card, bottom: 12, paddingHorizontal: 9, paddingVertical: 5, position: "absolute", right: 12 },
   mediaCountText: typography.label,
   body: { paddingBottom: 48, paddingHorizontal: spacing.gutter, paddingTop: 25 },
+  columns: { alignItems: "flex-start", flexDirection: "row", gap: 48, paddingHorizontal: spacing.gutter },
+  mediaColumn: { flex: 7 },
+  bodyWide: { flex: 5, paddingHorizontal: 0, paddingTop: 0 },
   brand: typography.kicker,
   name: { ...typography.titleXL, fontSize: 37, lineHeight: 39, marginTop: 7 },
   priceRow: { alignItems: "baseline", flexDirection: "row", gap: 10, marginTop: 12 },

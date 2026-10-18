@@ -13,6 +13,7 @@ import { ActionLink } from "../components/ActionLink";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { ScreenHeader } from "../components/ScreenHeader";
+import { pageStyle, useLayout } from "../layout";
 import { useWistStore } from "../store/useWistStore";
 import { formatPrice } from "../money";
 import { colors, radii, spacing, typography } from "../theme";
@@ -36,6 +37,8 @@ export function SavedScreen({
   onOpenItem,
   onToggleCovet,
 }: Props) {
+  const layout = useLayout();
+  const { wide } = layout;
   const [productUrl, setProductUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
@@ -67,84 +70,86 @@ export function SavedScreen({
   };
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} style={styles.screen}>
+    <ScrollView contentContainerStyle={pageStyle(layout)} showsVerticalScrollIndicator={false} style={styles.screen}>
       <ScreenHeader
         kicker="YOUR PERSONAL INDEX"
         subtitle={`${items.length} ${items.length === 1 ? "piece" : "pieces"} remembered and watched.`}
         title="Coveted"
       />
-      <View style={styles.importCard}>
-        <Text style={styles.importLabel}>WATCH A PRODUCT</Text>
-        <Text style={styles.importTitle}>Paste its shop link.</Text>
-        <Text style={styles.importBody}>
-          Wist understands Shopify stores such as Goelia, plus Bobbies,
-          Sandro Germany, and Claudie Pierlot Germany product pages.
-        </Text>
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-          onChangeText={setProductUrl}
-          onSubmitEditing={() => void submitProduct()}
-          placeholder="https://…"
-          placeholderTextColor={colors.muted}
-          returnKeyType="done"
-          style={styles.urlInput}
-          value={productUrl}
-        />
-        {importError ? <Text style={styles.importError}>{importError}</Text> : null}
-        <View style={styles.importButton}>
-          <Button
-            busy={importing}
-            disabled={!productUrl.trim()}
-            label="Add to Coveted"
-            onPress={() => void submitProduct()}
+      <View style={wide && styles.columns}>
+        <View style={[styles.importCard, wide && styles.importCardWide]}>
+          <Text style={styles.importLabel}>WATCH A PRODUCT</Text>
+          <Text style={styles.importTitle}>Paste its shop link.</Text>
+          <Text style={styles.importBody}>
+            Wist understands Shopify stores such as Goelia, plus Bobbies,
+            Sandro Germany, and Claudie Pierlot Germany product pages.
+          </Text>
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            onChangeText={setProductUrl}
+            onSubmitEditing={() => void submitProduct()}
+            placeholder="https://…"
+            placeholderTextColor={colors.muted}
+            returnKeyType="done"
+            style={styles.urlInput}
+            value={productUrl}
           />
+          {importError ? <Text style={styles.importError}>{importError}</Text> : null}
+          <View style={styles.importButton}>
+            <Button
+              busy={importing}
+              disabled={!productUrl.trim()}
+              label="Add to Coveted"
+              onPress={() => void submitProduct()}
+            />
+          </View>
         </View>
-      </View>
-      {items.length === 0 ? (
-        <View style={styles.empty}>
-          <Icon color={colors.ring} name="heart" size={30} />
-          <Text style={styles.emptyTitle}>Nothing coveted yet.</Text>
-          <Text style={styles.emptyBody}>Pieces you choose in Discover will form your personal collection here.</Text>
-        </View>
-      ) : (
-        <View style={styles.collection}>
-          {items.map((item, index) => {
-            const brand = brandsById[item.brandId];
-            const drop = alerts.find((alert) => alert.itemId === item.id);
-            const snapshot = snapshots.find((candidate) => candidate.itemId === item.id);
-            const watchedSizes = watchedSizesByItemId[item.id] ?? [];
-            return (
-              <View key={item.id} style={styles.row}>
-                <Text style={styles.index}>0{index + 1}</Text>
-                <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
-                  <Image source={{ uri: item.imageUrl }} style={styles.image} />
-                </Pressable>
-                <View style={styles.body}>
-                  <Text style={styles.brand}>{brand?.name}</Text>
+        {items.length === 0 ? (
+          <View style={[styles.empty, wide && styles.emptyWide]}>
+            <Icon color={colors.ring} name="heart" size={30} />
+            <Text style={styles.emptyTitle}>Nothing coveted yet.</Text>
+            <Text style={styles.emptyBody}>Pieces you choose in Discover will form your personal collection here.</Text>
+          </View>
+        ) : (
+          <View style={[styles.collection, wide && styles.collectionWide]}>
+            {items.map((item, index) => {
+              const brand = brandsById[item.brandId];
+              const drop = alerts.find((alert) => alert.itemId === item.id);
+              const snapshot = snapshots.find((candidate) => candidate.itemId === item.id);
+              const watchedSizes = watchedSizesByItemId[item.id] ?? [];
+              return (
+                <View key={item.id} style={styles.row}>
+                  <Text style={styles.index}>0{index + 1}</Text>
                   <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
-                    <Text style={styles.name}>{item.name}</Text>
+                    <Image source={{ uri: item.imageUrl }} style={[styles.image, wide && styles.imageWide]} />
                   </Pressable>
-                  <View style={styles.priceRow}>
-                    <Text style={[styles.price, drop && styles.sale]}>{formatPrice(item.currentPrice, item.currency)}</Text>
-                    {drop ? <Text style={styles.oldPrice}>{formatPrice(drop.oldPrice, item.currency)}</Text> : null}
-                  </View>
-                  <Text style={styles.since}>COVETED {covetedOn(snapshot?.capturedAt).toUpperCase()}</Text>
-                  {watchedSizes.length > 0 ? (
-                    <Text style={styles.sizes}>
-                      ALERTS ON {watchedSizes.join(" · ")}
-                    </Text>
-                  ) : null}
-                  <View style={styles.remove}>
-                    <ActionLink label="Remove" onPress={() => onToggleCovet(item)} />
+                  <View style={styles.body}>
+                    <Text style={styles.brand}>{brand?.name}</Text>
+                    <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
+                      <Text style={styles.name}>{item.name}</Text>
+                    </Pressable>
+                    <View style={styles.priceRow}>
+                      <Text style={[styles.price, drop && styles.sale]}>{formatPrice(item.currentPrice, item.currency)}</Text>
+                      {drop ? <Text style={styles.oldPrice}>{formatPrice(drop.oldPrice, item.currency)}</Text> : null}
+                    </View>
+                    <Text style={styles.since}>COVETED {covetedOn(snapshot?.capturedAt).toUpperCase()}</Text>
+                    {watchedSizes.length > 0 ? (
+                      <Text style={styles.sizes}>
+                        ALERTS ON {watchedSizes.join(" · ")}
+                      </Text>
+                    ) : null}
+                    <View style={styles.remove}>
+                      <ActionLink label="Remove" onPress={() => onToggleCovet(item)} />
+                    </View>
                   </View>
                 </View>
-              </View>
-            );
-          })}
-        </View>
-      )}
+              );
+            })}
+          </View>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -158,10 +163,14 @@ const styles = StyleSheet.create({
   urlInput: { ...typography.body, color: colors.ink, borderBottomColor: colors.ink, borderBottomWidth: 1, marginTop: 18, paddingHorizontal: 0, paddingVertical: 10 },
   importError: { ...typography.caption, color: colors.wine, marginTop: 8 },
   importButton: { marginTop: 14 },
+  columns: { alignItems: "flex-start", flexDirection: "row", gap: 48, paddingHorizontal: spacing.gutter },
+  importCardWide: { flex: 5, marginBottom: 0, marginHorizontal: 0 },
   collection: { borderTopColor: colors.ink, borderTopWidth: 1, marginHorizontal: 14 },
+  collectionWide: { flex: 7, marginHorizontal: 0 },
   row: { borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", minHeight: 200, paddingVertical: 14 },
   index: { ...typography.caption, paddingRight: 9, paddingTop: 3, width: 25 },
   image: { aspectRatio: 4 / 5, backgroundColor: colors.line, borderRadius: radii.card, width: 126 },
+  imageWide: { width: 160 },
   body: { flex: 1, paddingLeft: 15, paddingVertical: 3 },
   brand: { ...typography.kicker, textTransform: "uppercase" },
   name: { ...typography.titleM, fontSize: 23, lineHeight: 25, marginTop: 5 },
@@ -173,6 +182,7 @@ const styles = StyleSheet.create({
   sizes: { ...typography.kicker, color: colors.ink, marginTop: 6 },
   remove: { marginTop: 8 },
   empty: { alignItems: "center", borderTopColor: colors.line, borderTopWidth: 1, marginHorizontal: spacing.gutter, paddingHorizontal: 28, paddingTop: 100 },
+  emptyWide: { flex: 7, marginHorizontal: 0 },
   emptyTitle: { ...typography.titleL, marginTop: 15 },
   emptyBody: { ...typography.body, marginTop: 6, textAlign: "center" },
   pressed: { opacity: 0.85 },

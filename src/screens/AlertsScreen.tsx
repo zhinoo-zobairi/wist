@@ -3,6 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { ScreenHeader } from "../components/ScreenHeader";
+import { pageStyle, useLayout } from "../layout";
 import { useWistStore } from "../store/useWistStore";
 import { formatPrice } from "../money";
 import { colors, radii, spacing, typography } from "../theme";
@@ -21,6 +22,8 @@ const relativeTime = (value: string) => {
 };
 
 export function AlertsScreen({ brands, items, onViewItem }: Props) {
+  const layout = useLayout();
+  const { wide } = layout;
   const alerts = useWistStore((state) => state.alerts);
   const markRead = useWistStore((state) => state.markAlertRead);
   const brandsById = Object.fromEntries(brands.map((brand) => [brand.id, brand]));
@@ -30,17 +33,17 @@ export function AlertsScreen({ brands, items, onViewItem }: Props) {
   const heroBrand = heroItem ? brandsById[heroItem.brandId] : undefined;
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} style={styles.screen}>
+    <ScrollView contentContainerStyle={pageStyle(layout)} showsVerticalScrollIndicator={false} style={styles.screen}>
       <ScreenHeader kicker="SIGNALS FOR YOU" subtitle="Meaningful changes in the pieces you covet." title="Alerts" />
       {!hero || !heroItem || !heroBrand ? (
-        <View style={styles.empty}>
+        <View style={[styles.empty, wide && styles.emptyWide]}>
           <Icon color={colors.moss} name="bell" size={28} />
           <Text style={styles.emptyTitle}>The room is quiet.</Text>
           <Text style={styles.emptyBody}>WIST is observing your pieces. A price movement will appear here when it deserves your attention.</Text>
         </View>
       ) : (
-        <>
-          <View style={styles.hero}>
+        <View style={wide && styles.columns}>
+          <View style={[styles.hero, wide && styles.heroWide]}>
             <View style={styles.heroTop}>
               <Text style={styles.live}>●  NEW SIGNAL</Text>
               <Text style={styles.time}>{relativeTime(hero.createdAt)}</Text>
@@ -67,7 +70,7 @@ export function AlertsScreen({ brands, items, onViewItem }: Props) {
             </View>
           </View>
           {alerts.length > 1 ? (
-            <View style={styles.history}>
+            <View style={[styles.history, wide && styles.historyWide]}>
               <Text style={styles.historyTitle}>Earlier signals</Text>
               {alerts.slice(1).map((alert) => {
                 const item = itemsById[alert.itemId];
@@ -91,7 +94,7 @@ export function AlertsScreen({ brands, items, onViewItem }: Props) {
               })}
             </View>
           ) : null}
-        </>
+        </View>
       )}
     </ScrollView>
   );
@@ -102,6 +105,10 @@ const styles = StyleSheet.create({
   empty: { alignItems: "center", borderTopColor: colors.line, borderTopWidth: 1, marginHorizontal: spacing.gutter, paddingHorizontal: 25, paddingTop: 105 },
   emptyTitle: { ...typography.titleL, marginTop: 16 },
   emptyBody: { ...typography.body, marginTop: 6, textAlign: "center" },
+  emptyWide: { alignSelf: "center", maxWidth: 520, width: "100%" },
+  columns: { alignItems: "flex-start", flexDirection: "row", gap: 48, paddingHorizontal: spacing.gutter },
+  heroWide: { flex: 6, marginHorizontal: 0, maxWidth: "50%" },
+  historyWide: { flex: 6, paddingHorizontal: 0, paddingVertical: 0 },
   hero: { backgroundColor: colors.wine, borderRadius: radii.card, marginHorizontal: 14, padding: 8 },
   heroTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 8, paddingVertical: 8 },
   live: { ...typography.label, color: colors.card },
