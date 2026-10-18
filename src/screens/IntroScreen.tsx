@@ -220,7 +220,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
               </View>
               <View style={copyPageStyle}>
                 <Copy motion={motionFor(0)} style={copyStyle(styles.coverCopy)}>
-                  <Text style={styles.kicker}>ISSUE 01 · THE QUIET WAY TO WANT</Text>
+                  <Text style={styles.kicker}>N° 01 · THE QUIET WAY TO WANT</Text>
                   <Text accessibilityRole="header" style={styles.masthead}>Wist.</Text>
                   <Text style={styles.body}>From Kurdish: to want something deeply, and to wait for it.</Text>
                   <Credit image={editorial.cover} />
