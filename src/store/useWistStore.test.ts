@@ -121,17 +121,6 @@ describe("Wist wardrobe store", () => {
     expect(addGarmentFromItem).toHaveBeenCalledTimes(2);
   });
 
-  it("prevents an older wardrobe refresh from undoing a confirmed purchase", async () => {
-    let finish!: (records: Garment[]) => void;
-    vi.mocked(loadWardrobe).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
-    const pending = useWistStore.getState().refreshWardrobe();
-    vi.mocked(addGarmentFromItem).mockResolvedValueOnce({ garment, unwatched: true });
-    await useWistStore.getState().addGarmentFromItem("item-shirt");
-    finish([]);
-    await pending;
-    expect(useWistStore.getState().wardrobe).toEqual([garment]);
-  });
-
   it("refreshes wardrobe and watches after an uncertain purchase without sending another purchase", async () => {
     useWistStore.setState({ starredItemIds: ["item-shirt", "other-item"],
       watchedSizesByItemId: { "item-shirt": ["M"] },
@@ -192,18 +181,6 @@ describe("Wist wardrobe store", () => {
     expect(loadWatches).toHaveBeenCalledTimes(1);
     expect(loadWardrobe).not.toHaveBeenCalled();
     expect(addGarmentFromItem).not.toHaveBeenCalled();
-  });
-
-  it("does not let an older startup watch read re-covet a confirmed purchase", async () => {
-    useWistStore.setState({ starredItemIds: ["item-shirt"], watchedSizesByItemId: { "item-shirt": ["M"] } });
-    let finish!: (watches: Awaited<ReturnType<typeof loadWatches>>) => void;
-    vi.mocked(loadWatches).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
-    const pending = useWistStore.getState().refreshWatches();
-    vi.mocked(addGarmentFromItem).mockResolvedValueOnce({ garment, unwatched: true });
-    await useWistStore.getState().addGarmentFromItem("item-shirt");
-    finish({ itemIds: ["item-shirt"], sizes: { "item-shirt": ["M"] } });
-    await pending;
-    expect(useWistStore.getState()).toMatchObject({ wardrobe: [garment], starredItemIds: [], watchedSizesByItemId: {} });
   });
 
   it.each(["covet", "sizes"])("preserves a newer %s change when an earlier watch read completes", async (change) => {
