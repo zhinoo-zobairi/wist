@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   emptyBody: { ...typography.body, marginTop: 7, textAlign: "center" },
   product: { flexDirection: "row", marginBottom: 14, minHeight: 226 },
   reverse: { flexDirection: "row-reverse" },
-  image: { backgroundColor: colors.line, borderRadius: radii.card, width: "100%" },
+  image: { aspectRatio: 3 / 4, backgroundColor: colors.line, borderRadius: radii.card, width: "100%" },
   imageLink: { width: "61%" },
   productBody: { justifyContent: "space-between", padding: 14, width: "39%" },
   number: typography.kicker,

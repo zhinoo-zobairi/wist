@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   collection: { borderTopColor: colors.ink, borderTopWidth: 1, marginHorizontal: 14 },
   row: { borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", minHeight: 200, paddingVertical: 14 },
   index: { ...typography.caption, paddingRight: 9, paddingTop: 3, width: 25 },
-  image: { backgroundColor: colors.line, borderRadius: radii.card, width: 126 },
+  image: { aspectRatio: 4 / 5, backgroundColor: colors.line, borderRadius: radii.card, width: 126 },
   body: { flex: 1, paddingLeft: 15, paddingVertical: 3 },
   brand: { ...typography.kicker, textTransform: "uppercase" },
   name: { ...typography.titleM, fontSize: 23, lineHeight: 25, marginTop: 5 },
