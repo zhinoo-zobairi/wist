@@ -11,7 +11,8 @@ export type IconName =
   | "heart"
   | "arrow"
   | "home"
-  | "user";
+  | "user"
+  | "chevron";
 
 type Props = {
   color: string;
@@ -59,6 +60,7 @@ export function Icon({ color, filled = false, name, size = 22 }: Props) {
       </>
     ),
     home: <Path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z" />,
+    chevron: <Path d="M15 6l-6 6 6 6" />,
     user: (
       <>
         <Circle cx={12} cy={8} r={4} />
