@@ -3,6 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { ActionLink } from "../components/ActionLink";
 import { Icon } from "../components/Icon";
 import { Wordmark } from "../components/Wordmark";
+import { pageStyle, useLayout } from "../layout";
 import { useWistStore } from "../store/useWistStore";
 import { formatPrice } from "../money";
 import { colors, radii, spacing, typography } from "../theme";
@@ -23,6 +24,8 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const alerts = useWistStore((state) => state.alerts);
   useWistStore((state) => state.priceRevision);
+  const layout = useLayout();
+  const { wide } = layout;
 
   const followedBrands = brands.filter((brand) => followedBrandIds.includes(brand.id));
   const brandsById = Object.fromEntries(brands.map((brand) => [brand.id, brand]));
@@ -32,53 +35,57 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
   const edit = allItems.filter((item) => followedBrandIds.includes(item.brandId)).slice(0, 4);
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} style={styles.screen}>
-      <View style={styles.header}>
-        <Wordmark />
-        <Pressable
-          accessibilityLabel="Open alerts"
-          hitSlop={12}
-          onPress={onOpenAlerts}
-          style={({ pressed }) => pressed && styles.pressed}
-        >
-          <View>
-            <Icon color={colors.ink} name="bell" size={22} />
-            {alerts.some((alert) => !alert.read) ? <View style={styles.badge} /> : null}
-          </View>
-        </Pressable>
-      </View>
-
-      <View style={styles.intro}>
-        <Text style={styles.kicker}>YOUR PERSONAL EDIT · TODAY</Text>
-        <Text style={styles.title}>Pieces worth{`\n`}your attention.</Text>
-        <Text style={styles.dek}>Selected from the houses you follow, with signals that matter.</Text>
-      </View>
-
-      {latestAlert && alertItem ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onOpenAlerts}
-          style={({ pressed }) => [styles.signal, pressed && styles.pressed]}
-        >
-          <Image source={{ uri: alertItem.imageUrl }} style={styles.signalImage} />
-          <View style={styles.signalBody}>
-            <Text style={styles.signalKicker}>A COVETED PIECE JUST DROPPED</Text>
-            <Text style={styles.signalName}>{alertItem.name}</Text>
-            <View style={styles.priceRow}>
-              <Text style={styles.signalPrice}>{formatPrice(latestAlert.newPrice, alertItem.currency)}</Text>
-              <Text style={styles.oldPrice}>{formatPrice(latestAlert.oldPrice, alertItem.currency)}</Text>
-              <Text style={styles.percent}>−{latestAlert.pctOff}%</Text>
+    <ScrollView contentContainerStyle={pageStyle(layout)} showsVerticalScrollIndicator={false} style={styles.screen}>
+      {wide ? null : (
+        <View style={styles.header}>
+          <Wordmark />
+          <Pressable
+            accessibilityLabel="Open alerts"
+            hitSlop={12}
+            onPress={onOpenAlerts}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <View>
+              <Icon color={colors.ink} name="bell" size={22} />
+              {alerts.some((alert) => !alert.read) ? <View style={styles.badge} /> : null}
             </View>
-            <Text style={styles.signalLink}>VIEW THE SIGNAL  →</Text>
-          </View>
-        </Pressable>
-      ) : (
-        <View style={styles.quietSignal}>
-          <Text style={styles.quietKicker}>WIST IS WATCHING</Text>
-          <Text style={styles.quietTitle}>No meaningful changes yet.</Text>
-          <Text style={styles.quietBody}>When a coveted piece drops in price, it will interrupt the quiet here.</Text>
+          </Pressable>
         </View>
       )}
+
+      <View style={wide ? styles.heroWide : undefined}>
+        <View style={[styles.intro, wide && styles.introWide]}>
+          <Text style={styles.kicker}>YOUR PERSONAL EDIT · TODAY</Text>
+          <Text style={styles.title}>Pieces worth{`\n`}your attention.</Text>
+          <Text style={styles.dek}>Selected from the houses you follow, with signals that matter.</Text>
+        </View>
+
+        {latestAlert && alertItem ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onOpenAlerts}
+            style={({ pressed }) => [styles.signal, wide && styles.signalWide, pressed && styles.pressed]}
+          >
+            <Image source={{ uri: alertItem.imageUrl }} style={styles.signalImage} />
+            <View style={styles.signalBody}>
+              <Text style={styles.signalKicker}>A COVETED PIECE JUST DROPPED</Text>
+              <Text style={styles.signalName}>{alertItem.name}</Text>
+              <View style={styles.priceRow}>
+                <Text style={styles.signalPrice}>{formatPrice(latestAlert.newPrice, alertItem.currency)}</Text>
+                <Text style={styles.oldPrice}>{formatPrice(latestAlert.oldPrice, alertItem.currency)}</Text>
+                <Text style={styles.percent}>−{latestAlert.pctOff}%</Text>
+              </View>
+              <Text style={styles.signalLink}>VIEW THE SIGNAL  →</Text>
+            </View>
+          </Pressable>
+        ) : (
+          <View style={[styles.quietSignal, wide && styles.quietSignalWide]}>
+            <Text style={styles.quietKicker}>WIST IS WATCHING</Text>
+            <Text style={styles.quietTitle}>No meaningful changes yet.</Text>
+            <Text style={styles.quietBody}>When a coveted piece drops in price, it will interrupt the quiet here.</Text>
+          </View>
+        )}
+      </View>
 
       <View style={styles.sectionHead}>
         <Text style={styles.sectionTitle}>From your houses</Text>
@@ -101,7 +108,7 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
         <Text style={styles.sectionTitle}>The edit</Text>
         <Text style={styles.sectionNote}>FOR YOU</Text>
       </View>
-      <View style={styles.editGrid}>
+      <View style={[styles.editGrid, wide && styles.editGridWide]}>
         {edit.length === 0 ? (
           <View style={styles.catalogueEmpty}>
             <Text style={styles.quietTitle}>Live catalogue unavailable.</Text>
@@ -112,7 +119,7 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
           const coveted = covetedIds.includes(item.id);
           const brand = brandsById[item.brandId];
           return (
-            <View key={item.id} style={[styles.editItem, index % 2 === 1 && styles.editItemLower]}>
+            <View key={item.id} style={[styles.editItem, wide ? styles.editItemWide : index % 2 === 1 && styles.editItemLower]}>
               <View>
                 <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
                   <Image source={{ uri: item.imageUrl }} style={styles.editImage} />
@@ -147,11 +154,15 @@ const styles = StyleSheet.create({
   screen: { backgroundColor: colors.paper, flex: 1 },
   header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.gutter, paddingTop: 10 },
   badge: { backgroundColor: colors.wine, borderColor: colors.paper, borderRadius: 5, borderWidth: 2, height: 9, position: "absolute", right: -3, top: -3, width: 9 },
+  // Wide: intro left (7), signal or quiet block right (5), aligned to the top.
+  heroWide: { alignItems: "flex-start", flexDirection: "row", gap: spacing.gutterWide, paddingBottom: 38, paddingHorizontal: spacing.gutter, paddingTop: 35 },
   intro: { paddingBottom: 28, paddingHorizontal: spacing.gutter, paddingTop: 35 },
+  introWide: { flex: 7, paddingBottom: 0, paddingHorizontal: 0, paddingTop: 0 },
   kicker: typography.kicker,
   title: { ...typography.titleXL, marginTop: 10 },
   dek: { ...typography.body, marginTop: 13, maxWidth: 300 },
   signal: { backgroundColor: colors.wine, borderRadius: radii.card, flexDirection: "row", marginBottom: 38, marginHorizontal: 14, minHeight: 190, overflow: "hidden" },
+  signalWide: { flex: 5, marginBottom: 0, marginHorizontal: 0 },
   signalImage: { backgroundColor: colors.line, width: "40%" },
   signalBody: { flex: 1, justifyContent: "center", padding: 18 },
   signalKicker: { ...typography.kicker, color: colors.onWineSoft },
@@ -162,6 +173,7 @@ const styles = StyleSheet.create({
   percent: { ...typography.label, backgroundColor: colors.card, borderRadius: radii.card, color: colors.wine, paddingHorizontal: 6, paddingVertical: 2 },
   signalLink: { ...typography.label, color: colors.card, marginTop: 20 },
   quietSignal: { borderBottomColor: colors.line, borderTopColor: colors.line, borderTopWidth: 1, borderBottomWidth: 1, marginBottom: 38, marginHorizontal: spacing.gutter, paddingVertical: 22 },
+  quietSignalWide: { flex: 5, marginBottom: 0, marginHorizontal: 0 },
   quietKicker: { ...typography.kicker, color: colors.moss },
   quietTitle: { ...typography.titleL, marginTop: 5 },
   quietBody: { ...typography.body, marginTop: 4, maxWidth: 300 },
@@ -174,8 +186,11 @@ const styles = StyleSheet.create({
   houseName: typography.titleS,
   editGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingBottom: 40, paddingHorizontal: 14, paddingTop: 16 },
   catalogueEmpty: { borderTopColor: colors.line, borderTopWidth: 1, marginHorizontal: 8, paddingVertical: 24, width: "100%" },
+  // Wide: four columns of 23 %, the 2.66 % gaps come from space-between.
+  editGridWide: { columnGap: 0, justifyContent: "space-between", paddingHorizontal: spacing.gutter, rowGap: 36 },
   editItem: { marginBottom: 24, width: "48%" },
   editItemLower: { marginTop: 38 },
+  editItemWide: { marginBottom: 0, width: "23%" },
   editImage: { aspectRatio: 3 / 4, backgroundColor: colors.line, borderRadius: radii.card, width: "100%" },
   covetButton: { alignItems: "center", backgroundColor: colors.card, borderRadius: radii.card, bottom: 0, height: 42, justifyContent: "center", position: "absolute", right: 0, width: 42 },
   covetButtonSelected: { backgroundColor: colors.wash },
