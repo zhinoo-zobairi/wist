@@ -9,9 +9,6 @@ const base: ScheduleState = {
   runsThisCapDay: 0, moreIdeasRequested: false, catchUpCheckedDay: capDay(at(10, 12)),
 };
 
-describe("cap day", () => {
-});
-
 describe("decideRun", () => {
   it("waits 10 quiet minutes after a change, and restarts the wait on every change", () => {
     const changed = { ...base, lastChangedAt: iso(at(10, 19, 6)) };

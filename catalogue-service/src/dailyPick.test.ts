@@ -12,9 +12,6 @@ describe("localDay", () => {
   });
 });
 
-describe("isDailyPickDue", () => {
-});
-
 describe("keepValidRanking", () => {
   const known = new Set(["a", "b", "c", "d"]);
 

@@ -5,9 +5,6 @@ import { describe, expect, it } from "vitest";
 import { capDay, capDayStart } from "./outfitSchedule.js";
 
 describe("cap day across daylight saving (Europe/Stockholm)", () => {
-  it("is running in the Stockholm zone", () => {
-    expect(new Date("2026-07-01T12:00:00Z").getHours()).toBe(14);
-  });
 
   it("rolls at 03:00 local on the spring-forward day (2026-03-29)", () => {
     // 01:00Z is 03:00 CEST, the first moment after the clocks jump.

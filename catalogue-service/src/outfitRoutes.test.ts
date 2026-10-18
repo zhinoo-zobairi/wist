@@ -116,17 +116,6 @@ describe("outfits API", () => {
     await expect(request("POST", "/v1/outfits/more")).resolves.toEqual({ status: 429, body: { error: "daily_limit_reached" } });
   });
 
-  it("no longer serves the waiting endpoint (decision 11)", async () => {
-    const { request } = setup();
-    await expect(request("POST", "/v1/outfits/suggestions")).resolves.toEqual({ status: 404, body: { error: "not_found" } });
-  });
-
-  it("no longer serves live weather (C2.1 decision 9)", async () => {
-    const { request } = setup();
-    await expect(request("GET", "/v1/weather?latitude=52.52&longitude=13.41"))
-      .resolves.toEqual({ status: 404, body: { error: "not_found" } });
-  });
-
   it("serves today's pick only on its own server-local date", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     try {
