@@ -267,8 +267,8 @@ export default function App() {
 
   if (profileGate === "onboarding") {
     return (
-      <SafeAreaProvider style={styles.root}>
-        <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
+      <SafeAreaProvider style={[styles.root, layout.wide && styles.rootWide]}>
+        <SafeAreaView edges={["top", "bottom"]} style={[styles.container, layout.wide && styles.containerWide]}>
           <StatusBar style="dark" />
           <OnboardingScreen />
         </SafeAreaView>
