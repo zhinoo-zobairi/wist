@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   resultsHead: { paddingHorizontal: spacing.gutter, paddingVertical: 19 },
   tabs: { gap: 22, paddingHorizontal: spacing.gutter, paddingVertical: 20 },
   tab: { paddingBottom: 7 },
-  tabText: { ...typography.label, color: colors.muted, fontFamily: fonts.textMedium, fontSize: 11, letterSpacing: 0.3 },
+  tabText: { ...typography.label, color: colors.muted, fontFamily: fonts.label, fontSize: 11, letterSpacing: 0.3 },
   tabSelected: { color: colors.ink },
   tabLine: { backgroundColor: colors.ink, bottom: 0, height: 1, left: 0, position: "absolute", right: 0 },
   brandHead: { alignItems: "flex-end", borderTopColor: colors.line, borderTopWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.gutter, paddingVertical: 19 },

@@ -80,8 +80,9 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   label: {
     color: colors.ink,
-    fontFamily: fonts.textMedium,
+    fontFamily: fonts.label,
     fontSize: 12,
+    letterSpacing: 0.6,
   },
   labelSelected: { color: colors.card },
 });

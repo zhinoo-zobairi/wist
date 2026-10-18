@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   help: { ...typography.body, marginVertical: 8 },
   notice: { alignItems: "center", gap: 8 },
   label: { ...typography.kicker, marginTop: 25, marginBottom: 12 },
-  input: { borderColor: colors.ring, borderRadius: radii.card, borderWidth: 1, color: colors.ink, fontFamily: fonts.text, fontSize: 14, padding: 14 },
+  input: { borderColor: colors.ring, borderRadius: radii.card, borderWidth: 1, color: colors.ink, fontFamily: fonts.text, fontSize: 16, padding: 14 },
   notes: { minHeight: 90, textAlignVertical: "top" },
   save: { marginTop: 26, marginBottom: 12 },
   confirm: { backgroundColor: colors.wash, borderRadius: radii.card, gap: 6, marginVertical: 8, padding: 16 },

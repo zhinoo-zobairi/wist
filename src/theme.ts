@@ -20,9 +20,14 @@ export const colors = {
 export const fonts = {
   display: "CormorantGaramond_600SemiBold",
   displayItalic: "CormorantGaramond_600SemiBold_Italic",
-  text: "Inter_400Regular",
-  textMedium: "Inter_500Medium",
-  textSemibold: "Inter_600SemiBold",
+  // Reading text, prices and inputs.
+  text: "CormorantGaramond_500Medium",
+  textItalic: "CormorantGaramond_500Medium_Italic",
+  textMedium: "CormorantGaramond_600SemiBold",
+  // Uppercase labels, buttons, tab labels and chips: the only sans in the app.
+  textSemibold: "Jost_500Medium",
+  label: "Jost_500Medium",
+  labelLight: "Jost_400Regular",
 } as const;
 
 export const radii = {
@@ -41,14 +46,14 @@ export const spacing = {
 
 // Named text styles. Screens spread these and may override colour:
 //   kicker: { ...typography.kicker, color: colors.wine }
-// Nothing in the app sits below 10 px.
+// Nothing in the app sits below 10 px, and the serif never below 14 px.
 export const typography = {
   wordmark: { fontFamily: fonts.display, fontSize: 22, letterSpacing: 4, color: colors.ink },
-  kicker: { fontFamily: fonts.textSemibold, fontSize: 10, letterSpacing: 1.6, color: colors.muted },
-  label: { fontFamily: fonts.textSemibold, fontSize: 10, letterSpacing: 1.2, color: colors.ink },
-  caption: { fontFamily: fonts.text, fontSize: 11, lineHeight: 16, color: colors.muted },
-  body: { fontFamily: fonts.text, fontSize: 13, lineHeight: 20, color: colors.muted },
-  price: { fontFamily: fonts.textSemibold, fontSize: 13, color: colors.ink },
+  kicker: { fontFamily: fonts.label, fontSize: 10, letterSpacing: 1.8, color: colors.muted },
+  label: { fontFamily: fonts.label, fontSize: 10, letterSpacing: 1.4, color: colors.ink },
+  caption: { fontFamily: fonts.text, fontSize: 14, lineHeight: 20, color: colors.muted },
+  body: { fontFamily: fonts.text, fontSize: 16, lineHeight: 24, color: colors.muted },
+  price: { fontFamily: fonts.textMedium, fontSize: 16, color: colors.ink },
   titleXL: { fontFamily: fonts.display, fontSize: 44, lineHeight: 46, color: colors.ink },
   titleL: { fontFamily: fonts.display, fontSize: 28, lineHeight: 32, color: colors.ink },
   titleM: { fontFamily: fonts.display, fontSize: 20, lineHeight: 22, color: colors.ink },

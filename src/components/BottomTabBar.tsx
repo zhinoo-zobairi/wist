@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   label: {
     ...typography.label,
     color: colors.muted,
-    fontFamily: fonts.textMedium,
+    fontFamily: fonts.label,
     letterSpacing: 0.4,
     marginTop: 3,
   },
