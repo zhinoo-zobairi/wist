@@ -38,7 +38,15 @@ function selectionLabels<Value extends string>(
   return labels.length > 0 ? labels.join(", ") : "Not set";
 }
 
-export function ProfileScreen({ brands, onOpenWardrobe }: { brands: Brand[]; onOpenWardrobe: () => void }) {
+export function ProfileScreen({
+  brands,
+  onOpenWardrobe,
+  onReplayIntro,
+}: {
+  brands: Brand[];
+  onOpenWardrobe: () => void;
+  onReplayIntro: () => void;
+}) {
   const wardrobe = useWistStore((state) => state.wardrobe);
   const wardrobeStatus = useWistStore((state) => state.wardrobeStatus);
   const refreshWardrobe = useWistStore((state) => state.refreshWardrobe);
@@ -95,6 +103,17 @@ export function ProfileScreen({ brands, onOpenWardrobe }: { brands: Brand[]; onO
               <Text style={screenStyles.tasteValue}>{wardrobeStatus === "loading" ? "Loading your pieces…" : wardrobeStatus === "error" ? "Open to reconnect" : `${wardrobe.length} pieces you own`}</Text>
             </View>
             <Text style={[screenStyles.rowAction, { color: colors.moss }]}>OPEN</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onReplayIntro}
+            style={({ pressed }) => [screenStyles.tasteRow, pressed && screenStyles.pressed]}
+          >
+            <View style={screenStyles.tasteCopy}>
+              <Text style={screenStyles.tasteLabel}>THE STORY</Text>
+              <Text style={screenStyles.tasteValue}>What Wist watches for you</Text>
+            </View>
+            <Text style={[screenStyles.rowAction, { color: colors.moss }]}>REPLAY</Text>
           </Pressable>
         </View>
 
