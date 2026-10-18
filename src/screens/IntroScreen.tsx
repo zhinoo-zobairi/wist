@@ -136,7 +136,6 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
           </Animated.ScrollView>
         ) : null}
         <Animated.View
-          pointerEvents="none"
           style={[styles.hint, { opacity: hintOpacity, transform: [{ translateY: hintTranslate }, { rotate: "-90deg" }] }]}
         >
           <Icon color={colors.muted} name="chevron" size={20} />
@@ -169,5 +168,5 @@ const styles = StyleSheet.create({
   oldPrice: { color: colors.onWineMuted, fontFamily: fonts.display, fontSize: 28, textDecorationLine: "line-through" },
   newPrice: { color: colors.card, fontFamily: fonts.display, fontSize: 40 },
   begin: { alignSelf: "stretch", marginTop: 34 },
-  hint: { alignItems: "center", bottom: 18, left: 0, position: "absolute", right: 0 },
+  hint: { alignItems: "center", bottom: 18, left: 0, pointerEvents: "none", position: "absolute", right: 0 },
 });
