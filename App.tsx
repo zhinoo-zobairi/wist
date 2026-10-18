@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     width: "100%",
   },
-  containerWide: { maxWidth: undefined },
+  containerWide: { maxWidth: "100%" },
   content: {
     flex: 1,
   },
