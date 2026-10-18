@@ -16,8 +16,11 @@ import {
 import { useVideoPlayer, VideoView } from "expo-video";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Icon } from "../components/Icon";
-import { colors, fonts } from "../theme";
+import { ActionLink } from "../components/ActionLink";
+import { BackLink } from "../components/BackLink";
+import { Button } from "../components/Button";
+import { Wordmark } from "../components/Wordmark";
+import { colors, fonts, radii, spacing, typography } from "../theme";
 import type { Brand, Item } from "../types";
 import type { AddGarmentFromItemResult } from "../services/catalogueClient";
 import { useWistStore } from "../store/useWistStore";
@@ -135,10 +138,8 @@ export function ProductDetailScreen({
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.screen}>
       <View style={styles.topbar}>
-        <Pressable accessibilityLabel="Back" onPress={onBack}>
-          <Text style={styles.back}>← BACK</Text>
-        </Pressable>
-        <Text style={styles.wordmark}>WIST</Text>
+        <BackLink label="Back" onPress={onBack} />
+        <Wordmark />
       </View>
 
       <View>
@@ -170,11 +171,11 @@ export function ProductDetailScreen({
             ),
           )}
         </ScrollView>
-        <View style={styles.mediaCount}>
-          <Text style={styles.mediaCountText}>
-            {activeMediaIndex + 1} / {media.length}
-          </Text>
-        </View>
+        {media.length > 1 ? (
+          <View style={styles.mediaCount}>
+            <Text style={styles.mediaCountText}>{activeMediaIndex + 1} / {media.length}</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.body}>
@@ -187,47 +188,61 @@ export function ProductDetailScreen({
           ) : null}
         </View>
 
-        <Pressable
-          accessibilityState={{ selected: coveted, disabled: buyBusy || watchBusy }}
-          disabled={buyBusy || watchBusy}
-          onPress={onToggleCovet}
-          style={[styles.covet, coveted && styles.coveted]}
-        >
-          <Icon color={coveted ? colors.card : colors.ink} filled={coveted} name="heart" size={19} />
-          <Text style={[styles.covetText, coveted && styles.covetedText]}>
-            {coveted ? "COVETED — WIST IS WATCHING" : "COVET THIS PIECE"}
-          </Text>
-        </Pressable>
+        <View style={styles.covet}>
+          <Button
+            disabled={buyBusy || watchBusy}
+            icon="heart"
+            iconFilled={coveted}
+            label={coveted ? "Coveted — Wist is watching" : "Covet this piece"}
+            onPress={onToggleCovet}
+            selected={coveted}
+            variant={coveted ? "primary" : "secondary"}
+          />
+        </View>
 
-        {coveted && !recovery && !confirmBuy && <Pressable accessibilityRole="button"
-          disabled={buyBusy || watchBusy} onPress={() => setConfirmBuy(true)} style={styles.bought}>
-          <Text style={styles.boughtText}>I bought this</Text>
-        </Pressable>}
+        {coveted && !recovery && !confirmBuy && (
+          <View style={styles.bought}>
+            <Button
+              color={colors.moss}
+              disabled={buyBusy || watchBusy}
+              label="I bought this"
+              onPress={() => setConfirmBuy(true)}
+              variant="secondary"
+            />
+          </View>
+        )}
         <Modal animationType="slide" presentationStyle="pageSheet" visible={confirmBuy}
           onRequestClose={() => !buyBusy && setConfirmBuy(false)}>
           <SafeAreaView edges={["top", "bottom"]} style={styles.buySheet}>
           <Text style={styles.buyHelp}>Add to your wardrobe? You'll stop getting price alerts for it.</Text>
-          <Pressable accessibilityRole="button" disabled={buyBusy || watchBusy} onPress={() => void addBoughtPiece()}>
-            <Text style={styles.buyAction}>ADD TO WARDROBE</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" disabled={buyBusy} onPress={() => setConfirmBuy(false)}>
-            <Text style={styles.buyAction}>CANCEL</Text>
-          </Pressable>
+          <View style={styles.buyActions}>
+            <Button
+              color={colors.moss}
+              disabled={buyBusy || watchBusy}
+              label="Add to wardrobe"
+              onPress={() => void addBoughtPiece()}
+            />
+            <Button
+              color={colors.moss}
+              disabled={buyBusy}
+              label="Cancel"
+              onPress={() => setConfirmBuy(false)}
+              variant="secondary"
+            />
+          </View>
           </SafeAreaView>
         </Modal>
         {buyBusy && <View style={styles.buyNotice}><ActivityIndicator color={colors.moss} />
           <Text style={styles.buyHelp}>{recovery === "refresh" ? "Refreshing…" : "Adding to wardrobe…"}</Text>
         </View>}
         {buyError && <Text accessibilityRole="alert" style={styles.buyHelp}>{buyError}</Text>}
-        {recovery === "refresh" && <Pressable accessibilityRole="button" disabled={buyBusy} onPress={() => void refreshBoughtPiece()}>
-          <Text style={styles.buyAction}>Refresh</Text>
-        </Pressable>}
+        {recovery === "refresh" && (
+          <ActionLink color={colors.moss} disabled={buyBusy} label="Refresh" onPress={() => void refreshBoughtPiece()} />
+        )}
         {recovery === "owned" && <Text accessibilityRole="alert" style={styles.buyHelp}>This piece is in your wardrobe.</Text>}
         {recovery === "repeat" && coveted && <View style={styles.buyNotice}>
           <Text style={styles.buyHelp}>This piece is still in Coveted. Trying again can add a duplicate and repeat paid tagging.</Text>
-          <Pressable accessibilityRole="button" disabled={buyBusy || watchBusy} onPress={() => void addBoughtPiece()}>
-            <Text style={styles.buyAction}>Try again</Text>
-          </Pressable>
+          <ActionLink color={colors.moss} disabled={buyBusy || watchBusy} label="Try again" onPress={() => void addBoughtPiece()} />
         </View>}
 
         {item.variants && item.variants.length > 0 ? (
@@ -243,10 +258,11 @@ export function ProductDetailScreen({
                     disabled={!coveted || buyBusy || watchBusy}
                     key={variant.id}
                     onPress={() => onToggleSize(variant.label)}
-                    style={[
+                    style={({ pressed }) => [
                       styles.variant,
                       !variant.available && styles.variantUnavailable,
                       selected && styles.variantSelected,
+                      pressed && styles.pressed,
                     ]}
                   >
                     <Text
@@ -285,14 +301,9 @@ export function ProductDetailScreen({
           </View>
         </View>
 
-        <Pressable
-          accessibilityRole="link"
-          onPress={() => void Linking.openURL(item.url)}
-          style={styles.official}
-        >
-          <Text style={styles.officialText}>VIEW ON {brand.name.toUpperCase()}</Text>
-          <Icon color={colors.card} name="arrow" size={18} />
-        </Pressable>
+        <View style={styles.official}>
+          <Button icon="arrow" label={`View on ${brand.name}`} onPress={() => void Linking.openURL(item.url)} />
+        </View>
         <Text style={styles.note}>
           Product details and checkout remain authoritative on the brand’s official page.
         </Text>
@@ -303,42 +314,36 @@ export function ProductDetailScreen({
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.paper, flex: 1 },
-  topbar: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 22, paddingVertical: 15 },
-  back: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1.2 },
-  wordmark: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 14, letterSpacing: 4 },
-  mediaCount: { backgroundColor: colors.card, bottom: 12, paddingHorizontal: 9, paddingVertical: 5, position: "absolute", right: 12 },
-  mediaCountText: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 0.8 },
-  body: { paddingBottom: 48, paddingHorizontal: 22, paddingTop: 25 },
-  brand: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1.5 },
-  name: { color: colors.ink, fontFamily: fonts.display, fontSize: 37, lineHeight: 39, marginTop: 7 },
+  topbar: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.gutter, paddingVertical: 15 },
+  mediaCount: { backgroundColor: colors.card, borderRadius: radii.card, bottom: 12, paddingHorizontal: 9, paddingVertical: 5, position: "absolute", right: 12 },
+  mediaCountText: typography.label,
+  body: { paddingBottom: 48, paddingHorizontal: spacing.gutter, paddingTop: 25 },
+  brand: typography.kicker,
+  name: { ...typography.titleXL, fontSize: 37, lineHeight: 39, marginTop: 7 },
   priceRow: { alignItems: "baseline", flexDirection: "row", gap: 10, marginTop: 12 },
-  price: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 16 },
-  previous: { color: colors.muted, fontFamily: fonts.text, fontSize: 12, textDecorationLine: "line-through" },
-  covet: { alignItems: "center", borderColor: colors.ink, borderWidth: 1, flexDirection: "row", gap: 10, justifyContent: "center", marginTop: 24, paddingVertical: 15 },
-  coveted: { backgroundColor: colors.ink, borderColor: colors.ink },
-  covetText: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1.2 },
-  covetedText: { color: colors.card },
-  bought: { alignItems: "center", borderColor: colors.moss, borderWidth: 1, borderRadius: 999, marginTop: 12, paddingVertical: 15 },
-  boughtText: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 12 },
-  buyNotice: { backgroundColor: colors.wash, borderRadius: 20, marginTop: 12, padding: 16 },
+  price: { ...typography.price, fontSize: 16 },
+  previous: { ...typography.caption, textDecorationLine: "line-through" },
+  covet: { marginTop: 24 },
+  bought: { marginTop: 10 },
+  buyNotice: { backgroundColor: colors.wash, borderRadius: radii.card, marginTop: 12, padding: 16 },
   buySheet: { backgroundColor: colors.paper, flex: 1, justifyContent: "center", padding: 24 },
-  buyHelp: { color: colors.muted, fontFamily: fonts.text, fontSize: 12, lineHeight: 19, marginTop: 10 },
-  buyAction: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 12, paddingVertical: 12 },
+  buyActions: { gap: 10, marginTop: 20 },
+  buyHelp: { ...typography.body, marginTop: 10 },
   variants: { marginTop: 30 },
-  variantsTitle: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2 },
+  variantsTitle: typography.kicker,
   variantGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
-  variant: { alignItems: "center", borderColor: colors.ink, borderWidth: 1, justifyContent: "center", minHeight: 38, minWidth: 44, paddingHorizontal: 10 },
+  variant: { alignItems: "center", borderColor: colors.ink, borderRadius: radii.card, borderWidth: 1, justifyContent: "center", minHeight: 38, minWidth: 44, paddingHorizontal: 10 },
   variantUnavailable: { borderColor: colors.line },
   variantSelected: { backgroundColor: colors.wine, borderColor: colors.wine },
   variantLabel: { color: colors.ink, fontFamily: fonts.textMedium, fontSize: 11 },
   variantLabelUnavailable: { color: colors.muted, textDecorationLine: "line-through" },
   variantLabelSelected: { color: colors.card },
-  variantNote: { color: colors.muted, fontFamily: fonts.text, fontSize: 9, marginTop: 9 },
+  variantNote: { ...typography.caption, marginTop: 9 },
   facts: { borderTopColor: colors.line, borderTopWidth: 1, marginTop: 30 },
   fact: { borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingVertical: 14 },
-  factLabel: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2 },
-  factValue: { color: colors.ink, fontFamily: fonts.textMedium, fontSize: 11, maxWidth: "60%", textAlign: "right" },
-  official: { alignItems: "center", backgroundColor: colors.ink, flexDirection: "row", justifyContent: "space-between", marginTop: 28, paddingHorizontal: 18, paddingVertical: 17 },
-  officialText: { color: colors.card, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1.3 },
-  note: { color: colors.muted, fontFamily: fonts.text, fontSize: 10, lineHeight: 15, marginTop: 10 },
+  factLabel: typography.kicker,
+  factValue: { ...typography.price, fontFamily: fonts.textMedium, maxWidth: "60%", textAlign: "right" },
+  official: { marginTop: 28 },
+  note: { ...typography.caption, marginTop: 10 },
+  pressed: { opacity: 0.85 },
 });
