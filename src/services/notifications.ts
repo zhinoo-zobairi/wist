@@ -2,6 +2,7 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 import type { Alert, Brand, Item } from "../types";
+import { formatPrice } from "../money";
 
 if (Platform.OS !== "web") {
   Notifications.setNotificationHandler({
@@ -41,7 +42,7 @@ export async function sendPriceDropNotification(
     await Notifications.scheduleNotificationAsync({
       content: {
         title: `${brand.name}: ${alert.pctOff}% price drop`,
-        body: `${item.name} is now €${alert.newPrice.toFixed(0)} (was €${alert.oldPrice.toFixed(0)}).`,
+        body: `${item.name} is now ${formatPrice(alert.newPrice, item.currency)} (was ${formatPrice(alert.oldPrice, item.currency)}).`,
         data: { alertId: alert.id, itemId: item.id },
         sound: true,
       },

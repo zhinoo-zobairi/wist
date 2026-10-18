@@ -23,6 +23,7 @@ import {
   type DailyPick,
   type WeatherSummary,
 } from "../types";
+import type { Currency } from "../types";
 
 type Fetch = typeof fetch;
 type JsonObject = Record<string, unknown>;
@@ -61,6 +62,8 @@ function toBrand(value: unknown): Brand {
   return { id, name, monogram, curated: true };
 }
 
+const isCurrency = (value: string): value is Currency => value === "EUR" || value === "GBP";
+
 function toItem(value: unknown): Item {
   if (!isObject(value)) throw new Error("Catalogue returned an invalid item");
   const currentPrice = value.currentPrice;
@@ -68,7 +71,7 @@ function toItem(value: unknown): Item {
   if (typeof currentPrice !== "number" || !Number.isFinite(currentPrice)) {
     throw new Error("Catalogue response has an invalid currentPrice");
   }
-  if (currency !== "EUR") {
+  if (!isCurrency(currency)) {
     throw new Error(`Unsupported catalogue currency: ${currency}`);
   }
   const available = value.available;
@@ -141,7 +144,7 @@ function toAlert(value: unknown): Alert {
   ) {
     throw new Error("Catalogue response has invalid alert prices");
   }
-  if (stringField(value, "currency") !== "EUR") {
+  if (!isCurrency(stringField(value, "currency"))) {
     throw new Error("Catalogue response has an unsupported alert currency");
   }
   return {

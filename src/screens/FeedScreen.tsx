@@ -4,6 +4,7 @@ import { ActionLink } from "../components/ActionLink";
 import { Icon } from "../components/Icon";
 import { Wordmark } from "../components/Wordmark";
 import { useWistStore } from "../store/useWistStore";
+import { formatPrice } from "../money";
 import { colors, radii, spacing, typography } from "../theme";
 import type { Brand, Item } from "../types";
 
@@ -64,8 +65,8 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
             <Text style={styles.signalKicker}>A COVETED PIECE JUST DROPPED</Text>
             <Text style={styles.signalName}>{alertItem.name}</Text>
             <View style={styles.priceRow}>
-              <Text style={styles.signalPrice}>€ {latestAlert.newPrice.toFixed(0)}</Text>
-              <Text style={styles.oldPrice}>€ {latestAlert.oldPrice.toFixed(0)}</Text>
+              <Text style={styles.signalPrice}>{formatPrice(latestAlert.newPrice, alertItem.currency)}</Text>
+              <Text style={styles.oldPrice}>{formatPrice(latestAlert.oldPrice, alertItem.currency)}</Text>
               <Text style={styles.percent}>−{latestAlert.pctOff}%</Text>
             </View>
             <Text style={styles.signalLink}>VIEW THE SIGNAL  →</Text>
@@ -133,7 +134,7 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
               <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
                 <Text numberOfLines={2} style={styles.itemName}>{item.name}</Text>
               </Pressable>
-              <Text style={styles.itemPrice}>€ {item.currentPrice.toFixed(0)}</Text>
+              <Text style={styles.itemPrice}>{formatPrice(item.currentPrice, item.currency)}</Text>
             </View>
           );
         })}

@@ -7,6 +7,7 @@ import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { useWistStore } from "../store/useWistStore";
+import { formatPrice } from "../money";
 import { colors, fonts, radii, spacing, typography } from "../theme";
 import type { Brand, Item } from "../types";
 
@@ -121,7 +122,7 @@ export function BrowseScreen({ brands, items: allItems, selectedBrandId, onSelec
                   <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
                     <Text style={styles.productName}>{item.name}</Text>
                   </Pressable>
-                  <Text style={styles.price}>€ {item.currentPrice.toFixed(0)}</Text>
+                  <Text style={styles.price}>{formatPrice(item.currentPrice, item.currency)}</Text>
                   <Pressable
                     accessibilityLabel={`${selected ? "Remove" : "Covet"} ${item.name}`}
                     accessibilityState={{ selected }}

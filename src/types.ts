@@ -16,6 +16,8 @@ export type ItemVariant = {
   available: boolean;
 };
 
+export type Currency = "EUR" | "GBP";
+
 export type Item = {
   id: string;
   brandId: string;
@@ -24,7 +26,7 @@ export type Item = {
   media?: ItemMedia[];
   variants?: ItemVariant[];
   currentPrice: number;
-  currency: "EUR";
+  currency: Currency;
   url: string;
   available?: boolean;
   observedAt?: string;

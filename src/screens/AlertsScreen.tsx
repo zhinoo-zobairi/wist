@@ -4,6 +4,7 @@ import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { useWistStore } from "../store/useWistStore";
+import { formatPrice } from "../money";
 import { colors, radii, spacing, typography } from "../theme";
 import type { Brand, Item } from "../types";
 
@@ -50,8 +51,8 @@ export function AlertsScreen({ brands, items, onViewItem }: Props) {
               <Text style={styles.heroName}>{heroItem.name}</Text>
               <Text style={styles.reason}>A piece you chose is now at its lowest observed price.</Text>
               <View style={styles.prices}>
-                <View><Text style={styles.priceLabel}>NOW</Text><Text style={styles.newPrice}>€ {hero.newPrice.toFixed(0)}</Text></View>
-                <View><Text style={styles.priceLabel}>WAS</Text><Text style={styles.wasPrice}>€ {hero.oldPrice.toFixed(0)}</Text></View>
+                <View><Text style={styles.priceLabel}>NOW</Text><Text style={styles.newPrice}>{formatPrice(hero.newPrice, heroItem.currency)}</Text></View>
+                <View><Text style={styles.priceLabel}>WAS</Text><Text style={styles.wasPrice}>{formatPrice(hero.oldPrice, heroItem.currency)}</Text></View>
                 <View style={styles.off}><Text style={styles.offText}>−{hero.pctOff}%</Text></View>
               </View>
               <View style={styles.viewButton}>
@@ -82,7 +83,7 @@ export function AlertsScreen({ brands, items, onViewItem }: Props) {
                     <View style={styles.historyBody}>
                       <Text style={styles.historyBrand}>{brand.name}</Text>
                       <Text style={styles.historyName}>{item.name}</Text>
-                      <Text style={styles.historyPrice}>€ {alert.oldPrice.toFixed(0)} → € {alert.newPrice.toFixed(0)} · −{alert.pctOff}%</Text>
+                      <Text style={styles.historyPrice}>{formatPrice(alert.oldPrice, item.currency)} → {formatPrice(alert.newPrice, item.currency)} · −{alert.pctOff}%</Text>
                     </View>
                     <Icon color={colors.ink} name="arrow" size={17} />
                   </Pressable>

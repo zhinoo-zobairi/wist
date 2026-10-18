@@ -20,6 +20,7 @@ import { ActionLink } from "../components/ActionLink";
 import { BackLink } from "../components/BackLink";
 import { Button } from "../components/Button";
 import { Wordmark } from "../components/Wordmark";
+import { formatPrice } from "../money";
 import { colors, fonts, radii, spacing, typography } from "../theme";
 import type { Brand, Item } from "../types";
 import type { AddGarmentFromItemResult } from "../services/catalogueClient";
@@ -182,9 +183,9 @@ export function ProductDetailScreen({
         <Text style={styles.brand}>{brand.name.toUpperCase()}</Text>
         <Text style={styles.name}>{item.name}</Text>
         <View style={styles.priceRow}>
-          <Text style={styles.price}>€ {item.currentPrice.toFixed(0)}</Text>
+          <Text style={styles.price}>{formatPrice(item.currentPrice, item.currency)}</Text>
           {item.previousPrice !== null && item.previousPrice !== undefined ? (
-            <Text style={styles.previous}>€ {item.previousPrice.toFixed(0)}</Text>
+            <Text style={styles.previous}>{formatPrice(item.previousPrice, item.currency)}</Text>
           ) : null}
         </View>
 

@@ -14,6 +14,7 @@ import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { useWistStore } from "../store/useWistStore";
+import { formatPrice } from "../money";
 import { colors, radii, spacing, typography } from "../theme";
 import type { Brand, Item } from "../types";
 
@@ -126,8 +127,8 @@ export function SavedScreen({
                     <Text style={styles.name}>{item.name}</Text>
                   </Pressable>
                   <View style={styles.priceRow}>
-                    <Text style={[styles.price, drop && styles.sale]}>€ {item.currentPrice.toFixed(0)}</Text>
-                    {drop ? <Text style={styles.oldPrice}>€ {drop.oldPrice.toFixed(0)}</Text> : null}
+                    <Text style={[styles.price, drop && styles.sale]}>{formatPrice(item.currentPrice, item.currency)}</Text>
+                    {drop ? <Text style={styles.oldPrice}>{formatPrice(drop.oldPrice, item.currency)}</Text> : null}
                   </View>
                   <Text style={styles.since}>COVETED {covetedOn(snapshot?.capturedAt).toUpperCase()}</Text>
                   {watchedSizes.length > 0 ? (
