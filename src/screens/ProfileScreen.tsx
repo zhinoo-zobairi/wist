@@ -91,7 +91,7 @@ export function ProfileScreen({ brands, onOpenWardrobe }: { brands: Brand[]; onO
               <Text style={screenStyles.tasteLabel}>WARDROBE</Text>
               <Text style={screenStyles.tasteValue}>{wardrobeStatus === "loading" ? "Loading your pieces…" : wardrobeStatus === "error" ? "Open to reconnect" : `${wardrobe.length} pieces you own`}</Text>
             </View>
-            <ActionLink color={colors.moss} label="Open" onPress={onOpenWardrobe} />
+            <Text style={[screenStyles.rowAction, { color: colors.moss }]}>OPEN</Text>
           </Pressable>
         </View>
 
@@ -211,7 +211,7 @@ function TasteRow({
         <Text style={screenStyles.tasteLabel}>{label}</Text>
         <Text style={screenStyles.tasteValue}>{value}</Text>
       </View>
-      <ActionLink color={colors.wine} label="Edit" onPress={onEdit} />
+      <Text style={[screenStyles.rowAction, { color: colors.wine }]}>EDIT</Text>
     </Pressable>
   );
 }
@@ -233,6 +233,7 @@ const screenStyles = StyleSheet.create({
     minHeight: 76,
   },
   tasteCopy: { flex: 1, paddingRight: 20 },
+  rowAction: { ...typography.label },
   tasteLabel: typography.kicker,
   tasteValue: { ...typography.titleM, marginTop: 4 },
   row: {
