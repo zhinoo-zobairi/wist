@@ -187,10 +187,10 @@ const styles = StyleSheet.create({
   editGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingBottom: 40, paddingHorizontal: 14, paddingTop: 16 },
   catalogueEmpty: { borderTopColor: colors.line, borderTopWidth: 1, marginHorizontal: 8, paddingVertical: 24, width: "100%" },
   // Wide: four columns of 23 %, the 2.66 % gaps come from space-between.
-  editGridWide: { columnGap: 0, justifyContent: "space-between", paddingHorizontal: spacing.gutter, rowGap: 36 },
+  editGridWide: { columnGap: 24, justifyContent: "flex-start", paddingHorizontal: spacing.gutter, rowGap: 36 },
   editItem: { marginBottom: 24, width: "48%" },
   editItemLower: { marginTop: 38 },
-  editItemWide: { marginBottom: 0, width: "23%" },
+  editItemWide: { marginBottom: 0, width: "22.6%" },
   editImage: { aspectRatio: 3 / 4, backgroundColor: colors.line, borderRadius: radii.card, width: "100%" },
   covetButton: { alignItems: "center", backgroundColor: colors.card, borderRadius: radii.card, bottom: 0, height: 42, justifyContent: "center", position: "absolute", right: 0, width: 42 },
   covetButtonSelected: { backgroundColor: colors.wash },
