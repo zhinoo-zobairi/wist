@@ -6,6 +6,7 @@ import { BackLink } from "../components/BackLink";
 import { Button } from "../components/Button";
 import { GarmentPhoto } from "../components/GarmentPhoto";
 import { ScreenHeader } from "../components/ScreenHeader";
+import { pageStyle, useLayout } from "../layout";
 import { UncertainWardrobeRequestError } from "../services/catalogueClient";
 import { prepareGarmentPhoto } from "../services/garmentPhoto";
 import { useWistStore } from "../store/useWistStore";
@@ -28,6 +29,9 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
   const [error, setError] = useState<string | null>(null);
   const alive = useRef(true);
   const pending = useRef(false);
+  const layout = useLayout();
+  const { wide } = layout;
+  const numColumns = wide ? 4 : 2;
 
   const refreshList = async () => {
     setError(null);
@@ -90,30 +94,33 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.topline}>
-        <BackLink label="Profile" onPress={onBack} />
-        <ActionLink color={colors.moss} disabled={!!busy || status === "loading"} label="+ Add" onPress={() => setChooser(!chooser)} />
+      <View style={pageStyle(layout, true)}>
+        <View style={styles.topline}>
+          <BackLink label="Profile" onPress={onBack} />
+          <ActionLink color={colors.moss} disabled={!!busy || status === "loading"} label="+ Add" onPress={() => setChooser(!chooser)} />
+        </View>
+        <ScreenHeader subtitle={`${wardrobe.length} pieces you own.`} title="Your wardrobe" />
+        <View style={styles.dressMe}>
+          <Button color={colors.moss} disabled={!!busy} label="Dress me" onPress={onDressMe} />
+        </View>
+        {chooser && <View style={styles.chooser}>
+          <ActionLink color={colors.ink} label="Take a photo" onPress={() => void capture("camera")} />
+          <ActionLink color={colors.ink} label="Choose from library" onPress={() => void capture("library")} />
+          <ActionLink color={colors.ink} label="Cancel" onPress={() => setChooser(false)} />
+        </View>}
+        {busy && <View style={styles.notice}><ActivityIndicator color={colors.moss} /><Text style={styles.subtitle}>{busy}</Text></View>}
+        {error && <View style={styles.notice}>
+          <Text accessibilityRole="alert" style={styles.subtitle}>{error}</Text>
+          <ActionLink color={colors.moss} disabled={!!busy || status === "loading"} label="Retry · Refresh wardrobe" onPress={() => void refreshList()} />
+        </View>}
       </View>
-      <ScreenHeader subtitle={`${wardrobe.length} pieces you own.`} title="Your wardrobe" />
-      <View style={styles.dressMe}>
-        <Button color={colors.moss} disabled={!!busy} label="Dress me" onPress={onDressMe} />
-      </View>
-      {chooser && <View style={styles.chooser}>
-        <ActionLink color={colors.ink} label="Take a photo" onPress={() => void capture("camera")} />
-        <ActionLink color={colors.ink} label="Choose from library" onPress={() => void capture("library")} />
-        <ActionLink color={colors.ink} label="Cancel" onPress={() => setChooser(false)} />
-      </View>}
-      {busy && <View style={styles.notice}><ActivityIndicator color={colors.moss} /><Text style={styles.subtitle}>{busy}</Text></View>}
-      {error && <View style={styles.notice}>
-        <Text accessibilityRole="alert" style={styles.subtitle}>{error}</Text>
-        <ActionLink color={colors.moss} disabled={!!busy || status === "loading"} label="Retry · Refresh wardrobe" onPress={() => void refreshList()} />
-      </View>}
       <FlatList
-        data={wardrobe} keyExtractor={(garment) => garment.id} numColumns={2}
-        contentContainerStyle={styles.grid} columnWrapperStyle={styles.row}
+        key={numColumns}
+        data={wardrobe} keyExtractor={(garment) => garment.id} numColumns={numColumns}
+        contentContainerStyle={[styles.grid, pageStyle(layout, true), wide && styles.gridWide]} columnWrapperStyle={styles.row}
         refreshing={status === "loading"} onRefresh={() => { if (!busy) void refreshList(); }}
         ListEmptyComponent={<Text style={styles.empty}>{status === "loading" ? "Loading your wardrobe…" : "Start with a few pieces you love. Add a photo, then check its details."}</Text>}
-        renderItem={({ item }) => <View style={styles.card}>
+        renderItem={({ item }) => <View style={[styles.card, wide && styles.cardWide]}>
           <Pressable accessibilityRole="button" disabled={!!busy} onPress={() => onEdit(item.id)}
             style={({ pressed }) => [pressed && styles.pressed]}>
             <GarmentPhoto garment={item} />
@@ -146,8 +153,11 @@ const styles = StyleSheet.create({
   },
   notice: { paddingHorizontal: spacing.gutter, paddingBottom: 16, gap: 10 },
   grid: { paddingHorizontal: spacing.gutter, paddingBottom: 24, gap: 20 },
+  // The grid carries its own gutter, so on wide it takes the full wide gutter rather than summing with pageStyle.
+  gridWide: { paddingHorizontal: spacing.gutterWide },
   row: { gap: 14 },
   card: { width: "48%" },
+  cardWide: { width: "23%" },
   name: { ...typography.titleM, marginTop: 9 },
   tagChip: { alignSelf: "flex-start", backgroundColor: colors.wash, borderRadius: radii.card, marginTop: 7, padding: 8 },
   tagText: { ...typography.caption, color: colors.moss },

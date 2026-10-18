@@ -14,6 +14,7 @@ import { ActionLink } from "../components/ActionLink";
 import { Button } from "../components/Button";
 import { OccasionStylePicker } from "../components/OccasionStylePicker";
 import { ScreenHeader } from "../components/ScreenHeader";
+import { READING_MAX_WIDTH, pageStyle, useLayout } from "../layout";
 import { saveStyleProfile } from "../services/catalogueClient";
 import { useWistStore } from "../store/useWistStore";
 import { colors, radii, typography } from "../theme";
@@ -53,6 +54,8 @@ export function ProfileScreen({ brands, onOpenWardrobe }: { brands: Brand[]; onO
   const [draftOccasions, setDraftOccasions] = useState<Occasion[]>([]);
   const [draftStyles, setDraftStyles] = useState<Style[]>([]);
   const [saving, setSaving] = useState(false);
+  const layout = useLayout();
+  const { wide } = layout;
 
   const openEditor = (nextEditor: Editor) => {
     setDraftOccasions(occasions);
@@ -78,7 +81,7 @@ export function ProfileScreen({ brands, onOpenWardrobe }: { brands: Brand[]; onO
 
   return (
     <>
-      <ScrollView style={screenStyles.screen}>
+      <ScrollView contentContainerStyle={pageStyle(layout, true)} style={screenStyles.screen}>
         <ScreenHeader kicker="YOUR TASTE, IN PROGRESS" subtitle="The preferences Wist uses to shape your edit." title="Profile" />
 
         <View style={screenStyles.section}>
@@ -158,7 +161,7 @@ export function ProfileScreen({ brands, onOpenWardrobe }: { brands: Brand[]; onO
             <Text style={screenStyles.modalKicker}>EDIT YOUR TASTE</Text>
             <View style={screenStyles.modalActionSpacer} />
           </View>
-          <ScrollView contentContainerStyle={screenStyles.modalContent}>
+          <ScrollView contentContainerStyle={[screenStyles.modalContent, wide && screenStyles.modalContentWide]}>
             <Text style={screenStyles.modalTitle}>
               {editor === "occasions" ? "Your occasions" : "Your style"}
             </Text>
@@ -184,7 +187,7 @@ export function ProfileScreen({ brands, onOpenWardrobe }: { brands: Brand[]; onO
               )}
             </View>
           </ScrollView>
-          <View style={screenStyles.saveButton}>
+          <View style={[screenStyles.saveButton, wide && screenStyles.saveButtonWide]}>
             <Button busy={saving} color={colors.wine} label="Save changes" onPress={() => void saveEditor()} />
           </View>
         </SafeAreaView>
@@ -279,9 +282,11 @@ const screenStyles = StyleSheet.create({
   modalActionSpacer: { width: 58 },
   modalKicker: typography.kicker,
   modalContent: { padding: 24 },
+  modalContentWide: { alignSelf: "center", maxWidth: READING_MAX_WIDTH, width: "100%" },
   modalTitle: { ...typography.titleXL, fontSize: 39, lineHeight: 42, marginTop: 20 },
   modalSubtitle: { ...typography.body, marginTop: 8 },
   modalPicker: { marginTop: 34 },
   saveButton: { marginHorizontal: 24, marginVertical: 16 },
+  saveButtonWide: { alignSelf: "center", maxWidth: READING_MAX_WIDTH, width: "100%" },
   pressed: { opacity: 0.85 },
 });

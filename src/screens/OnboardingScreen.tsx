@@ -5,6 +5,7 @@ import { ActionLink } from "../components/ActionLink";
 import { Button } from "../components/Button";
 import { OccasionStylePicker } from "../components/OccasionStylePicker";
 import { Wordmark } from "../components/Wordmark";
+import { pageStyle, useLayout } from "../layout";
 import { saveStyleProfile } from "../services/catalogueClient";
 import { commitStyleProfile } from "../styleProfileCommit";
 import { useWistStore } from "../store/useWistStore";
@@ -27,6 +28,8 @@ export function OnboardingScreen() {
   const replaceStyleProfile = useWistStore(
     (state) => state.replaceStyleProfile,
   );
+  const layout = useLayout();
+  const { wide } = layout;
 
   if (step === "intro") {
     return <IntroScreen onBegin={() => setStep("occasions")} onSkip={markProfileSkipped} />;
@@ -59,7 +62,7 @@ export function OnboardingScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={screenStyles.content}
+      contentContainerStyle={[screenStyles.content, pageStyle(layout, true), wide && screenStyles.contentWide]}
       style={screenStyles.screen}
     >
       <View style={screenStyles.topline}>
@@ -122,6 +125,8 @@ export function OnboardingScreen() {
 const screenStyles = StyleSheet.create({
   screen: { backgroundColor: colors.paper, flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: spacing.gutter + 2, paddingVertical: 22 },
+  // The content carries its own gutter, so on wide it takes the full wide gutter rather than summing with pageStyle.
+  contentWide: { paddingHorizontal: spacing.gutterWide },
   topline: {
     alignItems: "center",
     flexDirection: "row",

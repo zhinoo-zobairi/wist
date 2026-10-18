@@ -5,6 +5,7 @@ import { BackLink } from "../components/BackLink";
 import { Button } from "../components/Button";
 import { GarmentPhoto } from "../components/GarmentPhoto";
 import { OccasionStylePicker } from "../components/OccasionStylePicker";
+import { pageStyle, useLayout } from "../layout";
 import { UncertainWardrobeRequestError, WardrobeApiError } from "../services/catalogueClient";
 import { useWistStore } from "../store/useWistStore";
 import { colors, fonts, radii, spacing, typography } from "../theme";
@@ -34,6 +35,8 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE", not
   const remove = useWistStore((state) => state.removeGarment);
   const tag = useWistStore((state) => state.tagGarment);
   const refresh = useWistStore((state) => state.refreshWardrobe);
+  const layout = useLayout();
+  const { wide } = layout;
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
   const apply = (next: Garment) => { setDraft(editableFields(next)); setColorsText(next.colors.join(", ")); };
@@ -78,11 +81,11 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE", not
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
-      <View style={styles.topline}>
+      <View style={[styles.topline, pageStyle(layout, true), wide && styles.gutterWide]}>
         <BackLink label={backLabel} onPress={onBack} />
         <ActionLink color={colors.moss} disabled={!!busy || uncertain} label="Save" onPress={save} />
       </View>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, pageStyle(layout, true), wide && styles.gutterWide]}>
         <Text style={styles.title}>Garment details</Text>
         <View style={styles.photo}><GarmentPhoto garment={garment} /></View>
         {notice && <Text accessibilityRole="alert" style={styles.help}>{notice}</Text>}
@@ -143,6 +146,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   topline: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", padding: spacing.gutter },
   content: { paddingHorizontal: spacing.gutter, paddingBottom: 32 },
+  // Topline and content carry their own gutter, so on wide they take the full wide gutter rather than summing with pageStyle.
+  gutterWide: { paddingHorizontal: spacing.gutterWide },
   title: { ...typography.titleXL, fontSize: 38, lineHeight: 40, marginBottom: 20 },
   photo: { width: "65%", alignSelf: "center", marginBottom: 16 },
   help: { ...typography.body, marginVertical: 8 },

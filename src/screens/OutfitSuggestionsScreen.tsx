@@ -4,6 +4,7 @@ import { BackLink } from "../components/BackLink";
 import { Button } from "../components/Button";
 import { GarmentPhoto } from "../components/GarmentPhoto";
 import { OccasionStylePicker } from "../components/OccasionStylePicker";
+import { pageStyle, useLayout } from "../layout";
 import { orderForToday } from "../outfitOrder";
 import {
   loadOutfits, removeSavedOutfit, requestMoreIdeas, saveLocation, saveOutfitIdea, type MoreIdeasResult,
@@ -26,12 +27,13 @@ const MORE_IDEAS_COPY: Record<MoreIdeasResult, string> = {
 
 type BoardState = { status: "loading" } | { status: "ready"; board: OutfitBoard } | { status: "error" };
 
-function OutfitCard({ label, garments, reason, forToday, missing, action, onEdit, disabled }: {
+function OutfitCard({ label, garments, reason, forToday, missing, action, onEdit, disabled, wide }: {
   label: string; garments: Garment[]; reason: string; forToday: string | undefined; missing: number;
   action: { text: string; accessibilityLabel: string; onPress: () => void }; onEdit: (garment: Garment) => void; disabled: boolean;
+  wide: boolean;
 }) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, wide && styles.cardWide]}>
       <Text style={styles.cardLabel}>{label}</Text>
       {forToday && <View style={styles.forToday}>
         <Text style={styles.forTodayLabel}>FOR TODAY</Text>
@@ -69,6 +71,8 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
   const alive = useRef(true);
   const loading = useRef(0);
   const locationSent = useRef(false);
+  const layout = useLayout();
+  const { wide } = layout;
 
   const refresh = useCallback(async () => {
     loading.current += 1;
@@ -127,10 +131,10 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.topline}>
+      <View style={[styles.topline, pageStyle(layout, true), wide && styles.gutterWide]}>
         <BackLink label="Wardrobe" onPress={onBack} />
       </View>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, pageStyle(layout, true), wide && styles.gutterWide]}>
         <Text style={styles.title}>Dress me</Text>
         {state.status !== "error" && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>
           {weatherLine(state.status === "ready" ? state.board.today?.weather ?? null : null, state.status === "loading")}
@@ -160,9 +164,9 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
               {!board.status.generationEnabled ? "New ideas are switched off on the server. Your saved outfits are below."
                 : waiting ? "Preparing ideas…" : "No ideas yet."}
             </Text>}
-            <View style={styles.results}>
+            <View style={[styles.results, wide && styles.resultsWide]}>
               {ideas.map((idea) => <OutfitCard key={idea.id} label={labelFor(idea.occasion)} garments={idea.garments}
-                reason={idea.reason} forToday={forToday(idea.id)} missing={0} onEdit={onEdit} disabled={busy}
+                reason={idea.reason} forToday={forToday(idea.id)} missing={0} onEdit={onEdit} disabled={busy} wide={wide}
                 action={{
                   text: "♡ SAVE", accessibilityLabel: `Save ${labelFor(idea.occasion).toLowerCase()} outfit: ${idea.garments.map((g) => g.name).join(", ")}`,
                   onPress: () => void act(async () => { await saveOutfitIdea(idea.id); return null; }),
@@ -178,9 +182,9 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
             {notice && <Text accessibilityRole="alert" style={styles.help}>{notice}</Text>}
             {saved.length > 0 && <>
               <Text style={styles.label}>SAVED</Text>
-              <View style={styles.results}>
+              <View style={[styles.results, wide && styles.resultsWide]}>
                 {saved.map((outfit) => <OutfitCard key={outfit.id} label={labelFor(outfit.occasion)} garments={outfit.garments}
-                  reason={outfit.reason} forToday={forToday(outfit.id)} missing={outfit.missingGarmentIds.length} onEdit={onEdit} disabled={busy}
+                  reason={outfit.reason} forToday={forToday(outfit.id)} missing={outfit.missingGarmentIds.length} onEdit={onEdit} disabled={busy} wide={wide}
                   action={{
                     text: "REMOVE", accessibilityLabel: `Remove saved ${labelFor(outfit.occasion).toLowerCase()} outfit: ${outfit.garments.map((g) => g.name).join(", ")}`,
                     onPress: () => void act(async () => { await removeSavedOutfit(outfit.id); return null; }),
@@ -198,6 +202,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   topline: { padding: spacing.gutter },
   content: { paddingHorizontal: spacing.gutter, paddingBottom: 32 },
+  // Topline and content carry their own gutter, so on wide they take the full wide gutter rather than summing with pageStyle.
+  gutterWide: { paddingHorizontal: spacing.gutterWide },
   title: { ...typography.titleXL, fontSize: 40, lineHeight: 42 },
   subtitle: { ...typography.body, marginTop: 4 },
   label: { ...typography.kicker, marginTop: 28, marginBottom: 14 },
@@ -208,7 +214,9 @@ const styles = StyleSheet.create({
   notice: { marginTop: 24 },
   error: { ...typography.body, color: colors.ink, fontSize: 14, lineHeight: 21 },
   results: { gap: 20 },
+  resultsWide: { flexDirection: "row", flexWrap: "wrap" },
   card: { backgroundColor: colors.card, borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, padding: 16 },
+  cardWide: { width: "48%" },
   cardLabel: { ...typography.kicker, marginBottom: 16 },
   forToday: { borderLeftColor: colors.moss, borderLeftWidth: 2, paddingLeft: 10, marginBottom: 16 },
   forTodayLabel: { ...typography.kicker, color: colors.moss },
