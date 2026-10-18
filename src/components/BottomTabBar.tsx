@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Icon, type IconName } from "./Icon";
-import { colors } from "../theme";
+import { colors, fonts, typography } from "../theme";
 
 export type TabId = "feed" | "browse" | "alerts" | "saved" | "profile";
 
@@ -37,7 +37,7 @@ export function BottomTabBar({ activeTab, hasUnreadAlerts, onChange }: Props) {
             hitSlop={8}
             key={tab.id}
             onPress={() => onChange(tab.id)}
-            style={styles.tab}
+            style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
           >
             <View>
               <Icon
@@ -78,12 +78,14 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   label: {
+    ...typography.label,
     color: colors.muted,
-    fontFamily: "Inter_500Medium",
-    fontSize: 9,
+    fontFamily: fonts.textMedium,
+    letterSpacing: 0.4,
     marginTop: 3,
   },
   activeLabel: { color: colors.ink },
+  pressed: { opacity: 0.7 },
   badge: {
     backgroundColor: colors.wine,
     borderColor: colors.card,

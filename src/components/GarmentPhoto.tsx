@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { garmentPhotoSource } from "../services/catalogueClient";
-import { colors, fonts } from "../theme";
+import { colors, radii, typography } from "../theme";
 import type { Garment } from "../types";
 
 export function GarmentPhoto({ garment }: { garment: Garment }) {
@@ -19,8 +19,8 @@ export function GarmentPhoto({ garment }: { garment: Garment }) {
 }
 
 const styles = StyleSheet.create({
-  frame: { aspectRatio: 4 / 5, backgroundColor: colors.wash, borderRadius: 20,
+  frame: { aspectRatio: 4 / 5, backgroundColor: colors.wash, borderRadius: radii.card,
     overflow: "hidden", alignItems: "center", justifyContent: "center", width: "100%" },
   image: { width: "100%", height: "100%" },
-  placeholder: { color: colors.muted, fontFamily: fonts.text, fontSize: 12 },
+  placeholder: typography.caption,
 });

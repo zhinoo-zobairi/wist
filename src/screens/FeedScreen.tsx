@@ -1,8 +1,10 @@
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { ActionLink } from "../components/ActionLink";
 import { Icon } from "../components/Icon";
+import { Wordmark } from "../components/Wordmark";
 import { useWistStore } from "../store/useWistStore";
-import { colors, fonts } from "../theme";
+import { colors, radii, spacing, typography } from "../theme";
 import type { Brand, Item } from "../types";
 
 type Props = {
@@ -31,8 +33,13 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.screen}>
       <View style={styles.header}>
-        <Text style={styles.wordmark}>WIST</Text>
-        <Pressable accessibilityLabel="Open alerts" hitSlop={12} onPress={onOpenAlerts}>
+        <Wordmark />
+        <Pressable
+          accessibilityLabel="Open alerts"
+          hitSlop={12}
+          onPress={onOpenAlerts}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
           <View>
             <Icon color={colors.ink} name="bell" size={22} />
             {alerts.some((alert) => !alert.read) ? <View style={styles.badge} /> : null}
@@ -47,7 +54,11 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
       </View>
 
       {latestAlert && alertItem ? (
-        <Pressable accessibilityRole="button" onPress={onOpenAlerts} style={styles.signal}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onOpenAlerts}
+          style={({ pressed }) => [styles.signal, pressed && styles.pressed]}
+        >
           <Image source={{ uri: alertItem.imageUrl }} style={styles.signalImage} />
           <View style={styles.signalBody}>
             <Text style={styles.signalKicker}>A COVETED PIECE JUST DROPPED</Text>
@@ -70,11 +81,15 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
 
       <View style={styles.sectionHead}>
         <Text style={styles.sectionTitle}>From your houses</Text>
-        <Pressable onPress={onOpenBrowse}><Text style={styles.textLink}>DISCOVER ALL</Text></Pressable>
+        <ActionLink label="Discover all" onPress={onOpenBrowse} />
       </View>
       <ScrollView contentContainerStyle={styles.houses} horizontal showsHorizontalScrollIndicator={false}>
         {followedBrands.map((brand, index) => (
-          <Pressable key={brand.id} onPress={() => onBrowseBrand(brand.id)} style={styles.house}>
+          <Pressable
+            key={brand.id}
+            onPress={() => onBrowseBrand(brand.id)}
+            style={({ pressed }) => [styles.house, pressed && styles.pressed]}
+          >
             <Text style={styles.houseIndex}>0{index + 1}</Text>
             <Text numberOfLines={2} style={styles.houseName}>{brand.name}</Text>
           </Pressable>
@@ -98,20 +113,24 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
           return (
             <View key={item.id} style={[styles.editItem, index % 2 === 1 && styles.editItemLower]}>
               <View>
-                <Pressable onPress={() => onOpenItem(item.id)}>
+                <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
                   <Image source={{ uri: item.imageUrl }} style={styles.editImage} />
                 </Pressable>
                 <Pressable
                   accessibilityLabel={`${coveted ? "Remove" : "Covet"} ${item.name}`}
                   accessibilityState={{ selected: coveted }}
                   onPress={() => onToggleCovet(item)}
-                  style={[styles.covetButton, coveted && styles.covetButtonSelected]}
+                  style={({ pressed }) => [
+                    styles.covetButton,
+                    coveted && styles.covetButtonSelected,
+                    pressed && styles.pressed,
+                  ]}
                 >
                   <Icon color={colors.ink} filled={coveted} name="heart" size={20} />
                 </Pressable>
               </View>
               <Text style={styles.itemBrand}>{brand?.name}</Text>
-              <Pressable onPress={() => onOpenItem(item.id)}>
+              <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
                 <Text numberOfLines={2} style={styles.itemName}>{item.name}</Text>
               </Pressable>
               <Text style={styles.itemPrice}>€ {item.currentPrice.toFixed(0)}</Text>
@@ -125,43 +144,42 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.paper, flex: 1 },
-  header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 22, paddingTop: 10 },
-  wordmark: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 17, letterSpacing: 5 },
+  header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.gutter, paddingTop: 10 },
   badge: { backgroundColor: colors.wine, borderColor: colors.paper, borderRadius: 5, borderWidth: 2, height: 9, position: "absolute", right: -3, top: -3, width: 9 },
-  intro: { paddingBottom: 28, paddingHorizontal: 22, paddingTop: 35 },
-  kicker: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1.8 },
-  title: { color: colors.ink, fontFamily: fonts.display, fontSize: 45, lineHeight: 44, marginTop: 10 },
-  dek: { color: colors.muted, fontFamily: fonts.text, fontSize: 13, lineHeight: 20, marginTop: 13, maxWidth: 300 },
-  signal: { backgroundColor: colors.wine, flexDirection: "row", marginBottom: 38, marginHorizontal: 14, minHeight: 190 },
+  intro: { paddingBottom: 28, paddingHorizontal: spacing.gutter, paddingTop: 35 },
+  kicker: typography.kicker,
+  title: { ...typography.titleXL, marginTop: 10 },
+  dek: { ...typography.body, marginTop: 13, maxWidth: 300 },
+  signal: { backgroundColor: colors.wine, borderRadius: radii.card, flexDirection: "row", marginBottom: 38, marginHorizontal: 14, minHeight: 190, overflow: "hidden" },
   signalImage: { backgroundColor: colors.line, width: "40%" },
   signalBody: { flex: 1, justifyContent: "center", padding: 18 },
-  signalKicker: { color: "#F5DDE0", fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.4, lineHeight: 12 },
-  signalName: { color: colors.card, fontFamily: fonts.display, fontSize: 24, lineHeight: 25, marginTop: 8 },
+  signalKicker: { ...typography.kicker, color: colors.onWineSoft },
+  signalName: { ...typography.titleM, color: colors.card, fontSize: 24, lineHeight: 26, marginTop: 8 },
   priceRow: { alignItems: "baseline", flexDirection: "row", gap: 8, marginTop: 9 },
-  signalPrice: { color: colors.card, fontFamily: fonts.textSemibold, fontSize: 16 },
-  oldPrice: { color: "#E6B9BE", fontFamily: fonts.text, fontSize: 11, textDecorationLine: "line-through" },
-  percent: { backgroundColor: colors.card, color: colors.wine, fontFamily: fonts.textSemibold, fontSize: 9, paddingHorizontal: 5, paddingVertical: 2 },
-  signalLink: { color: colors.card, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2, marginTop: 20 },
-  quietSignal: { borderBottomColor: colors.line, borderTopColor: colors.line, borderTopWidth: 1, borderBottomWidth: 1, marginBottom: 38, marginHorizontal: 22, paddingVertical: 22 },
-  quietKicker: { color: colors.moss, fontFamily: fonts.textSemibold, fontSize: 9, letterSpacing: 1.5 },
-  quietTitle: { color: colors.ink, fontFamily: fonts.display, fontSize: 24, marginTop: 5 },
-  quietBody: { color: colors.muted, fontFamily: fonts.text, fontSize: 12, lineHeight: 18, marginTop: 4, maxWidth: 300 },
-  sectionHead: { alignItems: "baseline", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 22 },
-  sectionTitle: { color: colors.ink, fontFamily: fonts.display, fontSize: 28 },
-  textLink: { color: colors.ink, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2 },
-  sectionNote: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2 },
-  houses: { gap: 10, paddingBottom: 40, paddingHorizontal: 22, paddingTop: 14 },
+  signalPrice: { ...typography.price, color: colors.card, fontSize: 16 },
+  oldPrice: { ...typography.caption, color: colors.onWineMuted, textDecorationLine: "line-through" },
+  percent: { ...typography.label, backgroundColor: colors.card, borderRadius: radii.card, color: colors.wine, paddingHorizontal: 6, paddingVertical: 2 },
+  signalLink: { ...typography.label, color: colors.card, marginTop: 20 },
+  quietSignal: { borderBottomColor: colors.line, borderTopColor: colors.line, borderTopWidth: 1, borderBottomWidth: 1, marginBottom: 38, marginHorizontal: spacing.gutter, paddingVertical: 22 },
+  quietKicker: { ...typography.kicker, color: colors.moss },
+  quietTitle: { ...typography.titleL, marginTop: 5 },
+  quietBody: { ...typography.body, marginTop: 4, maxWidth: 300 },
+  sectionHead: { alignItems: "baseline", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.gutter },
+  sectionTitle: typography.titleL,
+  sectionNote: typography.kicker,
+  houses: { gap: 10, paddingBottom: 40, paddingHorizontal: spacing.gutter, paddingTop: 14 },
   house: { borderColor: colors.line, borderTopWidth: 1, height: 94, justifyContent: "space-between", paddingTop: 9, width: 112 },
-  houseIndex: { color: colors.muted, fontFamily: fonts.text, fontSize: 9 },
-  houseName: { color: colors.ink, fontFamily: fonts.display, fontSize: 18, lineHeight: 19 },
+  houseIndex: typography.caption,
+  houseName: typography.titleS,
   editGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingBottom: 40, paddingHorizontal: 14, paddingTop: 16 },
   catalogueEmpty: { borderTopColor: colors.line, borderTopWidth: 1, marginHorizontal: 8, paddingVertical: 24, width: "100%" },
   editItem: { marginBottom: 24, width: "48%" },
   editItemLower: { marginTop: 38 },
-  editImage: { aspectRatio: 3 / 4, backgroundColor: colors.line, width: "100%" },
-  covetButton: { alignItems: "center", backgroundColor: colors.card, bottom: 0, height: 42, justifyContent: "center", position: "absolute", right: 0, width: 42 },
+  editImage: { aspectRatio: 3 / 4, backgroundColor: colors.line, borderRadius: radii.card, width: "100%" },
+  covetButton: { alignItems: "center", backgroundColor: colors.card, borderRadius: radii.card, bottom: 0, height: 42, justifyContent: "center", position: "absolute", right: 0, width: 42 },
   covetButtonSelected: { backgroundColor: colors.wash },
-  itemBrand: { color: colors.muted, fontFamily: fonts.textSemibold, fontSize: 8, letterSpacing: 1.2, marginTop: 9, textTransform: "uppercase" },
-  itemName: { color: colors.ink, fontFamily: fonts.display, fontSize: 18, lineHeight: 19, marginTop: 3 },
-  itemPrice: { color: colors.ink, fontFamily: fonts.textMedium, fontSize: 11, marginTop: 5 },
+  itemBrand: { ...typography.kicker, marginTop: 9, textTransform: "uppercase" },
+  itemName: { ...typography.titleS, marginTop: 3 },
+  itemPrice: { ...typography.price, marginTop: 5 },
+  pressed: { opacity: 0.85 },
 });

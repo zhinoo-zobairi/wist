@@ -50,10 +50,11 @@ export function OccasionStylePicker<Value extends string>({
             disabled={isDisabled}
             key={option.id}
             onPress={() => toggle(option.id)}
-            style={[
+            style={({ pressed }) => [
               styles.chip,
               isSelected && { backgroundColor: selectedColor, borderColor: selectedColor },
               isDisabled && styles.chipDisabled,
+              pressed && styles.pressed,
             ]}
           >
             <Text style={[styles.label, isSelected && styles.labelSelected]}>
@@ -70,12 +71,13 @@ const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   chip: {
     borderColor: colors.ring,
-    borderRadius: radii.pill,
+    borderRadius: radii.card,
     borderWidth: 1,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
   },
   chipDisabled: { opacity: 0.35 },
+  pressed: { opacity: 0.7 },
   label: {
     color: colors.ink,
     fontFamily: fonts.textMedium,
