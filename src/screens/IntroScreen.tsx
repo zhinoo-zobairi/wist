@@ -180,6 +180,8 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
   const page = { width, height };
   const platesStyle = wide ? styles.leftPage : StyleSheet.absoluteFill;
   const copyStyle = (compact: object) => (wide ? styles.copyWide : compact);
+  // The copy sits on the right page on wide windows; on compact it is anchored to the page edges, so its wrapper must fill the page.
+  const copyPageStyle = wide ? styles.rightPage : StyleSheet.absoluteFill;
 
   return (
     <View style={styles.screen}>
@@ -216,7 +218,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   width={Math.round(plateArea * 0.42)}
                 />
               </View>
-              <View style={wide ? styles.rightPage : null}>
+              <View style={copyPageStyle}>
                 <Copy motion={motionFor(0)} style={copyStyle(styles.coverCopy)}>
                   <Text style={styles.kicker}>ISSUE 01 · THE QUIET WAY TO WANT</Text>
                   <Text accessibilityRole="header" style={styles.masthead}>Wist.</Text>
@@ -245,7 +247,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   width={Math.round(plateArea * 0.46)}
                 />
               </View>
-              <View style={wide ? styles.rightPage : null}>
+              <View style={copyPageStyle}>
                 <Copy motion={motionFor(1)} style={copyStyle(styles.lowerCopy)}>
                   <View style={styles.heartRow}>
                     <Icon color={colors.wine} filled name="heart" size={22} />
@@ -278,7 +280,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   <Text style={styles.priceOff}>−30% · A NEW LOW</Text>
                 </Copy>
               </View>
-              <View style={wide ? styles.rightPage : null}>
+              <View style={copyPageStyle}>
                 <Copy motion={motionFor(2)} style={copyStyle(styles.lowerCopy)}>
                   <Text style={styles.kicker}>EVERY DAY, WITHOUT NOISE</Text>
                   <Text accessibilityRole="header" style={styles.headline}>Wist watches its price, quietly.</Text>
@@ -300,7 +302,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   width={Math.round(plateArea * (wide ? 0.62 : 0.4))}
                 />
               </View>
-              <View style={wide ? styles.rightPage : null}>
+              <View style={copyPageStyle}>
                 <Copy motion={motionFor(3)} style={copyStyle(styles.heroCopy)}>
                   <Text style={[styles.kicker, styles.onWineMuted]}>WHAT WIST DOES FOR YOU</Text>
                   <Text accessibilityRole="header" style={[styles.headline, styles.onWine]}>When it drops, you know first.</Text>
