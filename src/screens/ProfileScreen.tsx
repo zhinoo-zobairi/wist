@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
@@ -11,14 +10,17 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { ActionLink } from "../components/ActionLink";
+import { Button } from "../components/Button";
 import { OccasionStylePicker } from "../components/OccasionStylePicker";
-import { seedBrands } from "../data/seed";
+import { ScreenHeader } from "../components/ScreenHeader";
 import { saveStyleProfile } from "../services/catalogueClient";
 import { useWistStore } from "../store/useWistStore";
-import { colors, fonts, radii } from "../theme";
+import { colors, radii, typography } from "../theme";
 import {
   OCCASION_OPTIONS,
   STYLE_OPTIONS,
+  type Brand,
   type Occasion,
   type Style,
 } from "../types";
@@ -35,7 +37,7 @@ function selectionLabels<Value extends string>(
   return labels.length > 0 ? labels.join(", ") : "Not set";
 }
 
-export function ProfileScreen({ onOpenWardrobe }: { onOpenWardrobe: () => void }) {
+export function ProfileScreen({ brands, onOpenWardrobe }: { brands: Brand[]; onOpenWardrobe: () => void }) {
   const wardrobe = useWistStore((state) => state.wardrobe);
   const wardrobeStatus = useWistStore((state) => state.wardrobeStatus);
   const refreshWardrobe = useWistStore((state) => state.refreshWardrobe);
@@ -77,21 +79,19 @@ export function ProfileScreen({ onOpenWardrobe }: { onOpenWardrobe: () => void }
   return (
     <>
       <ScrollView style={screenStyles.screen}>
-        <View style={screenStyles.header}>
-          <Text style={screenStyles.kicker}>YOUR TASTE, IN PROGRESS</Text>
-          <Text style={screenStyles.title}>Profile</Text>
-          <Text style={screenStyles.subtitle}>
-            The preferences Wist uses to shape your edit.
-          </Text>
-        </View>
+        <ScreenHeader kicker="YOUR TASTE, IN PROGRESS" subtitle="The preferences Wist uses to shape your edit." title="Profile" />
 
         <View style={screenStyles.section}>
-          <Pressable accessibilityRole="button" onPress={onOpenWardrobe} style={screenStyles.tasteRow}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onOpenWardrobe}
+            style={({ pressed }) => [screenStyles.tasteRow, pressed && screenStyles.pressed]}
+          >
             <View style={screenStyles.tasteCopy}>
               <Text style={screenStyles.tasteLabel}>WARDROBE</Text>
               <Text style={screenStyles.tasteValue}>{wardrobeStatus === "loading" ? "Loading your pieces…" : wardrobeStatus === "error" ? "Open to reconnect" : `${wardrobe.length} pieces you own`}</Text>
             </View>
-            <Text style={[screenStyles.action, { color: colors.moss }]}>OPEN</Text>
+            <ActionLink color={colors.moss} label="Open" onPress={onOpenWardrobe} />
           </Pressable>
         </View>
 
@@ -113,7 +113,7 @@ export function ProfileScreen({ onOpenWardrobe }: { onOpenWardrobe: () => void }
           <Text style={screenStyles.sectionLabel}>
             FOLLOWED HOUSES · {followed.length}
           </Text>
-          {seedBrands.map((brand, index) => {
+          {brands.map((brand, index) => {
             const selected = followed.includes(brand.id);
             return (
               <View key={brand.id} style={screenStyles.row}>
@@ -122,16 +122,11 @@ export function ProfileScreen({ onOpenWardrobe }: { onOpenWardrobe: () => void }
                   <Text style={screenStyles.monogramText}>{brand.monogram}</Text>
                 </View>
                 <Text style={screenStyles.brand}>{brand.name}</Text>
-                <Pressable onPress={() => toggleFollow(brand.id)}>
-                  <Text
-                    style={[
-                      screenStyles.action,
-                      !selected && screenStyles.follow,
-                    ]}
-                  >
-                    {selected ? "FOLLOWING" : "FOLLOW"}
-                  </Text>
-                </Pressable>
+                <ActionLink
+                  color={selected ? colors.muted : colors.wine}
+                  label={selected ? "Following" : "Follow"}
+                  onPress={() => toggleFollow(brand.id)}
+                />
               </View>
             );
           })}
@@ -157,9 +152,9 @@ export function ProfileScreen({ onOpenWardrobe }: { onOpenWardrobe: () => void }
       >
         <SafeAreaView edges={["top", "bottom"]} style={screenStyles.modal}>
           <View style={screenStyles.modalTopline}>
-            <Pressable disabled={saving} onPress={() => setEditor(null)}>
-              <Text style={screenStyles.modalAction}>CANCEL</Text>
-            </Pressable>
+            <View style={screenStyles.modalActionSpacer}>
+              <ActionLink color={colors.wine} disabled={saving} label="Cancel" onPress={() => setEditor(null)} />
+            </View>
             <Text style={screenStyles.modalKicker}>EDIT YOUR TASTE</Text>
             <View style={screenStyles.modalActionSpacer} />
           </View>
@@ -189,17 +184,9 @@ export function ProfileScreen({ onOpenWardrobe }: { onOpenWardrobe: () => void }
               )}
             </View>
           </ScrollView>
-          <Pressable
-            disabled={saving}
-            onPress={() => void saveEditor()}
-            style={screenStyles.saveButton}
-          >
-            {saving ? (
-              <ActivityIndicator color={colors.card} />
-            ) : (
-              <Text style={screenStyles.saveText}>SAVE CHANGES</Text>
-            )}
-          </Pressable>
+          <View style={screenStyles.saveButton}>
+            <Button busy={saving} color={colors.wine} label="Save changes" onPress={() => void saveEditor()} />
+          </View>
         </SafeAreaView>
       </Modal>
     </>
@@ -216,51 +203,28 @@ function TasteRow({
   value: string;
 }) {
   return (
-    <Pressable onPress={onEdit} style={screenStyles.tasteRow}>
+    <Pressable
+      onPress={onEdit}
+      style={({ pressed }) => [screenStyles.tasteRow, pressed && screenStyles.pressed]}
+    >
       <View style={screenStyles.tasteCopy}>
         <Text style={screenStyles.tasteLabel}>{label}</Text>
         <Text style={screenStyles.tasteValue}>{value}</Text>
       </View>
-      <Text style={[screenStyles.action, screenStyles.edit]}>EDIT</Text>
+      <ActionLink color={colors.wine} label="Edit" onPress={onEdit} />
     </Pressable>
   );
 }
 
 const screenStyles = StyleSheet.create({
   screen: { backgroundColor: colors.paper, flex: 1 },
-  header: { paddingBottom: 29, paddingHorizontal: 22, paddingTop: 12 },
-  kicker: {
-    color: colors.muted,
-    fontFamily: fonts.textSemibold,
-    fontSize: 8,
-    letterSpacing: 1.8,
-  },
-  title: {
-    color: colors.ink,
-    fontFamily: fonts.display,
-    fontSize: 45,
-    lineHeight: 49,
-    marginTop: 3,
-  },
-  subtitle: {
-    color: colors.muted,
-    fontFamily: fonts.text,
-    fontSize: 12,
-    marginTop: 5,
-  },
   section: {
     borderTopColor: colors.ink,
     borderTopWidth: 1,
     marginHorizontal: 22,
   },
   followedSection: { marginTop: 34 },
-  sectionLabel: {
-    color: colors.muted,
-    fontFamily: fonts.textSemibold,
-    fontSize: 8,
-    letterSpacing: 1.4,
-    paddingVertical: 14,
-  },
+  sectionLabel: { ...typography.kicker, paddingVertical: 14 },
   tasteRow: {
     alignItems: "center",
     borderTopColor: colors.line,
@@ -269,18 +233,8 @@ const screenStyles = StyleSheet.create({
     minHeight: 76,
   },
   tasteCopy: { flex: 1, paddingRight: 20 },
-  tasteLabel: {
-    color: colors.muted,
-    fontFamily: fonts.textSemibold,
-    fontSize: 8,
-    letterSpacing: 1.2,
-  },
-  tasteValue: {
-    color: colors.ink,
-    fontFamily: fonts.display,
-    fontSize: 20,
-    marginTop: 4,
-  },
+  tasteLabel: typography.kicker,
+  tasteValue: { ...typography.titleM, marginTop: 4 },
   row: {
     alignItems: "center",
     borderTopColor: colors.line,
@@ -288,57 +242,29 @@ const screenStyles = StyleSheet.create({
     flexDirection: "row",
     minHeight: 68,
   },
-  index: { color: colors.muted, fontFamily: fonts.text, fontSize: 8, width: 25 },
+  index: { ...typography.caption, width: 25 },
   monogram: {
     alignItems: "center",
     borderColor: colors.ring,
+    borderRadius: radii.card,
     borderWidth: 1,
     height: 36,
     justifyContent: "center",
     width: 36,
   },
-  monogramText: { color: colors.ink, fontFamily: fonts.display, fontSize: 15 },
-  brand: {
-    color: colors.ink,
-    flex: 1,
-    fontFamily: fonts.display,
-    fontSize: 20,
-    paddingLeft: 13,
-  },
-  action: {
-    color: colors.muted,
-    fontFamily: fonts.textSemibold,
-    fontSize: 8,
-    letterSpacing: 1.1,
-  },
-  edit: { color: colors.wine },
-  follow: { color: colors.wine },
+  monogramText: typography.titleS,
+  brand: { ...typography.titleM, flex: 1, paddingLeft: 13 },
   note: {
     backgroundColor: colors.moss,
+    borderRadius: radii.card,
     marginBottom: 28,
     marginHorizontal: 14,
     marginTop: 35,
     padding: 22,
   },
-  noteLabel: {
-    color: "#C9D0C4",
-    fontFamily: fonts.textSemibold,
-    fontSize: 8,
-    letterSpacing: 1.4,
-  },
-  noteTitle: {
-    color: colors.card,
-    fontFamily: fonts.display,
-    fontSize: 25,
-    marginTop: 7,
-  },
-  noteBody: {
-    color: "#D8DDD4",
-    fontFamily: fonts.text,
-    fontSize: 11,
-    lineHeight: 17,
-    marginTop: 6,
-  },
+  noteLabel: { ...typography.kicker, color: colors.onMossMuted },
+  noteTitle: { ...typography.titleL, color: colors.card, marginTop: 7 },
+  noteBody: { ...typography.body, color: colors.onMossSoft, marginTop: 6 },
   modal: { backgroundColor: colors.paper, flex: 1 },
   modalTopline: {
     alignItems: "center",
@@ -349,47 +275,12 @@ const screenStyles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 17,
   },
-  modalAction: {
-    color: colors.wine,
-    fontFamily: fonts.textSemibold,
-    fontSize: 9,
-    letterSpacing: 1.2,
-    width: 58,
-  },
   modalActionSpacer: { width: 58 },
-  modalKicker: {
-    color: colors.muted,
-    fontFamily: fonts.textSemibold,
-    fontSize: 8,
-    letterSpacing: 1.4,
-  },
+  modalKicker: typography.kicker,
   modalContent: { padding: 24 },
-  modalTitle: {
-    color: colors.ink,
-    fontFamily: fonts.display,
-    fontSize: 39,
-    marginTop: 20,
-  },
-  modalSubtitle: {
-    color: colors.muted,
-    fontFamily: fonts.text,
-    fontSize: 12,
-    marginTop: 8,
-  },
+  modalTitle: { ...typography.titleXL, fontSize: 39, lineHeight: 42, marginTop: 20 },
+  modalSubtitle: { ...typography.body, marginTop: 8 },
   modalPicker: { marginTop: 34 },
-  saveButton: {
-    alignItems: "center",
-    backgroundColor: colors.wine,
-    borderRadius: radii.pill,
-    justifyContent: "center",
-    marginHorizontal: 24,
-    marginVertical: 16,
-    minHeight: 52,
-  },
-  saveText: {
-    color: colors.card,
-    fontFamily: fonts.textSemibold,
-    fontSize: 10,
-    letterSpacing: 1.4,
-  },
+  saveButton: { marginHorizontal: 24, marginVertical: 16 },
+  pressed: { opacity: 0.85 },
 });

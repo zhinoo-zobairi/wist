@@ -14,6 +14,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 
 import { BottomTabBar, type TabId } from "./src/components/BottomTabBar";
+import { Wordmark } from "./src/components/Wordmark";
 import {
   importCatalogueWatch,
   loadCatalogue,
@@ -251,7 +252,8 @@ export default function App() {
   if (profileGate === "loading") {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={colors.wine} />
+        {fontsLoaded ? <Wordmark /> : null}
+        <ActivityIndicator color={colors.wine} style={styles.loadingSpinner} />
       </View>
     );
   }
@@ -378,7 +380,7 @@ export default function App() {
           />
         );
       case "alerts":
-        return <AlertsScreen onViewItem={viewAlertItem} />;
+        return <AlertsScreen brands={brands} items={items} onViewItem={viewAlertItem} />;
       case "saved":
         return (
           <SavedScreen
@@ -408,7 +410,7 @@ export default function App() {
           onBack={() => setProfileView({ screen: "profile" })}
           onDressMe={() => setProfileView({ screen: "outfits" })}
           onEdit={(id) => setProfileView({ screen: "edit", id })} />;
-        return <ProfileScreen onOpenWardrobe={() => setProfileView({ screen: "wardrobe" })} />;
+        return <ProfileScreen brands={brands} onOpenWardrobe={() => setProfileView({ screen: "wardrobe" })} />;
       case "feed":
       default:
         return (
@@ -449,6 +451,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
   },
+  loadingSpinner: { marginTop: 18 },
   container: {
     alignSelf: "center",
     backgroundColor: colors.paper,
