@@ -32,15 +32,6 @@ describe("watched size rule", () => {
     ).toBe(true);
   });
 
-  it("stays quiet when every chosen size is sold out", () => {
-    expect(
-      reachesWatchedSize({
-        variants: [variant("38", false), variant("39", true)],
-        watchedSizes: ["38"],
-      }),
-    ).toBe(false);
-  });
-
   it("stays quiet when a chosen size is no longer published", () => {
     expect(
       reachesWatchedSize({

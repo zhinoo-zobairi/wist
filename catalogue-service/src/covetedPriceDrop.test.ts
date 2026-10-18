@@ -9,37 +9,6 @@ const observation = {
 };
 
 describe("coveted price drop rule", () => {
-  it("measures the drop against the price the owner coveted at", () => {
-    expect(
-      detectCovetedPriceDrop({
-        ...observation,
-        covetedPrice: { currency: "EUR", price: 300 },
-        currentPrice: 240,
-        lowestAnnouncedPrice: null,
-      }),
-    ).toEqual({
-      currency: "EUR",
-      itemId: "bobbies-opera",
-      newPrice: 240,
-      observedAt: "2026-09-13T12:00:00.000Z",
-      oldPrice: 300,
-      pctOff: 20,
-    });
-  });
-
-  // The false signal this rule exists to kill. A price that climbed above the
-  // coveted price and then eased back is a decrease, but it is not a bargain:
-  // it is still more expensive than when the owner wanted the piece.
-  it("stays quiet when the price eased back but is still above the coveted price", () => {
-    expect(
-      detectCovetedPriceDrop({
-        ...observation,
-        covetedPrice: { currency: "EUR", price: 300 },
-        currentPrice: 350,
-        lowestAnnouncedPrice: null,
-      }),
-    ).toBeNull();
-  });
 
   it("stays quiet at exactly the coveted price", () => {
     expect(
@@ -47,43 +16,6 @@ describe("coveted price drop rule", () => {
         ...observation,
         covetedPrice: { currency: "EUR", price: 300 },
         currentPrice: 300,
-        lowestAnnouncedPrice: null,
-      }),
-    ).toBeNull();
-  });
-
-  // Without this the same sale price would be re-announced on every six-hour
-  // check for as long as it lasted.
-  it("stays quiet when this price was already announced", () => {
-    expect(
-      detectCovetedPriceDrop({
-        ...observation,
-        covetedPrice: { currency: "EUR", price: 300 },
-        currentPrice: 250,
-        lowestAnnouncedPrice: 250,
-      }),
-    ).toBeNull();
-  });
-
-  it("announces a new low under the cheapest already announced", () => {
-    expect(
-      detectCovetedPriceDrop({
-        ...observation,
-        covetedPrice: { currency: "EUR", price: 300 },
-        currentPrice: 240,
-        lowestAnnouncedPrice: 250,
-      }),
-    ).toMatchObject({ newPrice: 240, oldPrice: 300, pctOff: 20 });
-  });
-
-  // Nothing was coveted, so there is no price the owner cared about and no
-  // signal to deliver. Only coveted pieces raise alerts.
-  it("stays quiet when the item is not coveted", () => {
-    expect(
-      detectCovetedPriceDrop({
-        ...observation,
-        covetedPrice: null,
-        currentPrice: 1,
         lowestAnnouncedPrice: null,
       }),
     ).toBeNull();

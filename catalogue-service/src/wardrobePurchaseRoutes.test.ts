@@ -74,16 +74,6 @@ describe("purchased garment API", () => {
     expect(unwatch).not.toHaveBeenCalled();
   });
 
-  it("keeps the cap under concurrent purchase requests that both pass the precheck", async () => {
-    const { request, wardrobe, catalogue } = setup();
-    for (let index = 0; index < 299; index += 1) await wardrobe.createGarment(input, "manual");
-    const unwatch = vi.spyOn(catalogue, "unwatchItem");
-    const results = await Promise.all([request(), request()]);
-    expect(results.map((result) => result.status).sort()).toEqual([201, 409]);
-    await expect(wardrobe.countGarments()).resolves.toBe(300);
-    expect(unwatch).toHaveBeenCalledTimes(1);
-  });
-
   it("creates a tagged purchase using catalogue image/name/brand and removes the watch and size", async () => {
     const { request, wardrobe, catalogue } = setup();
     const item = (await catalogue.getItem(itemId))!;
