@@ -38,10 +38,10 @@ In the Ubuntu terminal:
 # systemd must be on (default on current WSL); check:
 cat /etc/wsl.conf   # should contain [boot] systemd=true; add it and `wsl --shutdown` if not
 
-# Node 22.5+ (node:sqlite needs it)
+# Node 22.23.4+ (node:sqlite needs 22.5; 22.23.4 fixes the Brotli decompression bug CVE-2026-111497)
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt-get install -y nodejs git
-node --version      # v22.5 or newer
+node --version      # v22.23.4 or newer
 
 git clone https://github.com/zhinoo-zobairi/wist.git ~/wist
 cd ~/wist && npm install
@@ -117,9 +117,13 @@ Apple Developer account).
 ## Updating
 
 ```bash
+node --version      # v22.23.4 or newer; if older: sudo apt-get update && sudo apt-get install -y nodejs
 cd ~/wist && git pull && npm install && npm run catalogue:build
 sudo systemctl restart wist-catalogue
 ```
+
+The service polls shops with `fetch`, which decompresses whatever encoding the shop sends, so a Node security
+release for zlib or Brotli applies to this box even though the code never calls those APIs itself.
 
 ## Backups
 
