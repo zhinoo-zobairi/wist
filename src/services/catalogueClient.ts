@@ -37,6 +37,25 @@ const defaultBaseUrl =
   process.env.EXPO_PUBLIC_CATALOGUE_URL ?? "http://127.0.0.1:4000";
 const defaultOwnerToken = process.env.EXPO_PUBLIC_CATALOGUE_OWNER_TOKEN;
 
+/** Small JSON calls give up after this long; the saveLocation precedent. */
+const CATALOGUE_TIMEOUT_MS = 10_000;
+
+/**
+ * Wraps a fetch so every request aborts after `ms`. Zero retries: the caller
+ * sees the AbortError like any other failure.
+ */
+export function withTimeout(fetchImpl: Fetch, ms: number): Fetch {
+  return async (input, init) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    try {
+      return await fetchImpl(input, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}
+
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -412,8 +431,9 @@ export async function loadCatalogue(
   baseUrl = defaultBaseUrl,
 ): Promise<Catalogue> {
   const root = baseUrl.replace(/\/$/, "");
+  const fetchWithTimeout = withTimeout(fetchImpl, CATALOGUE_TIMEOUT_MS);
   const brandsBody = await responseJson(
-    await fetchImpl(`${root}/v1/brands`, { headers: { accept: "application/json" } }),
+    await fetchWithTimeout(`${root}/v1/brands`, { headers: { accept: "application/json" } }),
   );
   if (!Array.isArray(brandsBody.brands)) {
     throw new Error("Catalogue response is missing brands");
@@ -423,7 +443,7 @@ export async function loadCatalogue(
   const items: Item[] = [];
   for (const brand of brands) {
     const itemsBody = await responseJson(
-      await fetchImpl(`${root}/v1/brands/${encodeURIComponent(brand.id)}/items`, {
+      await fetchWithTimeout(`${root}/v1/brands/${encodeURIComponent(brand.id)}/items`, {
         headers: { accept: "application/json" },
       }),
     );
@@ -477,8 +497,9 @@ export async function loadWatches(
   ownerToken = defaultOwnerToken,
 ): Promise<Watches> {
   const root = baseUrl.replace(/\/$/, "");
+  const fetchWithTimeout = withTimeout(fetchImpl, CATALOGUE_TIMEOUT_MS);
   const body = await responseJson(
-    await fetchImpl(`${root}/v1/watches`, {
+    await fetchWithTimeout(`${root}/v1/watches`, {
       headers: authorizationHeaders(ownerToken),
     }),
   );
@@ -497,8 +518,9 @@ export async function loadPriceDropAlerts(
   ownerToken = defaultOwnerToken,
 ): Promise<Alert[]> {
   const root = baseUrl.replace(/\/$/, "");
+  const fetchWithTimeout = withTimeout(fetchImpl, CATALOGUE_TIMEOUT_MS);
   const body = await responseJson(
-    await fetchImpl(`${root}/v1/alerts`, {
+    await fetchWithTimeout(`${root}/v1/alerts`, {
       headers: authorizationHeaders(ownerToken),
     }),
   );
@@ -514,8 +536,9 @@ export async function loadStyleProfile(
   ownerToken = defaultOwnerToken,
 ): Promise<StyleProfile | null> {
   const root = baseUrl.replace(/\/$/, "");
+  const fetchWithTimeout = withTimeout(fetchImpl, CATALOGUE_TIMEOUT_MS);
   const body = await responseJson(
-    await fetchImpl(`${root}/v1/profile`, {
+    await fetchWithTimeout(`${root}/v1/profile`, {
       headers: authorizationHeaders(ownerToken),
     }),
   );
@@ -530,8 +553,9 @@ export async function saveStyleProfile(
   ownerToken = defaultOwnerToken,
 ): Promise<StyleProfile> {
   const root = baseUrl.replace(/\/$/, "");
+  const fetchWithTimeout = withTimeout(fetchImpl, CATALOGUE_TIMEOUT_MS);
   const body = await responseJson(
-    await fetchImpl(`${root}/v1/profile`, {
+    await fetchWithTimeout(`${root}/v1/profile`, {
       body: JSON.stringify({ occasions, styles }),
       headers: {
         ...authorizationHeaders(ownerToken),
@@ -551,8 +575,9 @@ export async function setCatalogueWatch(
   ownerToken = defaultOwnerToken,
 ): Promise<void> {
   const root = baseUrl.replace(/\/$/, "");
+  const fetchWithTimeout = withTimeout(fetchImpl, CATALOGUE_TIMEOUT_MS);
   const body = await responseJson(
-    await fetchImpl(`${root}/v1/watches/${encodeURIComponent(itemId)}`, {
+    await fetchWithTimeout(`${root}/v1/watches/${encodeURIComponent(itemId)}`, {
       headers: authorizationHeaders(ownerToken),
       method: watched ? "PUT" : "DELETE",
     }),
@@ -574,8 +599,9 @@ export async function saveWatchSizes(
   ownerToken = defaultOwnerToken,
 ): Promise<void> {
   const root = baseUrl.replace(/\/$/, "");
+  const fetchWithTimeout = withTimeout(fetchImpl, CATALOGUE_TIMEOUT_MS);
   const body = await responseJson(
-    await fetchImpl(`${root}/v1/watches/${encodeURIComponent(itemId)}`, {
+    await fetchWithTimeout(`${root}/v1/watches/${encodeURIComponent(itemId)}`, {
       body: JSON.stringify({ sizes }),
       headers: {
         ...authorizationHeaders(ownerToken),
@@ -596,8 +622,9 @@ export async function importCatalogueWatch(
   ownerToken = defaultOwnerToken,
 ): Promise<string> {
   const root = baseUrl.replace(/\/$/, "");
+  const fetchWithTimeout = withTimeout(fetchImpl, CATALOGUE_TIMEOUT_MS);
   const body = await responseJson(
-    await fetchImpl(`${root}/v1/watches`, {
+    await fetchWithTimeout(`${root}/v1/watches`, {
       body: JSON.stringify({ url: productUrl }),
       headers: {
         ...authorizationHeaders(ownerToken),

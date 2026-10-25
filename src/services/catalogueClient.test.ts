@@ -9,6 +9,7 @@ import {
   saveStyleProfile,
   saveWatchSizes,
   setCatalogueWatch,
+  withTimeout,
 } from "./catalogueClient";
 
 describe("catalogue client", () => {
@@ -95,7 +96,7 @@ describe("catalogue client", () => {
     expect(fetchImpl).toHaveBeenNthCalledWith(
       1,
       "http://catalogue.test/v1/brands",
-      { headers: { accept: "application/json" } },
+      { headers: { accept: "application/json" }, signal: expect.any(AbortSignal) },
     );
   });
 
@@ -144,6 +145,7 @@ describe("catalogue client", () => {
           authorization: "Bearer owner-token",
         },
         method: "PUT",
+        signal: expect.any(AbortSignal),
       },
     );
   });
@@ -187,6 +189,7 @@ describe("catalogue client", () => {
           "content-type": "application/json",
         },
         method: "PUT",
+        signal: expect.any(AbortSignal),
       },
     );
   });
@@ -220,6 +223,7 @@ describe("catalogue client", () => {
         "content-type": "application/json",
       },
       method: "POST",
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -306,6 +310,7 @@ describe("catalogue client", () => {
         accept: "application/json",
         authorization: "Bearer owner-token",
       },
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -347,6 +352,7 @@ describe("catalogue client", () => {
           "content-type": "application/json",
         },
         method: "PUT",
+        signal: expect.any(AbortSignal),
       },
     );
   });
@@ -375,5 +381,47 @@ describe("catalogue client", () => {
     await expect(
       loadStyleProfile(fetchImpl, "http://catalogue.test", "owner-token"),
     ).rejects.toThrow("invalid style profile selections");
+  });
+});
+
+describe("withTimeout", () => {
+  it("passes the caller's init through with an abort signal and clears the timer on success", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn().mockResolvedValue(new Response("{}"));
+      await withTimeout(fetchImpl, 10_000)("http://catalogue.test/v1/brands", {
+        headers: { accept: "application/json" },
+      });
+      expect(fetchImpl).toHaveBeenCalledExactlyOnceWith("http://catalogue.test/v1/brands", {
+        headers: { accept: "application/json" },
+        signal: expect.any(AbortSignal),
+      });
+      const [, init] = fetchImpl.mock.calls[0] as [string, RequestInit];
+      expect(init.signal?.aborted).toBe(false);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("aborts a request that has not answered after the timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+          }),
+      );
+      const pending = withTimeout(fetchImpl, 10_000)("http://catalogue.test/v1/alerts");
+      const outcome = expect(pending).rejects.toThrow("aborted");
+      await vi.advanceTimersByTimeAsync(9_999);
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await outcome;
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
