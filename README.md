@@ -13,6 +13,19 @@ npm run ios
 
 Use `npm run android` for Android or `npm run web` for the browser preview. The in-app drop flow works on web, but browser previews intentionally skip native local notifications.
 
+### Run it 24/7 on the AtomMan, as a web app on the iPhone
+
+The always-on setup is one machine, the AtomMan mini PC: the catalogue service
+runs as a systemd unit in WSL and also serves the exported web app, reachable
+from the iPhone over Tailscale at `https://<atomman>.<tailnet>.ts.net`.
+"Add to Home Screen" in Safari gives WIST its own icon, and the Mac can stay off.
+Step by step: [docs/HOSTING_ATOMMAN.md](docs/HOSTING_ATOMMAN.md).
+
+```bash
+npm run web:build        # exports the web app into web-build/ (set EXPO_PUBLIC_CATALOGUE_URL first)
+npm run catalogue:start  # serves web-build/ next to the API when the folder exists
+```
+
 ### Run the first personal version on an iPhone
 
 This path runs Wist inside Expo Go. It is intentionally the smallest way to
@@ -38,8 +51,8 @@ try the real workflow before creating a standalone App Store-style build.
 6. Finish the short onboarding, open **Coveted**, and paste a supported product
    URL into **Watch a product**.
 
-For this local milestone, the Mac must remain awake and running the catalogue
-service. The app currently supports Shopify product pages such as Goelia,
+For this Expo Go path, the Mac must remain awake and running the catalogue
+service; the AtomMan setup above removes that. The app currently supports Shopify product pages such as Goelia,
 Bobbies English, Sandro Germany, and Claudie Pierlot Germany. It synchronizes price-drop alerts while
 open and then creates a local iOS notification. A continuously hosted backend
 plus remote push delivery is the next step required for notifications while
@@ -341,8 +354,14 @@ before Wist becomes a multi-user or publicly distributed service.
 
 The Expo app loads this catalogue at startup. Web and iOS Simulator use
 `http://127.0.0.1:4000` by default. Set `EXPO_PUBLIC_CATALOGUE_URL` to the
-Mac's LAN URL for local iPhone development or to the public HTTPS URL for a
-deployed backend.
+Mac's LAN URL for local iPhone development or to the AtomMan's Tailscale HTTPS
+name for the hosted setup. The value is compiled into the bundle, so rebuild
+(`npm run web:build`, or restart `npm start`) after changing it.
+
+The service serves the exported web app from `web-build/` (override with
+`CATALOGUE_WEB_DIR`) when that folder exists: `/` and the bundle's files come
+from there, `/health` and `/v1/...` stay the API, and any other path is still a
+JSON 404.
 
 ### Prove direct Sandro product access
 
