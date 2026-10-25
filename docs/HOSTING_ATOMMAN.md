@@ -1,14 +1,16 @@
-# Run the catalogue service on the AtomMan (WSL + Tailscale)
+# Run WIST on the AtomMan (WSL + Tailscale)
 
 The catalogue service (wardrobe, outfit generation at any time, the 06:00 daily
-pick) runs on the AtomMan mini PC instead of the Mac. The phone reaches it through
-Tailscale, a private network, from home or away. Nothing is exposed to the
-internet, so pairing (#20) can stay deferred.
+pick) and the WIST web app run on the AtomMan mini PC instead of the Mac. The
+phone reaches them through Tailscale, a private network, from home or away. The
+web app's bundle contains the owner token, so nothing is exposed to the internet
+(never `tailscale funnel`) and pairing (#20) can stay deferred.
 
 ```text
-iPhone ──Tailscale──▶ AtomMan (Windows) ─▶ WSL Ubuntu ─▶ systemd: wist-catalogue
-                                                           └─ node catalogue-service/dist/server.js :4000
-                                                              (SQLite + photos in the repo folder)
+iPhone Safari ──https (Tailscale, 443)──▶ AtomMan (Windows) ─▶ WSL Ubuntu
+                                            └─ tailscaled "serve" ─▶ 127.0.0.1:4000 systemd: wist-catalogue
+                                                                       ├─ /health, /v1/...  → API (SQLite + photos in the repo folder)
+                                                                       └─ /, /_expo/, /assets/ → web-build/ (the exported web app)
 ```
 
 ## 1. Windows: keep the machine and WSL running
@@ -52,9 +54,14 @@ Create `~/wist/.env.local` (never commit it):
 ```dotenv
 CATALOGUE_OWNER_TOKEN=<64-char random value, same as on the Mac>
 EXPO_PUBLIC_CATALOGUE_OWNER_TOKEN=<the same value>
-CATALOGUE_HOST=0.0.0.0
+EXPO_PUBLIC_CATALOGUE_URL=https://<atomman>.<tailnet>.ts.net
 ANTHROPIC_API_KEY=<your key>
 ```
+
+`EXPO_PUBLIC_CATALOGUE_URL` is the machine's Tailscale HTTPS name from step 4;
+it is compiled into the web app, so set it before `npm run web:build`. Leave
+`CATALOGUE_HOST` unset: the service listens on `127.0.0.1` only and Tailscale
+Serve is the only way in, so plain HTTP is not reachable from the home Wi-Fi.
 
 Keep the code inside the Linux filesystem (`~/wist`), not under `/mnt/c`:
 SQLite is slow and unreliable across the Windows mount.
@@ -63,6 +70,7 @@ SQLite is slow and unreliable across the Windows mount.
 
 ```bash
 npm run catalogue:build
+npm run web:build        # exports the web app into web-build/, which the service serves
 sudo tee /etc/systemd/system/wist-catalogue.service >/dev/null <<EOF
 [Unit]
 Description=Wist catalogue service
@@ -85,42 +93,54 @@ journalctl -u wist-catalogue -f      # live logs
 
 `Restart=on-failure` restarts it after a crash. Interrupted outfit runs are
 marked failed at startup; the daily pick never repeats a paid call the same day.
+The log line says `(serving web-build/)` when the web app folder was found.
 
-## 4. Tailscale
+## 4. Tailscale, with HTTPS
 
-1. Install Tailscale **inside WSL**:
+1. In the Tailscale admin console (`login.tailscale.com/admin/dns`) switch on
+   **MagicDNS** and **HTTPS Certificates**, once per tailnet. This gives the
+   machine a name like `atomman.tail1234.ts.net` and lets it get a certificate.
+2. Install Tailscale **inside WSL**:
    ```bash
    curl -fsSL https://tailscale.com/install.sh | sh
    sudo tailscale up        # opens a login link; sign in
-   tailscale ip -4          # note this 100.x.y.z address
+   tailscale status --self  # shows the machine's name; the full name is <name>.<tailnet>.ts.net
    ```
-2. Install the **Tailscale** app on the iPhone and sign in with the same account.
-3. Check from the iPhone's Safari: `http://100.x.y.z:4000/health` should
-   answer. If it does, the phone can reach the server.
+3. Put the service behind HTTPS on the tailnet only. `--bg` keeps it across reboots.
+   ```bash
+   sudo tailscale serve --bg 4000
+   tailscale serve status   # https://<atomman>.<tailnet>.ts.net (tailnet only) → http://127.0.0.1:4000
+   ```
+   Never `tailscale funnel`: that would publish the URL, and the web app's
+   bundle contains the owner token.
+4. Install the **Tailscale** app on the iPhone and sign in with the same account.
+5. Check from the iPhone's Safari: `https://<atomman>.<tailnet>.ts.net/health`
+   should answer `{"status":"ok",...}`. The first request can take a few
+   seconds while the certificate is issued.
 
-## 5. Point the app at the AtomMan
+## 5. The web app on the iPhone
 
-On the machine that runs Expo (`npm start`), set in `.env.local`:
+Open `https://<atomman>.<tailnet>.ts.net` in Safari, then **Share → Add to
+Home Screen**. WIST opens full screen from the home screen, with the live
+catalogue, while the Tailscale app is connected. Safari refuses location on
+plain `http://`, which is why the weather pick needs the HTTPS name.
 
-```dotenv
-EXPO_PUBLIC_CATALOGUE_URL=http://100.x.y.z:4000
-```
-
-Restart Expo so the new URL is bundled.
-
-**Important:** with Expo Go, the app's code is served by `npm start` from your
-Mac, so the Mac must still be on while you open the app. To use Wist with the
-Mac off, either run `npm start` on the AtomMan as well (in WSL, and open
-`exp://100.x.y.z:8081` in Expo Go), or make an installable build (#24, needs an
-Apple Developer account).
+The web app skips local notifications (browsers get none from WIST yet; #25 is
+the push work). For development from the Mac, Expo Go still works as before:
+set `EXPO_PUBLIC_CATALOGUE_URL=https://<atomman>.<tailnet>.ts.net` in the Mac's
+`.env.local` and run `npm start`, with Tailscale on the Mac too.
 
 ## Updating
 
 ```bash
 node --version      # v22.23.4 or newer; if older: sudo apt-get update && sudo apt-get install -y nodejs
-cd ~/wist && git pull && npm install && npm run catalogue:build
+cd ~/wist && git pull && npm install && npm run catalogue:build && npm run web:build
 sudo systemctl restart wist-catalogue
 ```
+
+`web:build` clears Metro's cache first, so a changed `EXPO_PUBLIC_CATALOGUE_URL`
+always lands in the bundle. The iPhone picks up the new bundle on the next open
+(pull down to reload if the old one is still showing).
 
 The service polls shops with `fetch`, which decompresses whatever encoding the shop sends, so a Node security
 release for zlib or Brotli applies to this box even though the code never calls those APIs itself.
