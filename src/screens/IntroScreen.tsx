@@ -161,7 +161,8 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
 
   const onLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
-    setStage({ width: Math.round(width), height: Math.round(height) });
+    // The height stays unrounded: pagingEnabled snaps by the ScrollView's frame, so a rounded page height would let the next page bleed through.
+    setStage({ width: Math.round(width), height });
   };
 
   const ready = stage.width > 0 && stage.height > 0;
