@@ -53,17 +53,22 @@ const range = ({ index, stage }: Motion) => [
  * the spread feel layered.
  */
 function Plate({
+  failed = false,
   fillHeight,
   image,
   motion,
+  onError,
   speed,
   style,
   width,
 }: {
+  /** The photograph did not arrive: show the wash rectangle alone. */
+  failed?: boolean;
   /** Crop to this height instead of the photograph's own proportion. */
   fillHeight?: number;
   image: EditorialImage;
   motion: Motion;
+  onError: () => void;
   speed: number;
   style?: object;
   width: number;
@@ -85,12 +90,15 @@ function Plate({
         { transform: motion.reduceMotion ? [] : [{ translateY }] },
       ]}
     >
-      <Image
-        accessibilityLabel={image.alt}
-        resizeMode="cover"
-        source={{ uri: image.url }}
-        style={{ height, width }}
-      />
+      {failed ? null : (
+        <Image
+          accessibilityLabel={image.alt}
+          onError={onError}
+          resizeMode="cover"
+          source={{ uri: image.url }}
+          style={{ height, width }}
+        />
+      )}
     </Animated.View>
   );
 }
@@ -135,6 +143,9 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
   const { wide } = useLayout();
   const [stage, setStage] = useState<Stage>({ width: 0, height: 0 });
   const [reduceMotion, setReduceMotion] = useState(false);
+  // The plates are hotlinked from brand CDNs. One that fails keeps its wash rectangle and loses its credit line.
+  const [failed, setFailed] = useState<Record<string, boolean>>({});
+  const markFailed = (image: EditorialImage) => setFailed((prev) => ({ ...prev, [image.url]: true }));
   const scrollY = useRef(new Animated.Value(0)).current;
   const hint = useRef(new Animated.Value(0)).current;
 
@@ -204,16 +215,20 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
             <View style={[styles.page, page, wide && styles.pageWide]}>
               <View style={platesStyle}>
                 <Plate
+                  failed={failed[editorial.cover.url]}
                   fillHeight={Math.round(height * 1.24)}
                   image={editorial.cover}
                   motion={motionFor(0)}
+                  onError={() => markFailed(editorial.cover)}
                   speed={0.12}
                   style={[styles.coverPlate, { top: -Math.round(height * 0.12) }]}
                   width={plateArea}
                 />
                 <Plate
+                  failed={failed[editorial.coverInset.url]}
                   image={editorial.coverInset}
                   motion={motionFor(0)}
+                  onError={() => markFailed(editorial.coverInset)}
                   speed={0.3}
                   style={[styles.print, { right: spacing.gutter, top: height * 0.08 }]}
                   width={Math.round(plateArea * 0.42)}
@@ -224,7 +239,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   <Text style={styles.kicker}>N° 01 · THE QUIET WAY TO WANT</Text>
                   <Text accessibilityRole="header" style={styles.masthead}>Wist.</Text>
                   <Text style={styles.body}>From Kurdish: to want something deeply, and to wait for it.</Text>
-                  <Credit image={editorial.cover} />
+                  {failed[editorial.cover.url] ? null : <Credit image={editorial.cover} />}
                 </Copy>
                 <Folio index={0} />
               </View>
@@ -234,15 +249,19 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
             <View style={[styles.page, page, wide && styles.pageWide]}>
               <View style={platesStyle}>
                 <Plate
+                  failed={failed[editorial.covet.url]}
                   image={editorial.covet}
                   motion={motionFor(1)}
+                  onError={() => markFailed(editorial.covet)}
                   speed={0.14}
                   style={{ left: 0, top: 0 }}
                   width={Math.round(plateArea * 0.7)}
                 />
                 <Plate
+                  failed={failed[editorial.covetInset.url]}
                   image={editorial.covetInset}
                   motion={motionFor(1)}
+                  onError={() => markFailed(editorial.covetInset)}
                   speed={0.32}
                   style={[styles.print, { right: spacing.gutter, top: height * 0.24 }]}
                   width={Math.round(plateArea * 0.46)}
@@ -256,7 +275,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   </View>
                   <Text accessibilityRole="header" style={styles.headline}>You covet a piece.</Text>
                   <Text style={styles.body}>Only the things you truly want, in the sizes you actually wear.</Text>
-                  <Credit image={editorial.covet} />
+                  {failed[editorial.covet.url] ? null : <Credit image={editorial.covet} />}
                 </Copy>
                 <Folio index={1} />
               </View>
@@ -266,8 +285,10 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
             <View style={[styles.page, page, wide && styles.pageWide]}>
               <View style={platesStyle}>
                 <Plate
+                  failed={failed[editorial.watch.url]}
                   image={editorial.watch}
                   motion={motionFor(2)}
+                  onError={() => markFailed(editorial.watch)}
                   speed={0.12}
                   style={{ right: 0, top: 0 }}
                   width={Math.round(plateArea * 0.72)}
@@ -286,7 +307,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   <Text style={styles.kicker}>EVERY DAY, WITHOUT NOISE</Text>
                   <Text accessibilityRole="header" style={styles.headline}>Wist watches its price, quietly.</Text>
                   <Text style={styles.body}>No feed to scroll, nothing to check. It only speaks when something changes.</Text>
-                  <Credit image={editorial.watch} />
+                  {failed[editorial.watch.url] ? null : <Credit image={editorial.watch} />}
                 </Copy>
                 <Folio index={2} />
               </View>
@@ -296,8 +317,10 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
             <View style={[styles.page, styles.pageWine, page, wide && styles.pageWide]}>
               <View style={[platesStyle, wide && styles.leftPageWine]}>
                 <Plate
+                  failed={failed[editorial.hero.url]}
                   image={editorial.hero}
                   motion={motionFor(3)}
+                  onError={() => markFailed(editorial.hero)}
                   speed={0.26}
                   style={[styles.print, styles.printTilted, wide ? { left: spacing.gutterWide, top: height * 0.12 } : { right: -8, top: -12 }]}
                   width={Math.round(plateArea * (wide ? 0.62 : 0.4))}
@@ -321,7 +344,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   <View style={styles.begin}>
                     <Button color={colors.card} label="Begin" labelColor={colors.wine} onPress={onBegin} />
                   </View>
-                  <Credit image={editorial.hero} light />
+                  {failed[editorial.hero.url] ? null : <Credit image={editorial.hero} light />}
                 </Copy>
                 <Folio index={3} light />
               </View>
