@@ -115,6 +115,8 @@ export function BrowseScreen({ brands, catalogueStatus, items: allItems, selecte
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
         numColumns={numColumns}
+        onRefresh={onReload}
+        refreshing={catalogueStatus === "loading" && allItems.length > 0}
         ListEmptyComponent={
           <View style={styles.empty}>
             {!searching && catalogueStatus !== "ready" ? (

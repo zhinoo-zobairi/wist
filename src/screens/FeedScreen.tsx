@@ -1,4 +1,4 @@
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { ActionLink } from "../components/ActionLink";
 import { Icon } from "../components/Icon";
@@ -38,7 +38,12 @@ export function FeedScreen({ brands, catalogueStatus, items, onBrowseBrand, onOp
   const edit = allItems.filter((item) => followedBrandIds.includes(item.brandId)).slice(0, 4);
 
   return (
-    <ScrollView contentContainerStyle={pageStyle(layout)} showsVerticalScrollIndicator={false} style={styles.screen}>
+    <ScrollView
+      contentContainerStyle={pageStyle(layout)}
+      refreshControl={<RefreshControl onRefresh={onReload} refreshing={catalogueStatus === "loading" && items.length > 0} tintColor={colors.wine} />}
+      showsVerticalScrollIndicator={false}
+      style={styles.screen}
+    >
       {wide ? null : (
         <View style={styles.header}>
           <Wordmark />

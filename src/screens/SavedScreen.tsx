@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Image,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -77,7 +78,12 @@ export function SavedScreen({
   };
 
   return (
-    <ScrollView contentContainerStyle={pageStyle(layout)} showsVerticalScrollIndicator={false} style={styles.screen}>
+    <ScrollView
+      contentContainerStyle={pageStyle(layout)}
+      refreshControl={<RefreshControl onRefresh={onReload} refreshing={catalogueStatus === "loading" && allItems.length > 0} tintColor={colors.wine} />}
+      showsVerticalScrollIndicator={false}
+      style={styles.screen}
+    >
       <ScreenHeader
         kicker="YOUR PERSONAL INDEX"
         subtitle={`${covetedCount} ${covetedCount === 1 ? "piece" : "pieces"} remembered and watched.`}
