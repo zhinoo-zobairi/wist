@@ -5,23 +5,26 @@ import { searchItems } from "../catalogueSearch";
 import { ActionLink } from "../components/ActionLink";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
+import { IndexStatus } from "../components/IndexStatus";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { pageStyle, useLayout } from "../layout";
 import { useWistStore } from "../store/useWistStore";
 import { formatPrice } from "../money";
 import { colors, fonts, radii, spacing, typography } from "../theme";
-import type { Brand, Item } from "../types";
+import type { Brand, CatalogueStatus, Item } from "../types";
 
 type Props = {
   brands: Brand[];
+  catalogueStatus: CatalogueStatus;
   items: Item[];
   selectedBrandId: string;
+  onReload: () => void;
   onSelectBrand: (brandId: string) => void;
   onOpenItem: (itemId: string) => void;
   onToggleCovet: (item: Item) => void;
 };
 
-export function BrowseScreen({ brands, items: allItems, selectedBrandId, onSelectBrand, onOpenItem, onToggleCovet }: Props) {
+export function BrowseScreen({ brands, catalogueStatus, items: allItems, selectedBrandId, onReload, onSelectBrand, onOpenItem, onToggleCovet }: Props) {
   const followed = useWistStore((state) => state.followedBrandIds);
   const coveted = useWistStore((state) => state.starredItemIds);
   const toggleFollow = useWistStore((state) => state.toggleFollow);
@@ -114,10 +117,16 @@ export function BrowseScreen({ brands, items: allItems, selectedBrandId, onSelec
         numColumns={numColumns}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>{searching ? "Nothing matches." : "No live pieces available."}</Text>
-            <Text style={styles.emptyBody}>
-              {searching ? "Try a shorter word, or the brand name." : "Start the catalogue service, then refresh Wist."}
-            </Text>
+            {!searching && catalogueStatus !== "ready" ? (
+              <IndexStatus onReload={onReload} status={catalogueStatus} />
+            ) : (
+              <>
+                <Text style={styles.emptyTitle}>{searching ? "Nothing matches." : "No pieces here yet."}</Text>
+                <Text style={styles.emptyBody}>
+                  {searching ? "Try a shorter word, or the brand name." : "This house has no pieces in the index yet."}
+                </Text>
+              </>
+            )}
           </View>
         }
         renderItem={({ item, index }) => {

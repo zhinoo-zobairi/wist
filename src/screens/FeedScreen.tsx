@@ -2,24 +2,27 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 
 import { ActionLink } from "../components/ActionLink";
 import { Icon } from "../components/Icon";
+import { IndexStatus } from "../components/IndexStatus";
 import { Wordmark } from "../components/Wordmark";
 import { pageStyle, useLayout } from "../layout";
 import { useWistStore } from "../store/useWistStore";
 import { formatPrice } from "../money";
 import { colors, radii, spacing, typography } from "../theme";
-import type { Brand, Item } from "../types";
+import type { Brand, CatalogueStatus, Item } from "../types";
 
 type Props = {
   onBrowseBrand: (brandId: string) => void;
   onOpenAlerts: () => void;
   onOpenBrowse: () => void;
   onOpenItem: (itemId: string) => void;
+  onReload: () => void;
   onToggleCovet: (item: Item) => void;
   brands: Brand[];
+  catalogueStatus: CatalogueStatus;
   items: Item[];
 };
 
-export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenBrowse, onOpenItem, onToggleCovet }: Props) {
+export function FeedScreen({ brands, catalogueStatus, items, onBrowseBrand, onOpenAlerts, onOpenBrowse, onOpenItem, onReload, onToggleCovet }: Props) {
   const followedBrandIds = useWistStore((state) => state.followedBrandIds);
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const alerts = useWistStore((state) => state.alerts);
@@ -111,8 +114,14 @@ export function FeedScreen({ brands, items, onBrowseBrand, onOpenAlerts, onOpenB
       <View style={[styles.editGrid, wide && styles.editGridWide]}>
         {edit.length === 0 ? (
           <View style={styles.catalogueEmpty}>
-            <Text style={styles.quietTitle}>Live catalogue unavailable.</Text>
-            <Text style={styles.quietBody}>Start the catalogue service, then refresh Wist.</Text>
+            {catalogueStatus !== "ready" ? (
+              <IndexStatus onReload={onReload} status={catalogueStatus} />
+            ) : (
+              <>
+                <Text style={styles.emptyTitle}>You follow no houses yet.</Text>
+                <Text style={styles.emptyBody}>Follow a house in Discover and its pieces will gather here.</Text>
+              </>
+            )}
           </View>
         ) : null}
         {edit.map((item, index) => {
@@ -186,6 +195,8 @@ const styles = StyleSheet.create({
   houseName: typography.titleS,
   editGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingBottom: 40, paddingHorizontal: 14, paddingTop: 16 },
   catalogueEmpty: { borderTopColor: colors.line, borderTopWidth: 1, marginHorizontal: 8, paddingVertical: 24, width: "100%" },
+  emptyTitle: { ...typography.titleL, textAlign: "center" },
+  emptyBody: { ...typography.body, marginTop: 7, textAlign: "center" },
   // Wide: four columns of 23 %, the 2.66 % gaps come from space-between.
   editGridWide: { columnGap: 24, justifyContent: "flex-start", paddingHorizontal: spacing.gutter, rowGap: 36 },
   editItem: { marginBottom: 24, width: "48%" },

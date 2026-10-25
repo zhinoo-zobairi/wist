@@ -1,3 +1,6 @@
+/** Whether the app holds a live catalogue: first load, loaded, or unreachable. */
+export type CatalogueStatus = "loading" | "ready" | "error";
+
 export type Brand = {
   id: string;
   name: string;

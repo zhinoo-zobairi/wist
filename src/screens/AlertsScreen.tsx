@@ -2,16 +2,19 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
+import { IndexStatus } from "../components/IndexStatus";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { pageStyle, useLayout } from "../layout";
 import { useWistStore } from "../store/useWistStore";
 import { formatPrice } from "../money";
 import { colors, radii, spacing, typography } from "../theme";
-import type { Brand, Item } from "../types";
+import type { Brand, CatalogueStatus, Item } from "../types";
 
 type Props = {
   brands: Brand[];
+  catalogueStatus: CatalogueStatus;
   items: Item[];
+  onReload: () => void;
   onViewItem: (itemId: string) => void;
 };
 const relativeTime = (value: string) => {
@@ -21,10 +24,11 @@ const relativeTime = (value: string) => {
   return `${Math.floor(minutes / 60)} HR AGO`;
 };
 
-export function AlertsScreen({ brands, items, onViewItem }: Props) {
+export function AlertsScreen({ brands, catalogueStatus, items, onReload, onViewItem }: Props) {
   const layout = useLayout();
   const { wide } = layout;
   const alerts = useWistStore((state) => state.alerts);
+  const covetedIds = useWistStore((state) => state.starredItemIds);
   const markRead = useWistStore((state) => state.markAlertRead);
   const brandsById = Object.fromEntries(brands.map((brand) => [brand.id, brand]));
   const itemsById = Object.fromEntries(items.map((item) => [item.id, item]));
@@ -35,7 +39,15 @@ export function AlertsScreen({ brands, items, onViewItem }: Props) {
   return (
     <ScrollView contentContainerStyle={pageStyle(layout)} showsVerticalScrollIndicator={false} style={styles.screen}>
       <ScreenHeader kicker="SIGNALS FOR YOU" subtitle="Meaningful changes in the pieces you covet." title="Alerts" />
-      {!hero || !heroItem || !heroBrand ? (
+      {hero && catalogueStatus !== "ready" && (!heroItem || !heroBrand) ? (
+        <View style={[styles.empty, wide && styles.emptyWide]}>
+          <IndexStatus
+            detail={`${covetedIds.length} ${covetedIds.length === 1 ? "piece" : "pieces"} coveted. Reconnect to see their signals.`}
+            onReload={onReload}
+            status={catalogueStatus}
+          />
+        </View>
+      ) : !hero || !heroItem || !heroBrand ? (
         <View style={[styles.empty, wide && styles.emptyWide]}>
           <Icon color={colors.moss} name="bell" size={28} />
           <Text style={styles.emptyTitle}>The room is quiet.</Text>

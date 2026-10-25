@@ -12,18 +12,21 @@ import {
 import { ActionLink } from "../components/ActionLink";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
+import { IndexStatus } from "../components/IndexStatus";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { pageStyle, useLayout } from "../layout";
 import { useWistStore } from "../store/useWistStore";
 import { formatPrice } from "../money";
 import { colors, radii, spacing, typography } from "../theme";
-import type { Brand, Item } from "../types";
+import type { Brand, CatalogueStatus, Item } from "../types";
 
 type Props = {
   brands: Brand[];
+  catalogueStatus: CatalogueStatus;
   items: Item[];
   onImportProduct: (productUrl: string) => Promise<void>;
   onOpenItem: (itemId: string) => void;
+  onReload: () => void;
   onToggleCovet: (item: Item) => void;
 };
 
@@ -32,9 +35,11 @@ const covetedOn = (value?: string) =>
 
 export function SavedScreen({
   brands,
+  catalogueStatus,
   items: allItems,
   onImportProduct,
   onOpenItem,
+  onReload,
   onToggleCovet,
 }: Props) {
   const layout = useLayout();
@@ -51,6 +56,8 @@ export function SavedScreen({
   useWistStore((state) => state.priceRevision);
   const brandsById = Object.fromEntries(brands.map((brand) => [brand.id, brand]));
   const items = allItems.filter((item) => ids.includes(item.id));
+  // Without the index the device still knows what it covets, so count the ids.
+  const covetedCount = catalogueStatus === "ready" ? items.length : ids.length;
 
   const submitProduct = async () => {
     const url = productUrl.trim();
@@ -73,7 +80,7 @@ export function SavedScreen({
     <ScrollView contentContainerStyle={pageStyle(layout)} showsVerticalScrollIndicator={false} style={styles.screen}>
       <ScreenHeader
         kicker="YOUR PERSONAL INDEX"
-        subtitle={`${items.length} ${items.length === 1 ? "piece" : "pieces"} remembered and watched.`}
+        subtitle={`${covetedCount} ${covetedCount === 1 ? "piece" : "pieces"} remembered and watched.`}
         title="Coveted"
       />
       <View style={wide && styles.columns}>
@@ -106,7 +113,15 @@ export function SavedScreen({
             />
           </View>
         </View>
-        {items.length === 0 ? (
+        {items.length === 0 && catalogueStatus !== "ready" ? (
+          <View style={[styles.empty, wide && styles.emptyWide]}>
+            <IndexStatus
+              detail={`${ids.length} ${ids.length === 1 ? "piece" : "pieces"} coveted. Reconnect to see them.`}
+              onReload={onReload}
+              status={catalogueStatus}
+            />
+          </View>
+        ) : items.length === 0 ? (
           <View style={[styles.empty, wide && styles.emptyWide]}>
             <Icon color={colors.ring} name="heart" size={30} />
             <Text style={styles.emptyTitle}>Nothing coveted yet.</Text>

@@ -13,7 +13,7 @@ import { useFonts } from "expo-font";
 import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { BottomTabBar, type TabId } from "./src/components/BottomTabBar";
 import { TopNav } from "./src/components/TopNav";
@@ -47,7 +47,7 @@ import { synchronizeStyleProfile } from "./src/styleProfileCommit";
 import { colors } from "./src/theme";
 import { useWistStore } from "./src/store/useWistStore";
 // Aliased: the bare name Alert is React Native's dialog API in this file.
-import type { Alert as PriceDropAlert, Garment, Item } from "./src/types";
+import type { Alert as PriceDropAlert, CatalogueStatus, Garment, Item } from "./src/types";
 import { catalogueWatchErrorMessage, PURCHASE_UNWATCHED_NOTICE } from "./src/wardrobeMessages";
 
 type ProfileView = { screen: "profile" | "wardrobe" | "outfits" }
@@ -59,6 +59,7 @@ export default function App() {
     brands: [],
     items: [],
   });
+  const [catalogueStatus, setCatalogueStatus] = useState<CatalogueStatus>("loading");
   const [activeTab, setActiveTab] = useState<TabId>("feed");
   const [profileView, setProfileView] = useState<ProfileView>({ screen: "profile" });
   const wardrobe = useWistStore((state) => state.wardrobe);
@@ -73,6 +74,8 @@ export default function App() {
   // The alert poll needs the newest catalogue to name a dropped product, but it
   // must not restart every time a product is imported, so it reads a ref.
   const catalogueRef = useRef<Catalogue>(liveCatalogue);
+  // One reload in flight at a time; a second request joins it.
+  const catalogueReload = useRef<Promise<void> | null>(null);
   const alerts = useWistStore((state) => state.alerts);
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const watchedSizesByItemId = useWistStore(
@@ -116,24 +119,34 @@ export default function App() {
     return unsubscribe;
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    void loadCatalogue()
+  // Fetches the index and makes it the live catalogue. Used at launch, on
+  // "Try again" and on pull-to-refresh. A failure keeps whatever was loaded
+  // before; the status only decides what an empty list says.
+  const reloadCatalogue = useCallback(() => {
+    if (catalogueReload.current) return catalogueReload.current;
+    setCatalogueStatus("loading");
+    catalogueReload.current = loadCatalogue()
       .then((catalogue) => {
-        if (cancelled) return;
         setLiveCatalogue(catalogue);
+        setCatalogueStatus("ready");
         addFollowedBrands(catalogue.brands.map((brand) => brand.id));
-        if (catalogue.brands[0]) setSelectedBrandId(catalogue.brands[0].id);
+        setSelectedBrandId((current) => current || catalogue.brands[0]?.id || "");
       })
       .catch((error: unknown) => {
         console.warn(
           `Catalogue unavailable: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
+        setCatalogueStatus("error");
+      })
+      .finally(() => {
+        catalogueReload.current = null;
       });
-    return () => {
-      cancelled = true;
-    };
+    return catalogueReload.current;
   }, [addFollowedBrands]);
+
+  useEffect(() => {
+    void reloadCatalogue();
+  }, [reloadCatalogue]);
 
   useEffect(() => {
     if (!storeSettled) return;
@@ -359,6 +372,7 @@ export default function App() {
       refreshWatches(),
     ]);
     setLiveCatalogue(catalogue);
+    setCatalogueStatus("ready");
     addFollowedBrands(catalogue.brands.map((brand) => brand.id));
     if (!selectedBrandId && catalogue.brands[0]) {
       setSelectedBrandId(catalogue.brands[0].id);
@@ -397,7 +411,9 @@ export default function App() {
         return (
           <BrowseScreen
             brands={brands}
+            catalogueStatus={catalogueStatus}
             items={items}
+            onReload={() => void reloadCatalogue()}
             onOpenItem={setSelectedItemId}
             onSelectBrand={setSelectedBrandId}
             onToggleCovet={(item) => void toggleLiveCovet(item)}
@@ -405,13 +421,23 @@ export default function App() {
           />
         );
       case "alerts":
-        return <AlertsScreen brands={brands} items={items} onViewItem={viewAlertItem} />;
+        return (
+          <AlertsScreen
+            brands={brands}
+            catalogueStatus={catalogueStatus}
+            items={items}
+            onReload={() => void reloadCatalogue()}
+            onViewItem={viewAlertItem}
+          />
+        );
       case "saved":
         return (
           <SavedScreen
             brands={brands}
+            catalogueStatus={catalogueStatus}
             items={items}
             onImportProduct={importLiveProduct}
+            onReload={() => void reloadCatalogue()}
             onOpenItem={setSelectedItemId}
             onToggleCovet={(item) => void toggleLiveCovet(item)}
           />
@@ -447,11 +473,13 @@ export default function App() {
         return (
           <FeedScreen
             brands={brands}
+            catalogueStatus={catalogueStatus}
             items={items}
             onBrowseBrand={browseBrand}
             onOpenAlerts={() => setActiveTab("alerts")}
             onOpenBrowse={() => setActiveTab("browse")}
             onOpenItem={setSelectedItemId}
+            onReload={() => void reloadCatalogue()}
             onToggleCovet={(item) => void toggleLiveCovet(item)}
           />
         );
