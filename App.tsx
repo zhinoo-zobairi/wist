@@ -10,7 +10,7 @@ import {
   Jost_600SemiBold,
 } from "@expo-google-fonts/jost";
 import { useFonts } from "expo-font";
-import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, AppState, StyleSheet, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -29,6 +29,7 @@ import {
   setCatalogueWatch,
   type Catalogue,
 } from "./src/services/catalogueClient";
+import { newestAlertChanged } from "./src/catalogueLifecycle";
 import { selectPriceDropAnnouncements } from "./src/priceDropAnnouncements";
 import { sendPriceDropNotification } from "./src/services/notifications";
 import { AlertsScreen } from "./src/screens/AlertsScreen";
@@ -200,6 +201,8 @@ export default function App() {
     if (!storeSettled) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // The newest alert id the previous poll saw; undefined until the first one.
+    let newestAlertId: string | null | undefined;
 
     const announcePriceDrops = async (remoteAlerts: PriceDropAlert[]) => {
       const { brands, items } = catalogueRef.current;
@@ -247,6 +250,9 @@ export default function App() {
         const remoteAlerts = await loadPriceDropAlerts();
         if (!cancelled) {
           mergePriceDropAlerts(remoteAlerts);
+          // A new drop means prices moved under the loaded catalogue: re-read it.
+          if (newestAlertChanged(newestAlertId, remoteAlerts)) void reloadCatalogue();
+          newestAlertId = remoteAlerts[0]?.id ?? null;
           await announcePriceDrops(remoteAlerts);
         }
       } catch (error) {
@@ -262,7 +268,23 @@ export default function App() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [markAlertsAnnounced, mergePriceDropAlerts, storeSettled]);
+  }, [markAlertsAnnounced, mergePriceDropAlerts, reloadCatalogue, storeSettled]);
+
+  // Coming back to the foreground re-reads what may have moved meanwhile: the
+  // catalogue (prices) and the watch list. The expired poll timer fires on its own.
+  useEffect(() => {
+    if (!storeSettled) return;
+    const subscription = AppState.addEventListener("change", (status) => {
+      if (status !== "active") return;
+      void reloadCatalogue();
+      void refreshWatches().catch((error: unknown) => {
+        console.warn(
+          `Watch synchronization unavailable: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      });
+    });
+    return () => subscription.remove();
+  }, [refreshWatches, reloadCatalogue, storeSettled]);
 
   const brands = liveCatalogue.brands;
   const items = liveCatalogue.items;
