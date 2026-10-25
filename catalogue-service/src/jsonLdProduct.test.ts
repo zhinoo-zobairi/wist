@@ -106,6 +106,20 @@ describe("shared JSON-LD product core", () => {
     );
   });
 
+  it("resolves a relative offer URL against the product page", async () => {
+    const url = "https://shop.example.com/p/dress.html";
+    const relative = { ...product, offers: { ...product.offers, url: "/p/dress.html" } };
+    const fetchImpl = vi.fn(async () => new Response(ld(relative)));
+    await expect(
+      fetchJsonLdProduct(store, url, fetchImpl, at),
+    ).resolves.toMatchObject({ url: "https://shop.example.com/p/dress.html" });
+
+    const absolute = vi.fn(async () => new Response(ld(product)));
+    await expect(
+      fetchJsonLdProduct(store, url, absolute, at),
+    ).resolves.toMatchObject({ url: product.offers.url });
+  });
+
   it("rejects wrong host, scheme and path before fetching", async () => {
     const fetchImpl = vi.fn();
     for (const bad of [

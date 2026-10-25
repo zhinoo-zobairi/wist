@@ -182,9 +182,11 @@ export async function fetchJsonLdProduct(
       `${store.brand.name} product request failed with HTTP ${response.status}`,
     );
   }
-  return parseJsonLdProductPage(
+  const item = parseJsonLdProductPage(
     store,
     await readBoundedHtml(response, store),
     observedAt,
   );
+  // Some storefronts publish a relative offer URL; resolve it against the page.
+  return { ...item, url: new URL(item.url, url).toString() };
 }
