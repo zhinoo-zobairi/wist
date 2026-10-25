@@ -100,6 +100,31 @@ describe("catalogue client", () => {
     );
   });
 
+  it("requests every house's items at once and keeps the brand order", async () => {
+    const item = (id: string, brandId: string) => ({
+      id, brandId, name: id, imageUrl: "https://img.test/x.jpg", media: [], variants: [],
+      currentPrice: 100, currency: "EUR", url: "https://shop.test/x", available: true,
+      observedAt: "2026-08-08T12:00:00.000Z", previousPrice: null, sourceProductId: id,
+    });
+    let releaseItems!: () => void;
+    const itemsReleased = new Promise<void>((resolve) => { releaseItems = resolve; });
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/v1/brands")) {
+        return new Response(JSON.stringify({ brands: [{ id: "sandro", name: "Sandro" }, { id: "bobbies", name: "Bobbies" }] }));
+      }
+      await itemsReleased;
+      const brandId = url.includes("/sandro/") ? "sandro" : "bobbies";
+      return new Response(JSON.stringify({ items: [item(`${brandId}-1`, brandId)] }));
+    });
+
+    const pending = loadCatalogue(fetchImpl, "http://catalogue.test");
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    releaseItems();
+    const catalogue = await pending;
+    expect(catalogue.items.map((entry) => entry.id)).toEqual(["sandro-1", "bobbies-1"]);
+  });
+
   it("loads watched items with their chosen sizes over the owner token", async () => {
     const fetchImpl = vi
       .fn()

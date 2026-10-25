@@ -440,8 +440,8 @@ export async function loadCatalogue(
   }
 
   const brands = brandsBody.brands.map(toBrand);
-  const items: Item[] = [];
-  for (const brand of brands) {
+  // One request per house, in flight together; items keep the brand order.
+  const itemsByBrand = await Promise.all(brands.map(async (brand) => {
     const itemsBody = await responseJson(
       await fetchWithTimeout(`${root}/v1/brands/${encodeURIComponent(brand.id)}/items`, {
         headers: { accept: "application/json" },
@@ -450,10 +450,10 @@ export async function loadCatalogue(
     if (!Array.isArray(itemsBody.items)) {
       throw new Error("Catalogue response is missing items");
     }
-    items.push(...itemsBody.items.map(toItem));
-  }
+    return itemsBody.items.map(toItem);
+  }));
 
-  return { brands, items };
+  return { brands, items: itemsByBrand.flat() };
 }
 
 function authorizationHeaders(ownerToken: string | undefined) {
