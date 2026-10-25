@@ -29,7 +29,7 @@ import {
   setCatalogueWatch,
   type Catalogue,
 } from "./src/services/catalogueClient";
-import { newestAlertChanged } from "./src/catalogueLifecycle";
+import { brandsToFollowAfterImport, newestAlertChanged, shouldSeedFollows } from "./src/catalogueLifecycle";
 import { selectPriceDropAnnouncements } from "./src/priceDropAnnouncements";
 import { sendPriceDropNotification } from "./src/services/notifications";
 import { AlertsScreen } from "./src/screens/AlertsScreen";
@@ -46,7 +46,7 @@ import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { resolveProfileGate } from "./src/profileGate";
 import { synchronizeStyleProfile } from "./src/styleProfileCommit";
 import { colors } from "./src/theme";
-import { useWistStore } from "./src/store/useWistStore";
+import { seedFollowedBrandIds, useWistStore } from "./src/store/useWistStore";
 // Aliased: the bare name Alert is React Native's dialog API in this file.
 import type { Alert as PriceDropAlert, CatalogueStatus, Garment, Item } from "./src/types";
 import { catalogueWatchErrorMessage, PURCHASE_UNWATCHED_NOTICE } from "./src/wardrobeMessages";
@@ -76,7 +76,7 @@ export default function App() {
   // must not restart every time a product is imported, so it reads a ref.
   const catalogueRef = useRef<Catalogue>(liveCatalogue);
   // One reload in flight at a time; a second request joins it.
-  const catalogueReload = useRef<Promise<void> | null>(null);
+  const catalogueReload = useRef<Promise<Catalogue | null> | null>(null);
   const alerts = useWistStore((state) => state.alerts);
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const watchedSizesByItemId = useWistStore(
@@ -121,23 +121,30 @@ export default function App() {
   }, []);
 
   // Fetches the index and makes it the live catalogue. Used at launch, on
-  // "Try again" and on pull-to-refresh. A failure keeps whatever was loaded
-  // before; the status only decides what an empty list says.
-  const reloadCatalogue = useCallback(() => {
+  // "Try again", on pull-to-refresh, after a new drop, on foreground and after
+  // an import. A failure keeps whatever was loaded before and resolves null;
+  // the status only decides what an empty list says.
+  const reloadCatalogue = useCallback((): Promise<Catalogue | null> => {
     if (catalogueReload.current) return catalogueReload.current;
     setCatalogueStatus("loading");
     catalogueReload.current = loadCatalogue()
       .then((catalogue) => {
         setLiveCatalogue(catalogue);
         setCatalogueStatus("ready");
-        addFollowedBrands(catalogue.brands.map((brand) => brand.id));
+        // Seed the follows once, while they are still the install default;
+        // after that an unfollowed house stays unfollowed.
+        if (shouldSeedFollows(useWistStore.getState().followedBrandIds, seedFollowedBrandIds)) {
+          addFollowedBrands(catalogue.brands.map((brand) => brand.id));
+        }
         setSelectedBrandId((current) => current || catalogue.brands[0]?.id || "");
+        return catalogue;
       })
       .catch((error: unknown) => {
         console.warn(
           `Catalogue unavailable: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
         setCatalogueStatus("error");
+        return null;
       })
       .finally(() => {
         catalogueReload.current = null;
@@ -389,16 +396,12 @@ export default function App() {
 
   const importLiveProduct = async (productUrl: string) => {
     await importCatalogueWatch(productUrl);
-    const [catalogue] = await Promise.all([
-      loadCatalogue(),
-      refreshWatches(),
-    ]);
-    setLiveCatalogue(catalogue);
-    setCatalogueStatus("ready");
-    addFollowedBrands(catalogue.brands.map((brand) => brand.id));
-    if (!selectedBrandId && catalogue.brands[0]) {
-      setSelectedBrandId(catalogue.brands[0].id);
-    }
+    const previousBrandIds = brands.map((brand) => brand.id);
+    const [catalogue] = await Promise.all([reloadCatalogue(), refreshWatches()]);
+    if (!catalogue) throw new Error("Could not refresh the index");
+    // Only a house the import brought in is new; the reader's other choices stand.
+    const newBrandIds = brandsToFollowAfterImport(previousBrandIds, catalogue.brands.map((brand) => brand.id));
+    if (newBrandIds.length > 0) addFollowedBrands(newBrandIds);
   };
 
   const renderScreen = () => {

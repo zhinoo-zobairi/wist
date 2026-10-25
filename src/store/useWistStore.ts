@@ -96,6 +96,9 @@ const dropSizes = (
 
 const MAX_LOCAL_ALERTS = 100;
 
+/** The follows a fresh install starts with; the catalogue seeds on top only while they are untouched. */
+export const seedFollowedBrandIds = seedBrands.map((brand) => brand.id);
+
 export const useWistStore = create<WistState>()(
   persist(
     (set) => ({
@@ -177,7 +180,7 @@ export const useWistStore = create<WistState>()(
         set((state) => ({ wardrobe: upsertGarment(state.wardrobe, garment) }));
         return garment;
       },
-      followedBrandIds: seedBrands.map((brand) => brand.id),
+      followedBrandIds: seedFollowedBrandIds,
       starredItemIds: [],
       priceRevision: 0,
       priceOverrides: {},

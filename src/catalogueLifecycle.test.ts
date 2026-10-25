@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { newestAlertChanged } from "./catalogueLifecycle";
+import { brandsToFollowAfterImport, newestAlertChanged, shouldSeedFollows } from "./catalogueLifecycle";
 import type { Alert } from "./types";
 
 const alert = (id: string): Alert => ({
@@ -24,5 +24,31 @@ describe("newestAlertChanged", () => {
     expect(newestAlertChanged("a1", [alert("a2"), alert("a1")])).toBe(true);
     expect(newestAlertChanged(null, [alert("a1")])).toBe(true);
     expect(newestAlertChanged("a1", [])).toBe(true);
+  });
+});
+
+describe("shouldSeedFollows", () => {
+  const seed = ["sezane", "claudie-pierlot", "other-stories"];
+
+  it("seeds while the follows are the install default, in any order", () => {
+    expect(shouldSeedFollows(seed, seed)).toBe(true);
+    expect(shouldSeedFollows(["other-stories", "sezane", "claudie-pierlot"], seed)).toBe(true);
+  });
+
+  it("stops seeding once a house was followed or unfollowed by hand", () => {
+    expect(shouldSeedFollows([...seed, "bobbies"], seed)).toBe(false);
+    expect(shouldSeedFollows(["sezane", "other-stories"], seed)).toBe(false);
+    expect(shouldSeedFollows([], seed)).toBe(false);
+  });
+});
+
+describe("brandsToFollowAfterImport", () => {
+  it("follows only the houses the import brought in", () => {
+    expect(brandsToFollowAfterImport(["bobbies", "sandro"], ["bobbies", "sandro", "goelia"])).toEqual(["goelia"]);
+    expect(brandsToFollowAfterImport(["bobbies", "sandro"], ["bobbies", "sandro"])).toEqual([]);
+  });
+
+  it("follows nothing when there was no catalogue to compare against", () => {
+    expect(brandsToFollowAfterImport([], ["bobbies", "sandro"])).toEqual([]);
   });
 });
