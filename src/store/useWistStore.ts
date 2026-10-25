@@ -41,6 +41,8 @@ type WistState = {
   profileStatus: ProfileStatus;
   /** The magazine intro has played once on this device. */
   introSeen: boolean;
+  /** Stored preferences could not be read; the session runs on defaults. Not persisted. */
+  hydrationFailed: boolean;
   toggleFollow: (brandId: string) => void;
   addFollowedBrands: (brandIds: string[]) => void;
   replaceStarredItems: (itemIds: string[]) => void;
@@ -55,6 +57,7 @@ type WistState = {
   restoreSeedPrices: () => void;
   markProfileSkipped: () => void;
   setIntroSeen: (seen: boolean) => void;
+  markHydrationFailed: () => void;
   replaceStyleProfile: (occasions: Occasion[], styles: Style[]) => void;
 };
 
@@ -187,6 +190,7 @@ export const useWistStore = create<WistState>()(
       styles: [],
       profileStatus: "unknown",
       introSeen: false,
+      hydrationFailed: false,
       toggleFollow: (brandId) =>
         set((state) => ({
           followedBrandIds: toggleId(state.followedBrandIds, brandId),
@@ -367,6 +371,7 @@ export const useWistStore = create<WistState>()(
         }),
       markProfileSkipped: () => set({ profileStatus: "skipped" }),
       setIntroSeen: (introSeen) => set({ introSeen }),
+      markHydrationFailed: () => set({ hydrationFailed: true }),
       replaceStyleProfile: (occasions, styles) =>
         set({
           occasions: [...occasions],
@@ -404,7 +409,18 @@ export const useWistStore = create<WistState>()(
         styles,
         watchedSizesByItemId,
       }),
-      onRehydrateStorage: () => (state) => state?.restoreSeedPrices(),
+      // An unreadable blob must not leave the app on the spinner: flag it so the
+      // session runs on defaults. The stored data is left untouched.
+      onRehydrateStorage: (before) => (state, error) => {
+        if (error) {
+          console.warn(
+            `Stored preferences could not be read: ${error instanceof Error ? error.message : "Unknown error"}`,
+          );
+          before.markHydrationFailed();
+          return;
+        }
+        state?.restoreSeedPrices();
+      },
     },
   ),
 );

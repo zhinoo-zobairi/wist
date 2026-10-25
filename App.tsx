@@ -90,6 +90,9 @@ export default function App() {
   const setStarredItem = useWistStore((state) => state.setStarredItem);
   const profileStatus = useWistStore((state) => state.profileStatus);
   const introSeen = useWistStore((state) => state.introSeen);
+  const hydrationFailed = useWistStore((state) => state.hydrationFailed);
+  // Unreadable preferences count as settled: the session runs on defaults.
+  const storeSettled = storeHydrated || hydrationFailed;
   const setIntroSeen = useWistStore((state) => state.setIntroSeen);
   const markProfileSkipped = useWistStore((state) => state.markProfileSkipped);
   const replaceStyleProfile = useWistStore(
@@ -133,7 +136,7 @@ export default function App() {
   }, [addFollowedBrands]);
 
   useEffect(() => {
-    if (!storeHydrated) return;
+    if (!storeSettled) return;
     let cancelled = false;
     void refreshWatches()
       .catch((error: unknown) => {
@@ -145,10 +148,10 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [refreshWatches, storeHydrated]);
+  }, [refreshWatches, storeSettled]);
 
   useEffect(() => {
-    if (!storeHydrated) return;
+    if (!storeSettled) return;
     let cancelled = false;
     void synchronizeStyleProfile({
       apply: (occasions, styles) => {
@@ -174,14 +177,14 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [replaceStyleProfile, storeHydrated]);
+  }, [replaceStyleProfile, storeSettled]);
 
   useEffect(() => {
     catalogueRef.current = liveCatalogue;
   }, [liveCatalogue]);
 
   useEffect(() => {
-    if (!storeHydrated) return;
+    if (!storeSettled) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -246,7 +249,7 @@ export default function App() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [markAlertsAnnounced, mergePriceDropAlerts, storeHydrated]);
+  }, [markAlertsAnnounced, mergePriceDropAlerts, storeSettled]);
 
   const brands = liveCatalogue.brands;
   const items = liveCatalogue.items;
@@ -258,7 +261,7 @@ export default function App() {
     introSeen,
     profileLookupComplete,
     profileStatus,
-    storeHydrated,
+    storeHydrated: storeSettled,
   });
 
   if (profileGate === "loading") {

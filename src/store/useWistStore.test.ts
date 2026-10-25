@@ -8,6 +8,8 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { useWistStore } from "./useWistStore";
 import { addGarmentFromItem, deleteGarment, loadWardrobe, loadWatches, retagGarment, saveGarment, uploadGarmentPhoto,
   type AddGarmentFromItemResult } from "../services/catalogueClient";
@@ -329,5 +331,28 @@ describe("Wist watched sizes store", () => {
     expect(persisted).toMatchObject({
       watchedSizesByItemId: { "item-a": ["40"] },
     });
+  });
+});
+
+describe("Wist store hydration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useWistStore.setState({ hydrationFailed: false });
+  });
+
+  it("settles with defaults and a warning when the stored blob cannot be read", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.mocked(AsyncStorage.getItem).mockRejectedValueOnce(new Error("disk unreadable"));
+    await useWistStore.persist.rehydrate();
+    expect(useWistStore.getState().hydrationFailed).toBe(true);
+    expect(warn).toHaveBeenCalledExactlyOnceWith("Stored preferences could not be read: disk unreadable");
+    expect(AsyncStorage.removeItem).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("leaves the flag off when hydration succeeds", async () => {
+    vi.mocked(AsyncStorage.getItem).mockResolvedValueOnce(null);
+    await useWistStore.persist.rehydrate();
+    expect(useWistStore.getState().hydrationFailed).toBe(false);
   });
 });
