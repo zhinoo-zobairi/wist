@@ -354,6 +354,13 @@ export default function App() {
     setSyncingWatchIds((itemIds) => [...itemIds, item.id]);
     try {
       await setCatalogueWatch(item.id, watched);
+      // The server is the authority on the watch list: re-read it so a list
+      // discarded by this tap's revision bump still arrives.
+      void refreshWatches().catch((error: unknown) => {
+        console.warn(
+          `Watch synchronization unavailable: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      });
     } catch (error) {
       setStarredItem(item.id, !watched, item.currentPrice);
       Alert.alert(
