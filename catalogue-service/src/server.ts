@@ -15,6 +15,7 @@ import { importProduct } from "./productImport.js";
 import { fetchProductObservation } from "./productObservation.js";
 import { SqliteCatalogueRepository } from "./sqliteRepository.js";
 import { SqliteStyleProfileRepository } from "./sqliteStyleProfileRepository.js";
+import { createStaticWebHandler } from "./staticWeb.js";
 import { SqliteWardrobeRepository } from "./sqliteWardrobeRepository.js";
 import { startWatchScheduler } from "./watchScheduler.js";
 import { OpenMeteoWeatherSource } from "./weather.js";
@@ -48,6 +49,8 @@ outfits.failInterruptedRuns().catch((error) => {
 const stopOutfitScheduler = suggester && picker
   ? startOutfitScheduler({ wardrobe, outfits, profiles, suggester, weatherSource, picker })
   : () => {};
+// The exported web app (npm run web:build) is served next to the API when its folder exists.
+const staticWeb = createStaticWebHandler(process.env.CATALOGUE_WEB_DIR ?? resolve("web-build"));
 const port = Number.parseInt(process.env.PORT ?? "4000", 10);
 const ownerToken = process.env.CATALOGUE_OWNER_TOKEN;
 const host = process.env.CATALOGUE_HOST ?? "127.0.0.1";
@@ -87,6 +90,12 @@ const server = createServer(async (request, response) => {
       request.url ?? "/",
       "http://catalogue.local",
     ).pathname;
+    const staticFile = staticWeb ? await staticWeb(request.method ?? "GET", pathname) : null;
+    if (staticFile) {
+      response.writeHead(staticFile.status, { "content-type": staticFile.contentType });
+      response.end(staticFile.body);
+      return;
+    }
     const hasJsonBody =
       (request.method === "PUT" && pathname === "/v1/profile") ||
       (request.method === "PUT" && pathname === "/v1/location") ||
@@ -134,7 +143,7 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(port, host, () => {
-  console.log(`Wist catalogue listening on http://${host}:${port}`);
+  console.log(`Wist catalogue listening on http://${host}:${port}${staticWeb ? " (serving web-build/)" : ""}`);
 });
 
 function shutdown() {
