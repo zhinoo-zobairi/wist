@@ -1,4 +1,4 @@
-# Wist on the AtomMan as a web app — Design
+# WIST on the AtomMan as a web app — Design
 
 **Date:** 2026-10-25
 **Status:** Awaiting the owner's decision on D1–D6 below
@@ -6,7 +6,7 @@
 
 ## Problem
 
-Wist should run 24/7 on the AtomMan mini PC and open on the iPhone with the
+WIST should run 24/7 on the AtomMan mini PC and open on the iPhone with the
 Mac off. `docs/HOSTING_ATOMMAN.md` already describes the catalogue service as a
 systemd unit in WSL, reached over Tailscale. Two things are missing:
 
@@ -58,10 +58,10 @@ systemd unit in WSL, reached over Tailscale. Two things are missing:
   load the page can read it, which is why the page must only be reachable on
   the tailnet (D1). Issue #20 stays open and gets a note; it is the fix.
 - [ ] **D6. Home-screen behaviour.** `public/index.html` adds
-  `apple-mobile-web-app-capable=yes`, `apple-mobile-web-app-title=Wist`,
+  `apple-mobile-web-app-capable=yes`, `apple-mobile-web-app-title=WIST`,
   `apple-mobile-web-app-status-bar-style=default`, `theme-color=#FAF7F2` and an
   `apple-touch-icon` (`public/apple-touch-icon.png`, a copy of
-  `assets/icon.png`). "Add to Home Screen" then opens Wist full screen without
+  `assets/icon.png`). "Add to Home Screen" then opens WIST full screen without
   Safari's bars; links to shops open in Safari. No service worker, no offline
   mode.
 
