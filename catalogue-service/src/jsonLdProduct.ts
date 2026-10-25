@@ -49,6 +49,16 @@ function firstImage(value: unknown, label: string): string {
   throw new Error(`${label} product is missing image`);
 }
 
+/**
+ * Demandware image servers (Sandro, Claudie Pierlot) serve a hi-res rendition
+ * by default; `sw` asks for a width, which is all a catalogue tile needs.
+ * The media list keeps the untouched hi-res URL for the product gallery.
+ */
+function tileImageUrl(imageUrl: string): string {
+  if (!imageUrl.includes("/dw/image/v2/")) return imageUrl;
+  return `${imageUrl}${imageUrl.includes("?") ? "&" : "?"}sw=800`;
+}
+
 function productJsonLd(html: string, label: string): JsonObject {
   const scriptPattern =
     /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
@@ -107,7 +117,7 @@ export function parseJsonLdProductPage(
     brandId: store.brand.id,
     name: requiredString(product.name, "name", label),
     url: requiredString(offers.url, "offer URL", label),
-    imageUrl,
+    imageUrl: tileImageUrl(imageUrl),
     media: [{ type: "image", url: imageUrl }],
     variants: [],
     ...store.extend?.(html, product, offers),

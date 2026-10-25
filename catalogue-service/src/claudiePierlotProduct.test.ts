@@ -26,7 +26,7 @@ describe("Claudie Pierlot product", () => {
       name: "Mittellanger Lederrock",
       url: productUrl,
       imageUrl:
-        "https://de.claudiepierlot.com/dw/image/v2/BCND_PRD/on/demandware.static/-/Sites-claudie-master-catalog/default/dwe0e466f3/images/hi-res/Claudie_CFPJU00921-C016_F_1.jpg",
+        "https://de.claudiepierlot.com/dw/image/v2/BCND_PRD/on/demandware.static/-/Sites-claudie-master-catalog/default/dwe0e466f3/images/hi-res/Claudie_CFPJU00921-C016_F_1.jpg?sw=800",
       media: [
         {
           type: "image",

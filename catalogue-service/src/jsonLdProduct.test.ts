@@ -49,6 +49,28 @@ describe("shared JSON-LD product core", () => {
     });
   });
 
+  it("requests a tile-sized Demandware image for imageUrl and keeps hi-res media", () => {
+    const hiRes =
+      "https://shop.example.com/dw/image/v2/ABCD_PRD/on/demandware.static/-/Sites-master/default/dw1234/images/hi-res/dress.jpg";
+    const withImage = (image: string) => ld({ ...product, image });
+
+    expect(parseJsonLdProductPage(store, withImage(hiRes), at)).toMatchObject({
+      imageUrl: `${hiRes}?sw=800`,
+      media: [{ type: "image", url: hiRes }],
+    });
+    expect(
+      parseJsonLdProductPage(store, withImage(`${hiRes}?sfrm=png`), at).imageUrl,
+    ).toBe(`${hiRes}?sfrm=png&sw=800`);
+  });
+
+  it("leaves a non-Demandware image URL untouched", () => {
+    const item = parseJsonLdProductPage(store, ld(product), at);
+    expect(item.imageUrl).toBe("https://shop.example.com/a.jpg");
+    expect(item.media).toEqual([
+      { type: "image", url: "https://shop.example.com/a.jpg" },
+    ]);
+  });
+
   it("errors when no Product JSON-LD exists", () => {
     expect(() => parseJsonLdProductPage(store, ld({ "@type": "WebSite" }), at))
       .toThrow("Sandro page does not contain Product JSON-LD");
