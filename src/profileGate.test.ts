@@ -7,6 +7,7 @@ describe("style profile startup gate", () => {
     expect(
       resolveProfileGate({
         fontsLoaded: true,
+        fontError: null,
         introSeen: true,
         profileLookupComplete: false,
         profileStatus: "unknown",
@@ -19,6 +20,7 @@ describe("style profile startup gate", () => {
     expect(
       resolveProfileGate({
         fontsLoaded: true,
+        fontError: null,
         introSeen: true,
         profileLookupComplete: true,
         profileStatus: "unknown",
@@ -33,6 +35,7 @@ describe("style profile startup gate", () => {
       expect(
         resolveProfileGate({
           fontsLoaded: true,
+          fontError: null,
           introSeen: true,
           profileLookupComplete: false,
           profileStatus,
@@ -48,6 +51,7 @@ describe("style profile startup gate", () => {
       expect(
         resolveProfileGate({
           fontsLoaded: true,
+          fontError: null,
           introSeen: false,
           profileLookupComplete: true,
           profileStatus,
@@ -57,10 +61,37 @@ describe("style profile startup gate", () => {
     },
   );
 
+  it("waits for the fonts while they are still loading", () => {
+    expect(
+      resolveProfileGate({
+        fontsLoaded: false,
+        fontError: null,
+        introSeen: true,
+        profileLookupComplete: true,
+        profileStatus: "answered",
+        storeHydrated: true,
+      }),
+    ).toBe("loading");
+  });
+
+  it("counts a font error as ready instead of spinning forever", () => {
+    expect(
+      resolveProfileGate({
+        fontsLoaded: false,
+        fontError: new Error("Metro link dropped"),
+        introSeen: true,
+        profileLookupComplete: true,
+        profileStatus: "answered",
+        storeHydrated: true,
+      }),
+    ).toBe("app");
+  });
+
   it("keeps the intro behind the loading screen", () => {
     expect(
       resolveProfileGate({
         fontsLoaded: true,
+        fontError: null,
         introSeen: false,
         profileLookupComplete: false,
         profileStatus: "unknown",

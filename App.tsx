@@ -98,7 +98,7 @@ export default function App() {
   const replaceStyleProfile = useWistStore(
     (state) => state.replaceStyleProfile,
   );
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     CormorantGaramond_500Medium,
     CormorantGaramond_500Medium_Italic,
     CormorantGaramond_600SemiBold,
@@ -258,6 +258,7 @@ export default function App() {
 
   const profileGate = resolveProfileGate({
     fontsLoaded,
+    fontError,
     introSeen,
     profileLookupComplete,
     profileStatus,
