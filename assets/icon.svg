@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Source for icon.png: serif "W" monogram, Cormorant Garamond 600, ink on paper. -->
-  <rect width="1024" height="1024" fill="#FAF7F2"/>
-  <text x="512" y="768" font-family="'Cormorant Garamond', serif" font-weight="600" font-size="820" fill="#211E1B" text-anchor="middle">W</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="#FAF7F2"/><text x="512" y="768" fill="#211E1B" font-family="'Cormorant Garamond', serif" font-size="820" font-weight="600" text-anchor="middle">W</text></svg>
