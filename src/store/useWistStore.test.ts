@@ -361,3 +361,30 @@ describe("Wist store hydration", () => {
     expect(useWistStore.getState().hydrationFailed).toBe(false);
   });
 });
+
+describe("Wist followed houses", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useWistStore.setState({ followedBrandIds: [], followsSeeded: false });
+  });
+
+  it("follows the catalogue's houses once and remembers that it did", () => {
+    useWistStore.getState().seedFollows(["bobbies", "sandro"]);
+    expect(useWistStore.getState()).toMatchObject({ followedBrandIds: ["bobbies", "sandro"], followsSeeded: true });
+    expect(useWistStore.persist.getOptions().partialize?.(useWistStore.getState())).toMatchObject({ followsSeeded: true });
+  });
+
+  it("counts preferences stored before the flag existed as already seeded", async () => {
+    vi.mocked(AsyncStorage.getItem).mockResolvedValueOnce(
+      JSON.stringify({ state: { followedBrandIds: ["sandro"] }, version: 0 }),
+    );
+    await useWistStore.persist.rehydrate();
+    expect(useWistStore.getState()).toMatchObject({ followedBrandIds: ["sandro"], followsSeeded: true });
+  });
+
+  it("leaves a new install unseeded", async () => {
+    vi.mocked(AsyncStorage.getItem).mockResolvedValueOnce(null);
+    await useWistStore.persist.rehydrate();
+    expect(useWistStore.getState().followsSeeded).toBe(false);
+  });
+});

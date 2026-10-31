@@ -43,8 +43,11 @@ type WistState = {
   introSeen: boolean;
   /** Stored preferences could not be read; the session runs on defaults. Not persisted. */
   hydrationFailed: boolean;
+  /** WIST has followed the catalogue's houses once on this device; from then on the follows are the reader's own. */
+  followsSeeded: boolean;
   toggleFollow: (brandId: string) => void;
   addFollowedBrands: (brandIds: string[]) => void;
+  seedFollows: (brandIds: string[]) => void;
   replaceStarredItems: (itemIds: string[]) => void;
   mergePriceDropAlerts: (alerts: Alert[]) => void;
   setStarredItem: (itemId: string, watched: boolean, currentPrice: number) => void;
@@ -205,6 +208,7 @@ export const useWistStore = create<WistState>()(
       profileStatus: "unknown",
       introSeen: false,
       hydrationFailed: false,
+      followsSeeded: false,
       toggleFollow: (brandId) =>
         set((state) => ({
           followedBrandIds: toggleId(state.followedBrandIds, brandId),
@@ -212,6 +216,11 @@ export const useWistStore = create<WistState>()(
       addFollowedBrands: (brandIds) =>
         set((state) => ({
           followedBrandIds: [...new Set([...state.followedBrandIds, ...brandIds])],
+        })),
+      seedFollows: (brandIds) =>
+        set((state) => ({
+          followedBrandIds: [...new Set([...state.followedBrandIds, ...brandIds])],
+          followsSeeded: true,
         })),
       replaceStarredItems: (itemIds) =>
         set((state) => {
@@ -396,10 +405,17 @@ export const useWistStore = create<WistState>()(
     {
       name: "wist-preferences",
       storage: createJSONStorage(() => preferencesStorage),
+      // Version 1 adds followsSeeded. Preferences stored before it come from a
+      // phone that has already followed the houses, so they count as seeded and
+      // their follows stay exactly as stored.
+      version: 1,
+      migrate: (persisted, version) =>
+        version < 1 ? { ...(persisted as object), followsSeeded: true } : persisted,
       partialize: ({
         alertBaselineEstablished,
         alerts,
         followedBrandIds,
+        followsSeeded,
         introSeen,
         notifiedAlertIds,
         occasions,
@@ -413,6 +429,7 @@ export const useWistStore = create<WistState>()(
         alertBaselineEstablished,
         alerts,
         followedBrandIds,
+        followsSeeded,
         introSeen,
         notifiedAlertIds,
         occasions,
