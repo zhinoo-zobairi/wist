@@ -200,7 +200,7 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
-  topline: { padding: spacing.gutter },
+  topline: { alignItems: "flex-start", padding: spacing.gutter },
   content: { paddingHorizontal: spacing.gutter, paddingBottom: 32 },
   // Topline and content carry their own gutter, so on wide they take the full wide gutter rather than summing with pageStyle.
   gutterWide: { paddingHorizontal: spacing.gutterWide },

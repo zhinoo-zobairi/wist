@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   oldPrice: { ...typography.caption, textDecorationLine: "line-through" },
   since: { ...typography.kicker, marginTop: 19 },
   sizes: { ...typography.kicker, color: colors.ink, marginTop: 6 },
-  remove: { marginTop: 8 },
+  remove: { alignSelf: "flex-start", marginTop: 8 },
   empty: { alignItems: "center", borderTopColor: colors.line, borderTopWidth: 1, marginHorizontal: spacing.gutter, paddingHorizontal: 28, paddingTop: 100 },
   emptyWide: { flex: 7, marginHorizontal: 0 },
   emptyTitle: { ...typography.titleL, marginTop: 15 },

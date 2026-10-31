@@ -141,7 +141,9 @@ const styles = StyleSheet.create({
   topline: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", padding: spacing.gutter },
   dressMe: { marginHorizontal: spacing.gutter, marginBottom: 20 },
   subtitle: typography.body,
+  // Links hug their label, so a tap beside one never fires it.
   chooser: {
+    alignItems: "flex-start",
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderRadius: radii.card,

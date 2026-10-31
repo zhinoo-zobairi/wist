@@ -249,7 +249,7 @@ export function ProductDetailScreen({
             <ActionLink color={colors.moss} disabled={buyBusy} label="Refresh" onPress={() => void refreshBoughtPiece()} />
           )}
           {recovery === "owned" && <Text accessibilityRole="alert" style={styles.buyHelp}>This piece is in your wardrobe.</Text>}
-          {recovery === "repeat" && coveted && <View style={styles.buyNotice}>
+          {recovery === "repeat" && coveted && <View style={[styles.buyNotice, styles.buyNoticeLinks]}>
             <Text style={styles.buyHelp}>This piece is still in Coveted. Trying again can add a duplicate and repeat paid tagging.</Text>
             <ActionLink color={colors.moss} disabled={buyBusy || watchBusy} label="Try again" onPress={() => void addBoughtPiece()} />
           </View>}
@@ -343,6 +343,8 @@ const styles = StyleSheet.create({
   covet: { marginTop: 24 },
   bought: { marginTop: 10 },
   buyNotice: { backgroundColor: colors.wash, borderRadius: radii.card, marginTop: 12, padding: 16 },
+  // "Try again" hugs its label, so a tap beside it never repeats the purchase.
+  buyNoticeLinks: { alignItems: "flex-start" },
   buySheet: { backgroundColor: colors.paper, flex: 1, justifyContent: "center", padding: 24 },
   buyActions: { gap: 10, marginTop: 20 },
   buyHelp: { ...typography.body, marginTop: 10 },

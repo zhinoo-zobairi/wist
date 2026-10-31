@@ -156,5 +156,6 @@ const styles = StyleSheet.create({
   input: { borderColor: colors.ring, borderRadius: radii.card, borderWidth: 1, color: colors.ink, fontFamily: fonts.text, fontSize: 16, padding: 14 },
   notes: { minHeight: 90, textAlignVertical: "top" },
   save: { marginTop: 26, marginBottom: 12 },
-  confirm: { backgroundColor: colors.wash, borderRadius: radii.card, gap: 6, marginVertical: 8, padding: 16 },
+  // Links hug their label, so a tap beside one never fires it.
+  confirm: { alignItems: "flex-start", backgroundColor: colors.wash, borderRadius: radii.card, gap: 6, marginVertical: 8, padding: 16 },
 });

@@ -19,7 +19,7 @@ export function BackLink({ label, onPress }: { label: string; onPress: () => voi
 }
 
 const styles = StyleSheet.create({
-  link: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
+  link: { alignItems: "center", flexDirection: "row", gap: 2, paddingVertical: 4 },
   label: { ...typography.label, textTransform: "uppercase" },
   pressed: { opacity: 0.7 },
 });

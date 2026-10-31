@@ -27,7 +27,7 @@ export function ActionLink({ label, onPress, color = colors.ink, disabled = fals
 }
 
 const styles = StyleSheet.create({
-  link: { alignSelf: "flex-start", paddingVertical: 6 },
+  link: { paddingVertical: 6 },
   label: { ...typography.label, textTransform: "uppercase" },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.7 },
