@@ -49,7 +49,7 @@ import { WardrobeScreen } from "./src/screens/WardrobeScreen";
 import { GarmentEditScreen } from "./src/screens/GarmentEditScreen";
 import { OutfitSuggestionsScreen } from "./src/screens/OutfitSuggestionsScreen";
 import { IntroScreen } from "./src/screens/IntroScreen";
-import { OnboardingScreen } from "./src/screens/OnboardingScreen";
+import { OnboardingFlow } from "./src/onboarding/OnboardingFlow";
 import { resolveProfileGate } from "./src/profileGate";
 import { preselectedSizes } from "./src/sizePreselect";
 import { synchronizeStyleProfile } from "./src/styleProfileCommit";
@@ -117,6 +117,9 @@ export default function App() {
   const markAlertRead = useWistStore((state) => state.markAlertRead);
   const setStarredItem = useWistStore((state) => state.setStarredItem);
   const profileStatus = useWistStore((state) => state.profileStatus);
+  const onboardingDraft = useWistStore((state) => state.onboardingDraft);
+  // N° 02 is on screen, or will be: the houses step makes the reader's own follow choice.
+  const onboardingOpen = profileStatus === "unknown" || onboardingDraft !== null;
   const introSeen = useWistStore((state) => state.introSeen);
   const hydrationFailed = useWistStore((state) => state.hydrationFailed);
   // Unreadable preferences count as settled: the session runs on defaults.
@@ -176,12 +179,12 @@ export default function App() {
   }, [reloadCatalogue]);
 
   // A new install follows the catalogue's houses once. It waits for the stored
-  // preferences, which say whether this phone already did; after that an
-  // unfollowed house stays unfollowed.
+  // preferences, which say whether this phone already did, and for N° 02 to
+  // end, because its houses step makes the reader's own choice instead.
   useEffect(() => {
-    if (!storeSettled || followsSeeded || liveCatalogue.brands.length === 0) return;
+    if (!storeSettled || followsSeeded || onboardingOpen || liveCatalogue.brands.length === 0) return;
     seedFollows(liveCatalogue.brands.map((brand) => brand.id));
-  }, [followsSeeded, liveCatalogue, seedFollows, storeSettled]);
+  }, [followsSeeded, liveCatalogue, onboardingOpen, seedFollows, storeSettled]);
 
   useEffect(() => {
     if (!storeSettled) return;
@@ -348,55 +351,6 @@ export default function App() {
   // Over the same list the Alerts screen shows, so no dot points at a quiet room.
   const hasUnreadAlerts = describableAlerts(alerts, items, brands).some((entry) => !entry.alert.read);
 
-  const profileGate = resolveProfileGate({
-    fontsLoaded,
-    fontError,
-    introSeen,
-    profileLookupComplete,
-    profileStatus,
-    storeHydrated: storeSettled,
-  });
-
-  if (profileGate === "loading") {
-    return (
-      <View style={styles.loading}>
-        {fontsLoaded ? <Wordmark /> : null}
-        <ActivityIndicator color={colors.wine} style={styles.loadingSpinner} />
-      </View>
-    );
-  }
-
-  if (profileGate === "intro" || profileGate === "onboarding") {
-    // Skipping the intro on a first run also skips the style questions.
-    const skipIntro = () => {
-      setIntroSeen(true);
-      if (profileStatus === "unknown") markProfileSkipped();
-    };
-    return (
-      <SafeAreaProvider style={[styles.root, layout.wide && styles.rootWide]}>
-        <SafeAreaView edges={["top", "bottom"]} style={[styles.container, layout.wide && styles.containerWide]}>
-          <StatusBar style="dark" />
-          {profileGate === "intro" ? (
-            <IntroScreen onBegin={() => setIntroSeen(true)} onSkip={skipIntro} />
-          ) : (
-            <OnboardingScreen />
-          )}
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
-
-  const browseBrand = (brandId: string) => {
-    setSelectedItemId(null);
-    setSelectedBrandId(brandId);
-    setActiveTab("browse");
-  };
-
-  const viewAlertItem = (itemId: string) => {
-    const item = itemsById[itemId];
-    if (item) setSelectedItemId(item.id);
-  };
-
   // The first successful covet is the moment the reader asked to be told, so
   // that is when WIST explains itself and then shows the system prompt.
   const askForPriceDropPermission = async () => {
@@ -467,6 +421,64 @@ export default function App() {
         itemIds.filter((itemId) => itemId !== item.id),
       );
     }
+  };
+
+  const profileGate = resolveProfileGate({
+    fontsLoaded,
+    fontError,
+    introSeen,
+    onboardingInProgress: onboardingDraft !== null,
+    profileLookupComplete,
+    profileStatus,
+    storeHydrated: storeSettled,
+  });
+
+  if (profileGate === "loading") {
+    return (
+      <View style={styles.loading}>
+        {fontsLoaded ? <Wordmark /> : null}
+        <ActivityIndicator color={colors.wine} style={styles.loadingSpinner} />
+      </View>
+    );
+  }
+
+  if (profileGate === "intro" || profileGate === "onboarding") {
+    // Skipping the intro on a first run also skips the style questions.
+    const skipIntro = () => {
+      setIntroSeen(true);
+      if (profileStatus === "unknown") markProfileSkipped();
+    };
+    return (
+      <SafeAreaProvider style={[styles.root, layout.wide && styles.rootWide]}>
+        <SafeAreaView edges={["top", "bottom"]} style={[styles.container, layout.wide && styles.containerWide]}>
+          <StatusBar style="dark" />
+          {profileGate === "intro" ? (
+            <IntroScreen onBegin={() => setIntroSeen(true)} onSkip={skipIntro} />
+          ) : (
+            <OnboardingFlow
+              brands={brands}
+              catalogueStatus={catalogueStatus}
+              coveted={covetedIds}
+              items={items}
+              onReload={() => void reloadCatalogue()}
+              onToggleCovet={(item, defaultSizes) => void toggleLiveCovet(item, { askPermission: false, defaultSizes })}
+              syncingIds={syncingWatchIds}
+            />
+          )}
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
+
+  const browseBrand = (brandId: string) => {
+    setSelectedItemId(null);
+    setSelectedBrandId(brandId);
+    setActiveTab("browse");
+  };
+
+  const viewAlertItem = (itemId: string) => {
+    const item = itemsById[itemId];
+    if (item) setSelectedItemId(item.id);
   };
 
   // Optimistically flip one size, then persist the whole selection. The backend
