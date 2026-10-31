@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   FlatList,
   Linking,
@@ -95,6 +96,8 @@ export function ProductDetailScreen({
   const [buyBusy, setBuyBusy] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
   const [recovery, setRecovery] = useState<"refresh" | "repeat" | "owned" | null>(null);
+  // Shown under "View on …", not with the purchase messages far above it.
+  const [linkError, setLinkError] = useState<string | null>(null);
   const pending = useRef(false);
   const alive = useRef(true);
   const buy = useWistStore((state) => state.addGarmentFromItem);
@@ -117,6 +120,16 @@ export function ProductDetailScreen({
       pending.current = false;
       if (alive.current) setBuyBusy(false);
     }
+  };
+
+  const openBrandPage = () => {
+    setLinkError(null);
+    Linking.openURL(item.url).catch(() => {
+      if (!alive.current) return;
+      const message = "Could not open the brand page.";
+      setLinkError(message);
+      AccessibilityInfo.announceForAccessibility(message);
+    });
   };
 
   const refreshBoughtPiece = async () => {
@@ -313,9 +326,8 @@ export function ProductDetailScreen({
           </View>
 
           <View style={styles.official}>
-            <Button icon="arrow" label={`View on ${brand.name}`} onPress={() => {
-              Linking.openURL(item.url).catch(() => setBuyError("Could not open the brand page."));
-            }} />
+            <Button icon="arrow" label={`View on ${brand.name}`} onPress={openBrandPage} />
+            {linkError && <Text accessibilityRole="alert" style={styles.linkError}>{linkError}</Text>}
           </View>
           <Text style={styles.note}>
             Product details and checkout remain authoritative on the brand’s official page.
@@ -363,6 +375,7 @@ const styles = StyleSheet.create({
   factLabel: typography.kicker,
   factValue: { ...typography.price, fontSize: 15, maxWidth: "60%", textAlign: "right" },
   official: { marginTop: 28 },
+  linkError: { ...typography.caption, color: colors.wine, marginTop: 10 },
   note: { ...typography.caption, marginTop: 10 },
   pressed: { opacity: 0.85 },
 });
