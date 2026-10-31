@@ -101,10 +101,18 @@ describe("SQLite style profile repository", () => {
   it("round-trips every brief answer", async () => {
     const repository = createRepository();
 
+    const expected = {
+      ...emptyStyleDetails(),
+      occasions: [],
+      styles: [],
+      ...fullBrief,
+      updatedAt: expect.any(String),
+    };
+
     await expect(
       repository.replaceProfile({ occasions: [], styles: [], ...fullBrief }),
-    ).resolves.toMatchObject(fullBrief);
-    await expect(repository.getProfile()).resolves.toMatchObject(fullBrief);
+    ).resolves.toEqual(expected);
+    await expect(repository.getProfile()).resolves.toEqual(expected);
   });
 
   // Decision 4: a client that predates a field cannot erase it.
@@ -117,6 +125,10 @@ describe("SQLite style profile repository", () => {
       palettes: [],
       shopsFor: null,
       fit: {},
+      tasteAxes: { structure: "fluid" },
+      defaultSizes: {},
+      dropThreshold: null,
+      helpWith: [],
     });
 
     await expect(repository.getProfile()).resolves.toEqual({
@@ -126,6 +138,34 @@ describe("SQLite style profile repository", () => {
       palettes: [],
       shopsFor: null,
       fit: {},
+      tasteAxes: { structure: "fluid" },
+      defaultSizes: {},
+      dropThreshold: null,
+      helpWith: [],
+      updatedAt: expect.any(String),
+    });
+  });
+
+  it("rolls back a write the database refuses", async () => {
+    const repository = createRepository();
+    await repository.replaceProfile({
+      occasions: ["work"],
+      styles: [],
+      ...fullBrief,
+    });
+
+    await expect(
+      repository.replaceProfile({
+        occasions: ["travel"],
+        styles: [],
+        palettes: ["nope"] as never,
+      }),
+    ).rejects.toThrow();
+
+    await expect(repository.getProfile()).resolves.toEqual({
+      ...fullBrief,
+      occasions: ["work"],
+      styles: [],
       updatedAt: expect.any(String),
     });
   });
