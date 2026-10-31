@@ -2,7 +2,7 @@ export const colors = {
   paper: "#F4F1EB",
   card: "#FFFFFF",
   ink: "#181715",
-  muted: "#77736C",
+  muted: "#6B675F",
   line: "#DCD7CE",
   wine: "#A52A37",
   ring: "#B6A88C",
