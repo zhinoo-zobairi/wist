@@ -198,8 +198,9 @@ const styles = StyleSheet.create({
   quietBody: { ...typography.body, marginTop: 4, maxWidth: 300 },
   sectionHead: { alignItems: "baseline", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.gutter },
   sectionTitle: typography.titleL,
-  houses: { gap: 10, paddingBottom: 24, paddingHorizontal: spacing.gutter, paddingTop: 14 },
-  house: { borderColor: colors.line, borderTopWidth: 1, height: 94, justifyContent: "space-between", paddingTop: 9, width: 112 },
+  houses: { gap: 20, paddingBottom: 24, paddingHorizontal: spacing.gutter, paddingTop: 14 },
+  // The index sits right above the name.
+  house: { borderColor: colors.line, borderTopWidth: 1, gap: 6, paddingTop: 9, width: 106 },
   houseIndex: typography.caption,
   houseName: typography.titleS,
   editGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingBottom: 40, paddingHorizontal: spacing.gutter, paddingTop: 16 },
