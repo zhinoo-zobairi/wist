@@ -1,7 +1,7 @@
 # iOS Browsing Rework — Design
 
 **Date:** 2026-10-25
-**Status:** Decisions approved by the owner on 2026-10-25 ("approach B, yes to all")
+**Status:** Decisions approved by the owner on 2026-10-25 ("approach B, yes to all"); D1 revised and approved on 2026-10-31 ("stored flag", existing phones count as seeded)
 **Source:** [iOS app audit and proposal](2026-10-25-ios-app-audit-and-proposal.md), approach B. Finding ids (F01…) refer to that document.
 **Slice:** Mobile, compact layout. The wide web layout must keep rendering but is not redesigned. No navigation library.
 
@@ -13,14 +13,14 @@ The app's look is coherent, but four state bugs undermine it (follows re-seeded 
 
 | # | Decision | Value |
 |---|---|---|
-| 1 | Auto-follow (F01) | Seed follows only while `followedBrandIds` still equals the seed default; after an import follow only brand ids absent from the previous catalogue. No new persisted key |
+| 1 | Auto-follow (F01) | **Revised 2026-10-31.** A stored `followsSeeded` flag: a new install follows the catalogue's houses once, after its stored preferences have loaded, and never again. Preferences stored before the flag (persist version 0) migrate to version 1 as already seeded, so existing follows stay exactly as stored. After an import, follow only brand ids absent from the previous catalogue. (The first rule, "seed while the follows equal the seed default", failed on the simulator: the default placeholder list already contains Claudie Pierlot and Sandro, so unfollowing Bobbies made the follows equal it and the next launch re-followed every house.) |
 | 2 | Request timeout (F05) | 10 000 ms on every `catalogueClient` call through one `AbortController` wrapper (the `saveLocation` precedent). First-run gate unchanged |
 | 3 | Catalogue recovery (F03) | `catalogueStatus: "loading" \| "ready" \| "error"` passed to Feed, Discover, Coveted, Alerts; honest copy per state; a primary "Try again" Button on error; pull-to-refresh (`RefreshControl`, the Wardrobe pattern) on Feed, Discover and Coveted. No automatic retry |
 | 4 | Catalogue freshness (F06, F28) | Reload the catalogue when the poll sees a new newest alert id, and on every `AppState` "active" transition together with `refreshWatches`. No periodic reload |
 | 5 | Notification permission (F27) | Ask on the first successful covet when permission is undetermined, after one line of context ("Wist will tell you when this drops."); the poll only checks |
 | 6 | Notification tap (F02) | Opens the product page: `useLastNotificationResponse`, held in a ref until the item is loaded, then `markAlertRead` + `viewAlertItem` |
 | 7 | Launch fetch (F23) | Brand items fetched with `Promise.all` |
-| 8 | Hydration failure (F29) | Mark hydration settled, run with defaults, keep the stored blob, `console.warn` |
+| 8 | Hydration failure (F29) | Mark hydration settled, run with defaults, keep the stored blob, `console.warn`. Writes are suppressed after a failed read, because zustand persist otherwise writes the defaults over the blob on the next change |
 | 9 | Covet and import sync (F24, F25) | `refreshWatches` after every successful covet write; import clears the field on POST success and reports a refresh failure as "Added. Wist could not refresh the list yet." |
 | 10 | Muted token (F37) | `colors.muted` becomes `#6B675F` (4.99:1 on paper). Revisits "palette unchanged" |
 | 11 | Product page exits (F08) | Tab bar stays mounted on product detail; any tab tap exits. No push transition, no edge swipe |
