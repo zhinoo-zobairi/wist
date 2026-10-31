@@ -93,7 +93,12 @@ export function OnboardingFlow({ brands, catalogueStatus, coveted, items, onRelo
     setDraft((current) => ({ ...current, stepIndex }));
   };
   const next = () => goTo(Math.min(draft.stepIndex + 1, ONBOARDING_STEPS.length - 1));
-  const back = () => goTo(Math.max(draft.stepIndex - 1, 0));
+  const back = () => {
+    const target = Math.max(draft.stepIndex - 1, 0);
+    goTo(target);
+    // Stepping back into the this-or-that questions lands on the last round, not the first.
+    if (ONBOARDING_STEPS[target]?.id === "taste") setRound(TASTE_AXIS_OPTIONS.length - 1);
+  };
 
   const tasteAxis = step.id === "taste" ? TASTE_AXIS_OPTIONS[round] : undefined;
   const answerTaste = (answer: TasteAnswer) => {
