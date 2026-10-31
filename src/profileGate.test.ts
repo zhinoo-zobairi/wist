@@ -99,4 +99,19 @@ describe("style profile startup gate", () => {
       }),
     ).toBe("loading");
   });
+
+  // Composing marks the profile answered before the brief and reveal show.
+  it("keeps N° 02 open while a draft exists, even once the profile is answered", () => {
+    expect(
+      resolveProfileGate({
+        fontsLoaded: true,
+        fontError: null,
+        introSeen: true,
+        onboardingInProgress: true,
+        profileLookupComplete: true,
+        profileStatus: "answered",
+        storeHydrated: true,
+      }),
+    ).toBe("onboarding");
+  });
 });
