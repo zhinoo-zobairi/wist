@@ -51,11 +51,18 @@ import { OutfitSuggestionsScreen } from "./src/screens/OutfitSuggestionsScreen";
 import { IntroScreen } from "./src/screens/IntroScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { resolveProfileGate } from "./src/profileGate";
+import { preselectedSizes } from "./src/sizePreselect";
 import { synchronizeStyleProfile } from "./src/styleProfileCommit";
 import { colors } from "./src/theme";
 import { useWistStore } from "./src/store/useWistStore";
 // Aliased: the bare name Alert is React Native's dialog API in this file.
-import type { Alert as PriceDropAlert, CatalogueStatus, Garment, Item } from "./src/types";
+import type {
+  Alert as PriceDropAlert,
+  CatalogueStatus,
+  Garment,
+  Item,
+  SizeKind,
+} from "./src/types";
 import { catalogueWatchErrorMessage, PURCHASE_UNWATCHED_NOTICE } from "./src/wardrobeMessages";
 
 type ProfileView = { screen: "profile" | "wardrobe" | "outfits" }
@@ -401,14 +408,47 @@ export default function App() {
     ]);
   };
 
-  const toggleLiveCovet = async (item: Item) => {
+  // A fresh covet starts with the reader's default sizes where the shop uses
+  // the same labels (spec Decision 5). They show as chosen on the piece, and in
+  // onboarding, and can be changed there. A failed save leaves the watch on
+  // any size, which can only mean more alerts, so it is logged, not shown.
+  const preselectDefaultSizes = async (item: Item, defaultSizes: Partial<Record<SizeKind, string>>) => {
+    if ((useWistStore.getState().watchedSizesByItemId[item.id] ?? []).length > 0) return;
+    const labels = preselectedSizes(item.variants ?? [], defaultSizes);
+    if (labels.length === 0) return;
+    setWatchedSizes(item.id, labels);
+    try {
+      await saveWatchSizes(item.id, labels);
+    } catch (error) {
+      setWatchedSizes(item.id, []);
+      console.warn(
+        `Default sizes not saved: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  };
+
+  const toggleLiveCovet = async (
+    item: Item,
+    {
+      askPermission = true,
+      defaultSizes,
+    }: { askPermission?: boolean; defaultSizes?: Partial<Record<SizeKind, string>> } = {},
+  ) => {
     if (syncingWatchIds.includes(item.id)) return;
     const watched = !covetedIds.includes(item.id);
     setStarredItem(item.id, watched, item.currentPrice);
     setSyncingWatchIds((itemIds) => [...itemIds, item.id]);
     try {
       await setCatalogueWatch(item.id, watched);
-      if (watched) void askForPriceDropPermission();
+      if (watched) {
+        // Before the refresh below, so the re-read watch list carries the sizes.
+        await preselectDefaultSizes(
+          item,
+          defaultSizes ?? useWistStore.getState().styleDetails.defaultSizes,
+        );
+        // Onboarding asks about notifications on its own screen (Decision 9).
+        if (askPermission) void askForPriceDropPermission();
+      }
       // The server is the authority on the watch list: re-read it so a list
       // discarded by this tap's revision bump still arrives.
       void refreshWatches().catch((error: unknown) => {
