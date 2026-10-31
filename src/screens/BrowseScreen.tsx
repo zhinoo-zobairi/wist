@@ -41,151 +41,153 @@ export function BrowseScreen({ brands, catalogueStatus, items: allItems, selecte
     ? searchItems(allItems, brands, query)
     : brand ? allItems.filter((item) => item.brandId === brand.id) : [];
 
-  return (
-    <View style={styles.screen}>
-      <View style={pageStyle(layout)}>
-        <ScreenHeader kicker="THE WIST INDEX" title="Discover" />
-        <View style={wide ? styles.controlsWide : undefined}>
-          <View style={[styles.search, wide && styles.searchWide]}>
-            <Icon color={colors.muted} name="search" size={19} />
-            <TextInput
-              accessibilityLabel="Search pieces"
-              autoCapitalize="none"
-              autoCorrect={false}
-              onChangeText={setQuery}
-              placeholder="Search across your brands"
-              placeholderTextColor={colors.muted}
-              returnKeyType="search"
-              style={styles.searchInput}
-              value={query}
-            />
-            {searching ? <ActionLink color={colors.muted} label="Clear" onPress={() => setQuery("")} /> : null}
-          </View>
-          {searching ? null : (
-            <ScrollView
-              contentContainerStyle={[styles.tabs, wide && styles.tabsWide]}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={wide ? styles.tabsScrollWide : undefined}
-            >
-              {brands.map((item) => {
-                const selected = item.id === brand?.id;
-                return (
-                  <Pressable
-                    key={item.id}
-                    onPress={() => onSelectBrand(item.id)}
-                    style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
-                  >
-                    <Text style={[styles.tabText, selected && styles.tabSelected]}>{item.name}</Text>
-                    {selected ? <View style={styles.tabLine} /> : null}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          )}
+  // An element, not a component: the list keeps the same header mounted across
+  // renders, so the search field keeps its focus while the reader types.
+  const header = (
+    <View>
+      <ScreenHeader kicker="THE WIST INDEX" title="Discover" />
+      <View style={wide ? styles.controlsWide : undefined}>
+        <View style={[styles.search, wide && styles.searchWide]}>
+          <Icon color={colors.muted} name="search" size={19} />
+          <TextInput
+            accessibilityLabel="Search pieces"
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChangeText={setQuery}
+            placeholder="Search across your brands"
+            placeholderTextColor={colors.muted}
+            returnKeyType="search"
+            style={styles.searchInput}
+            value={query}
+          />
+          {searching ? <ActionLink color={colors.muted} label="Clear" onPress={() => setQuery("")} /> : null}
         </View>
-        {searching ? (
-          <View style={styles.resultsHead}>
-            <Text style={styles.count}>
-              {items.length} {items.length === 1 ? "piece matches" : "pieces match"} “{query.trim()}”
-            </Text>
-          </View>
-        ) : (
-          <View style={[styles.brandHead, wide && styles.brandHeadWide]}>
-            <View>
-              <Text style={styles.brandLabel}>CURATED HOUSE</Text>
-              <Text style={styles.brandName}>{brand?.name}</Text>
-              <Text style={styles.count}>{items.length} pieces selected</Text>
-            </View>
-            {brand ? (
-              <Button
-                compact
-                label={followed.includes(brand.id) ? "Following" : "Follow"}
-                onPress={() => toggleFollow(brand.id)}
-                variant={followed.includes(brand.id) ? "secondary" : "primary"}
-              />
-            ) : null}
-          </View>
+        {searching ? null : (
+          <ScrollView
+            contentContainerStyle={[styles.tabs, wide && styles.tabsWide]}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={wide ? styles.tabsScrollWide : undefined}
+          >
+            {brands.map((item) => {
+              const selected = item.id === brand?.id;
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => onSelectBrand(item.id)}
+                  style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
+                >
+                  <Text style={[styles.tabText, selected && styles.tabSelected]}>{item.name}</Text>
+                  {selected ? <View style={styles.tabLine} /> : null}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         )}
       </View>
-      <FlatList
-        columnWrapperStyle={wide ? styles.columnsWide : undefined}
-        contentContainerStyle={[styles.list, pageStyle(layout), wide && styles.listWide]}
-        data={items}
-        key={numColumns}
-        keyExtractor={(item) => item.id}
-        keyboardShouldPersistTaps="handled"
-        numColumns={numColumns}
-        onRefresh={onReload}
-        refreshing={catalogueStatus === "loading" && allItems.length > 0}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            {!searching && catalogueStatus !== "ready" ? (
-              <IndexStatus onReload={onReload} status={catalogueStatus} />
-            ) : (
-              <>
-                <Text style={styles.emptyTitle}>{searching ? "Nothing matches." : "No pieces here yet."}</Text>
-                <Text style={styles.emptyBody}>
-                  {searching ? "Try a shorter word, or the brand name." : "This house has no pieces in the index yet."}
-                </Text>
-              </>
-            )}
-          </View>
-        }
-        renderItem={({ item, index }) => {
-          const selected = coveted.includes(item.id);
-          const covet = (
-            <Pressable
-              accessibilityLabel={`${selected ? "Remove" : "Covet"} ${item.name}`}
-              accessibilityState={{ selected }}
-              onPress={() => onToggleCovet(item)}
-              style={({ pressed }) => [styles.covet, pressed && styles.pressed]}
-            >
-              <Icon color={colors.ink} filled={selected} name="heart" size={17} />
-              <Text style={[styles.covetText, selected && styles.covetedText]}>{selected ? "COVETED" : "COVET"}</Text>
-            </Pressable>
+      {searching ? (
+        <View style={styles.resultsHead}>
+          <Text style={styles.count}>
+            {items.length} {items.length === 1 ? "piece matches" : "pieces match"} “{query.trim()}”
+          </Text>
+        </View>
+      ) : (
+        <View style={[styles.brandHead, wide && styles.brandHeadWide]}>
+          <Text style={styles.count}>{items.length} {items.length === 1 ? "piece" : "pieces"}</Text>
+          {brand ? (
+            <Button
+              compact
+              label={followed.includes(brand.id) ? "Following" : "Follow"}
+              onPress={() => toggleFollow(brand.id)}
+              variant={followed.includes(brand.id) ? "secondary" : "primary"}
+            />
+          ) : null}
+        </View>
+      )}
+    </View>
+  );
+
+  return (
+    <FlatList
+      columnWrapperStyle={wide ? styles.columnsWide : undefined}
+      contentContainerStyle={[styles.list, pageStyle(layout)]}
+      data={items}
+      key={numColumns}
+      keyExtractor={(item) => item.id}
+      keyboardShouldPersistTaps="handled"
+      numColumns={numColumns}
+      onRefresh={onReload}
+      refreshing={catalogueStatus === "loading" && allItems.length > 0}
+      ListHeaderComponent={header}
+      ListEmptyComponent={
+        // Under the brand row its hairline already separates the list.
+        <View style={[styles.empty, !searching && styles.emptyUnderBrandHead]}>
+          {!searching && catalogueStatus !== "ready" ? (
+            <IndexStatus onReload={onReload} status={catalogueStatus} />
+          ) : (
+            <>
+              <Text style={styles.emptyTitle}>{searching ? "Nothing matches." : "No pieces here yet."}</Text>
+              <Text style={styles.emptyBody}>
+                {searching ? "Try a shorter word, or the brand name." : "This house has no pieces in the index yet."}
+              </Text>
+            </>
+          )}
+        </View>
+      }
+      renderItem={({ item, index }) => {
+        const selected = coveted.includes(item.id);
+        const covet = (
+          <Pressable
+            accessibilityLabel={`${selected ? "Remove" : "Covet"} ${item.name}`}
+            accessibilityState={{ selected }}
+            onPress={() => onToggleCovet(item)}
+            style={({ pressed }) => [styles.covet, pressed && styles.pressed]}
+          >
+            <Icon color={colors.ink} filled={selected} name="heart" size={17} />
+            <Text style={[styles.covetText, selected && styles.covetedText]}>{selected ? "COVETED" : "COVET"}</Text>
+          </Pressable>
+        );
+        if (wide) {
+          return (
+            <View style={styles.cardWide}>
+              <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
+                <ProductPhoto style={styles.image} uri={item.imageUrl} />
+              </Pressable>
+              <Text style={styles.cardBrandWide}>{brandsById[item.brandId]?.name}</Text>
+              <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
+                <Text style={styles.productName}>{item.name}</Text>
+              </Pressable>
+              <Text style={styles.price}>{formatPrice(item.currentPrice, item.currency)}</Text>
+              {covet}
+            </View>
           );
-          if (wide) {
-            return (
-              <View style={styles.cardWide}>
-                <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
-                  <ProductPhoto style={styles.image} uri={item.imageUrl} />
-                </Pressable>
-                <Text style={styles.cardBrandWide}>{brandsById[item.brandId]?.name}</Text>
+        }
+        return (
+          <View style={[styles.product, index % 2 === 1 && styles.reverse]}>
+            <Pressable
+              onPress={() => onOpenItem(item.id)}
+              style={({ pressed }) => [styles.imageLink, pressed && styles.pressed]}
+            >
+              <ProductPhoto style={styles.image} uri={item.imageUrl} />
+            </Pressable>
+            <View style={styles.productBody}>
+              <Text style={styles.number}>
+                {searching ? brandsById[item.brandId]?.name.toUpperCase() : `0${index + 1}`}
+              </Text>
+              <View>
                 <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
                   <Text style={styles.productName}>{item.name}</Text>
                 </Pressable>
                 <Text style={styles.price}>{formatPrice(item.currentPrice, item.currency)}</Text>
                 {covet}
               </View>
-            );
-          }
-          return (
-            <View style={[styles.product, index % 2 === 1 && styles.reverse]}>
-              <Pressable
-                onPress={() => onOpenItem(item.id)}
-                style={({ pressed }) => [styles.imageLink, pressed && styles.pressed]}
-              >
-                <ProductPhoto style={styles.image} uri={item.imageUrl} />
-              </Pressable>
-              <View style={styles.productBody}>
-                <Text style={styles.number}>
-                  {searching ? brandsById[item.brandId]?.name.toUpperCase() : `0${index + 1}`}
-                </Text>
-                <View>
-                  <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
-                    <Text style={styles.productName}>{item.name}</Text>
-                  </Pressable>
-                  <Text style={styles.price}>{formatPrice(item.currentPrice, item.currency)}</Text>
-                  {covet}
-                </View>
-              </View>
             </View>
-          );
-        }}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
+          </View>
+        );
+      }}
+      showsVerticalScrollIndicator={false}
+      style={styles.screen}
+    />
   );
 }
 
@@ -204,21 +206,21 @@ const styles = StyleSheet.create({
   tabText: { ...typography.label, color: colors.muted, fontFamily: fonts.label, fontSize: 11, letterSpacing: 0.3 },
   tabSelected: { color: colors.ink },
   tabLine: { backgroundColor: colors.ink, bottom: 0, height: 1, left: 0, position: "absolute", right: 0 },
-  brandHead: { alignItems: "flex-end", borderTopColor: colors.line, borderTopWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.gutter, paddingVertical: 19 },
+  // One row above the hairline: the count left, FOLLOW right.
+  brandHead: { alignItems: "center", borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", marginBottom: 19, paddingBottom: 14, paddingHorizontal: spacing.gutter },
   brandHeadWide: { marginTop: spacing.lg },
-  brandLabel: typography.kicker,
-  brandName: { ...typography.titleL, marginTop: 3 },
   count: typography.caption,
-  list: { paddingBottom: 30, paddingHorizontal: spacing.gutter },
+  // The header spans the list's width; rows, cards and the empty state carry the gutter.
+  list: { paddingBottom: 30 },
   // Wide: three columns of cards; maxWidth keeps a short last row on the grid.
-  listWide: { paddingHorizontal: spacing.gutterWide },
-  columnsWide: { gap: 24, marginBottom: 36 },
+  columnsWide: { gap: 24, marginBottom: 36, paddingHorizontal: spacing.gutter },
   cardWide: { flex: 1, maxWidth: "32%" },
   cardBrandWide: { ...typography.kicker, marginTop: 12, textTransform: "uppercase" },
-  empty: { borderTopColor: colors.line, borderTopWidth: 1, paddingTop: 50 },
+  empty: { borderTopColor: colors.line, borderTopWidth: 1, marginHorizontal: spacing.gutter, paddingTop: 50 },
+  emptyUnderBrandHead: { borderTopWidth: 0 },
   emptyTitle: { ...typography.titleL, textAlign: "center" },
   emptyBody: { ...typography.body, marginTop: 7, textAlign: "center" },
-  product: { flexDirection: "row", marginBottom: 14, minHeight: 226 },
+  product: { flexDirection: "row", marginBottom: 14, marginHorizontal: spacing.gutter, minHeight: 226 },
   reverse: { flexDirection: "row-reverse" },
   image: { aspectRatio: 4 / 5, borderRadius: radii.card, width: "100%" },
   imageLink: { width: "61%" },
