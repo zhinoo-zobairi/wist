@@ -52,6 +52,29 @@ describe("commitStyleProfile", () => {
     ]);
   });
 
+  it("clears the unsynced mark once the catalogue accepts the brief", async () => {
+    const apply = vi.fn();
+    const details = { ...emptyStyleDetails(), palettes: ["earth" as const] };
+    const canonical: StyleProfile = {
+      occasions: ["work"],
+      styles: [],
+      details,
+      updatedAt: "2026-10-31T00:00:00.000Z",
+    };
+    const save = vi.fn(async () => canonical);
+
+    await commitStyleProfile({ occasions: ["work"], styles: [], details, apply, save });
+
+    expect(apply).toHaveBeenNthCalledWith(1, ["work"], [], details, true);
+    expect(apply).toHaveBeenNthCalledWith(
+      2,
+      canonical.occasions,
+      canonical.styles,
+      canonical.details,
+      false,
+    );
+  });
+
   it("uploads a cached answer when the backend profile is missing", async () => {
     const apply = vi.fn();
     const save = vi.fn(async (): Promise<StyleProfile> => ({
@@ -139,5 +162,53 @@ describe("commitStyleProfile", () => {
     expect(load).not.toHaveBeenCalled();
     expect(save).toHaveBeenCalledWith(["work"], [], details);
     expect(apply).toHaveBeenCalledWith(["work"], [], details, false);
+  });
+
+  it("applies the catalogue copy when nothing is waiting to sync", async () => {
+    const remote: StyleProfile = {
+      occasions: ["work"],
+      styles: ["minimal"],
+      details: { ...emptyStyleDetails(), shopsFor: "menswear" as const },
+      updatedAt: "2026-10-31T00:00:00.000Z",
+    };
+    const apply = vi.fn();
+    const save = vi.fn();
+
+    await synchronizeStyleProfile({
+      apply,
+      getLocal: () => ({
+        occasions: ["travel"],
+        styles: [],
+        details: emptyStyleDetails(),
+        unsynced: false,
+      }),
+      load: async () => remote,
+      save,
+    });
+
+    expect(save).not.toHaveBeenCalled();
+    expect(apply).toHaveBeenCalledWith(["work"], ["minimal"], remote.details, false);
+  });
+
+  it("keeps unsynced answers waiting when the re-send fails", async () => {
+    const apply = vi.fn();
+    const load = vi.fn();
+
+    await expect(
+      synchronizeStyleProfile({
+        apply,
+        getLocal: () => ({
+          occasions: ["work"],
+          styles: [],
+          details: emptyStyleDetails(),
+          unsynced: true,
+        }),
+        load,
+        save: () => Promise.reject(new Error("offline")),
+      }),
+    ).rejects.toThrow("offline");
+
+    expect(apply).not.toHaveBeenCalled();
+    expect(load).not.toHaveBeenCalled();
   });
 });

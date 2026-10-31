@@ -417,6 +417,13 @@ describe("Wist style brief store", () => {
     });
   });
 
+  it("marks the answers synced when told so", () => {
+    useWistStore.getState().replaceStyleProfile(["work"], [], emptyStyleDetails(), true);
+    useWistStore.getState().replaceStyleProfile(["work"], [], emptyStyleDetails(), false);
+
+    expect(useWistStore.getState().profileUnsynced).toBe(false);
+  });
+
   it("follows exactly the houses the reader chose and counts the follows as seeded", () => {
     useWistStore.getState().chooseFollows(["sandro", "bobbies", "sandro"]);
 
