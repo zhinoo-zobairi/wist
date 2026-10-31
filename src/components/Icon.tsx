@@ -23,7 +23,8 @@ type Props = {
 
 export function Icon({ color, filled = false, name, size = 22 }: Props) {
   const isFilledSave = (name === "star" || name === "heart") && filled;
-  const iconColor = isFilledSave ? colors.wine : color;
+  // A filled heart or star is wine on ink; any other colour (a Button's label) is kept.
+  const iconColor = isFilledSave && color === colors.ink ? colors.wine : color;
   const strokeWidth = ["search", "bell", "home", "user"].includes(name)
     ? 1.6
     : 1.5;
