@@ -50,6 +50,39 @@ describe("Claude outfit suggester", () => {
     expect(focus.text).toContain('["a"]');
   });
 
+  it("sends the brief the outfit engine uses and nothing it does not", async () => {
+    const { suggester, parse } = stub({ stop_reason: "end_turn", parsed_output: { outfits } });
+    await suggester.suggest({
+      ...input,
+      profile: {
+        ...input.profile!,
+        workDressCode: "smart",
+        neverColours: ["orange"],
+        signature: ["blazer"],
+        gaps: ["long_coat"],
+        defaultSizes: { tops: "S" },
+        dropThreshold: 20,
+        shopsFor: "womenswear",
+      },
+    });
+    const [request] = parse.mock.calls[0]!;
+    const profile = request.messages[0].content[1];
+    expect(JSON.parse(profile.text.slice("Owner style profile: ".length))).toEqual({
+      occasions: ["work"],
+      styles: ["minimal"],
+      workDressCode: "smart",
+      tasteAxes: {},
+      palettes: [],
+      neverColours: ["orange"],
+      prints: null,
+      fit: {},
+      signature: ["blazer"],
+      helpWith: [],
+      gaps: ["long_coat"],
+    });
+    expect(request.system).toContain("Use the owner's work dress code");
+  });
+
   it("omits the focus block when there is nothing to favour", async () => {
     const { suggester, parse } = stub({ stop_reason: "end_turn", parsed_output: { outfits } });
     await suggester.suggest({ ...input, focusGarmentIds: [] });
