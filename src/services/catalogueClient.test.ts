@@ -342,10 +342,25 @@ describe("catalogue client", () => {
   });
 
   it("loads and replaces the owner style profile", async () => {
-    const profile = {
+    const owned = {
       occasions: ["work", "travel"],
       styles: ["minimal", "bold"],
       updatedAt: "2026-08-21T12:00:00.000Z",
+    };
+    const profile = {
+      ...owned,
+      shopsFor: null,
+      helpWith: [],
+      workDressCode: null,
+      tasteAxes: {},
+      palettes: [],
+      neverColours: [],
+      prints: null,
+      fit: {},
+      defaultSizes: {},
+      signature: [],
+      gaps: [],
+      dropThreshold: null,
     };
     const fetchImpl = vi
       .fn()
@@ -354,7 +369,7 @@ describe("catalogue client", () => {
 
     await expect(
       loadStyleProfile(fetchImpl, "http://catalogue.test", "owner-token"),
-    ).resolves.toEqual({ ...profile, details: emptyStyleDetails() });
+    ).resolves.toEqual({ ...owned, details: emptyStyleDetails() });
     await expect(
       saveStyleProfile(
         ["work", "travel"],
@@ -363,7 +378,7 @@ describe("catalogue client", () => {
         "http://catalogue.test",
         "owner-token",
       ),
-    ).resolves.toEqual({ ...profile, details: emptyStyleDetails() });
+    ).resolves.toEqual({ ...owned, details: emptyStyleDetails() });
 
     expect(fetchImpl).toHaveBeenNthCalledWith(
       2,
@@ -471,6 +486,23 @@ describe("catalogue client", () => {
     const profile = await loadStyleProfile(fetchImpl, "http://catalogue.test", "owner-token");
 
     expect(profile?.details.dropThreshold).toBe(0);
+  });
+
+  it("refuses a profile from a catalogue that does not store the style brief yet", async () => {
+    const olderCatalogue = () => new Response(JSON.stringify({
+      profile: { occasions: ["work"], styles: [], updatedAt: "2026-10-31T12:00:00.000Z" },
+    }));
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(olderCatalogue())
+      .mockResolvedValueOnce(olderCatalogue());
+
+    await expect(
+      loadStyleProfile(fetchImpl, "http://catalogue.test", "owner-token"),
+    ).rejects.toThrow(/does not store the style brief/);
+    await expect(
+      saveStyleBrief(["work"], [], {}, fetchImpl, "http://catalogue.test", "owner-token"),
+    ).rejects.toThrow(/does not store the style brief/);
   });
 
   it("distinguishes an unanswered profile and rejects invalid selections", async () => {

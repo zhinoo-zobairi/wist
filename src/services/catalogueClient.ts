@@ -198,6 +198,11 @@ const FIT_ANSWERS = new Map<string, readonly string[]>(
   FIT_ROW_OPTIONS.map((row) => [row.id, row.options.map((option) => option.id)]),
 );
 const SIZE_KINDS: readonly SizeKind[] = ["tops", "bottoms", "shoes"];
+// A profile with none of these comes from a catalogue that does not store the brief yet.
+const BRIEF_KEYS = [
+  "shopsFor", "helpWith", "workDressCode", "tasteAxes", "palettes", "neverColours",
+  "prints", "fit", "defaultSizes", "signature", "gaps", "dropThreshold",
+] as const;
 
 // The brief's answers. A catalogue that predates a field leaves it out, which
 // reads as unanswered; an id this app does not know fails the profile, as an
@@ -264,6 +269,9 @@ function toStyleProfile(value: unknown): StyleProfile {
     value.styles.some((style) => !validStyles.has(style as Style))
   ) {
     throw new Error("Catalogue returned invalid style profile selections");
+  }
+  if (!BRIEF_KEYS.some((key) => key in value)) {
+    throw new Error("Catalogue does not store the style brief yet");
   }
 
   return {
