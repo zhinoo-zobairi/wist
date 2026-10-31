@@ -15,6 +15,43 @@ if (Platform.OS !== "web") {
   });
 }
 
+// Android shows no permission prompt until a channel exists, so the channel is
+// created before asking as well as before sending.
+async function ensurePriceDropChannel() {
+  if (Platform.OS !== "android") return;
+  await Notifications.setNotificationChannelAsync("price-drops", {
+    name: "Price drops",
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 180, 100, 180],
+  });
+}
+
+/** True on a device that has never been asked about notifications; always false on web. */
+export async function isPriceDropPermissionUndetermined(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status === "undetermined";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Shows the system notification prompt. Called only at the covet moment, after
+ * the app has said why; the poll never asks. Resolves whether it was granted.
+ */
+export async function requestPriceDropPermission(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+  try {
+    await ensurePriceDropChannel();
+    const { status } = await Notifications.requestPermissionsAsync();
+    return status === "granted";
+  } catch {
+    return false;
+  }
+}
+
 export async function sendPriceDropNotification(
   alert: Alert,
   item: Item,
@@ -23,20 +60,11 @@ export async function sendPriceDropNotification(
   if (Platform.OS === "web") return false;
 
   try {
-    if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("price-drops", {
-        name: "Price drops",
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 180, 100, 180],
-      });
-    }
+    await ensurePriceDropChannel();
 
-    const existing = await Notifications.getPermissionsAsync();
-    const permission =
-      existing.status === "granted"
-        ? existing
-        : await Notifications.requestPermissionsAsync();
-
+    // Only check: asking from inside the poll would interrupt whatever the
+    // reader is doing with no context. The covet moment asks instead.
+    const permission = await Notifications.getPermissionsAsync();
     if (permission.status !== "granted") return false;
 
     await Notifications.scheduleNotificationAsync({

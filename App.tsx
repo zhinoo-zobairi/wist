@@ -31,7 +31,11 @@ import {
 } from "./src/services/catalogueClient";
 import { brandsToFollowAfterImport, newestAlertChanged, shouldSeedFollows } from "./src/catalogueLifecycle";
 import { selectPriceDropAnnouncements } from "./src/priceDropAnnouncements";
-import { sendPriceDropNotification } from "./src/services/notifications";
+import {
+  isPriceDropPermissionUndetermined,
+  requestPriceDropPermission,
+  sendPriceDropNotification,
+} from "./src/services/notifications";
 import { AlertsScreen } from "./src/screens/AlertsScreen";
 import { BrowseScreen } from "./src/screens/BrowseScreen";
 import { FeedScreen } from "./src/screens/FeedScreen";
@@ -77,6 +81,9 @@ export default function App() {
   const catalogueRef = useRef<Catalogue>(liveCatalogue);
   // One reload in flight at a time; a second request joins it.
   const catalogueReload = useRef<Promise<Catalogue | null> | null>(null);
+  // The notification question is put at most once per session, so two quick
+  // covets cannot stack two explanations.
+  const permissionAsked = useRef(false);
   const alerts = useWistStore((state) => state.alerts);
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const watchedSizesByItemId = useWistStore(
@@ -347,6 +354,17 @@ export default function App() {
     if (item) setSelectedItemId(item.id);
   };
 
+  // The first successful covet is the moment the reader asked to be told, so
+  // that is when WIST explains itself and then shows the system prompt.
+  const askForPriceDropPermission = async () => {
+    if (permissionAsked.current) return;
+    permissionAsked.current = true;
+    if (!(await isPriceDropPermissionUndetermined())) return;
+    Alert.alert("WIST will tell you when this drops.", undefined, [
+      { text: "Continue", onPress: () => void requestPriceDropPermission() },
+    ]);
+  };
+
   const toggleLiveCovet = async (item: Item) => {
     if (syncingWatchIds.includes(item.id)) return;
     const watched = !covetedIds.includes(item.id);
@@ -354,6 +372,7 @@ export default function App() {
     setSyncingWatchIds((itemIds) => [...itemIds, item.id]);
     try {
       await setCatalogueWatch(item.id, watched);
+      if (watched) void askForPriceDropPermission();
       // The server is the authority on the watch list: re-read it so a list
       // discarded by this tap's revision bump still arrives.
       void refreshWatches().catch((error: unknown) => {
