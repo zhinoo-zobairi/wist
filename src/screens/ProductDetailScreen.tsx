@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   Linking,
   Modal,
@@ -147,38 +148,41 @@ export function ProductDetailScreen({
 
       <View style={wide && styles.columns}>
         <View onLayout={(event) => setMediaColumnWidth(event.nativeEvent.layout.width)} style={wide && styles.mediaColumn}>
-          <ScrollView
-            horizontal
-            onMomentumScrollEnd={updateActiveMedia}
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-          >
-            {media.map((entry, index) =>
-              entry.type === "video" ? (
-                <ProductVideo
-                  height={mediaHeight}
-                  key={`${entry.url}-${index}`}
-                  url={entry.url}
-                  width={mediaWidth}
-                />
-              ) : (
-                <Image
-                  key={`${entry.url}-${index}`}
-                  resizeMode="cover"
-                  source={{ uri: entry.url }}
-                  style={{
-                    backgroundColor: colors.line,
-                    height: mediaHeight,
-                    width: mediaWidth,
-                  }}
-                />
-              ),
-            )}
-          </ScrollView>
-          {media.length > 1 ? (
-            <View style={styles.mediaCount}>
-              <Text style={styles.mediaCountText}>{activeMediaIndex + 1} / {media.length}</Text>
-            </View>
+          {/* The wide column is measured first: until then there is no page width to lay out. */}
+          {mediaWidth > 0 ? (
+            <>
+              <FlatList
+                data={media}
+                getItemLayout={(_, index) => ({ index, length: mediaWidth, offset: mediaWidth * index })}
+                horizontal
+                initialNumToRender={1}
+                keyExtractor={(entry, index) => `${entry.url}-${index}`}
+                onMomentumScrollEnd={updateActiveMedia}
+                pagingEnabled
+                renderItem={({ item: entry }) =>
+                  entry.type === "video" ? (
+                    <ProductVideo height={mediaHeight} url={entry.url} width={mediaWidth} />
+                  ) : (
+                    <Image
+                      resizeMode="cover"
+                      source={{ uri: entry.url }}
+                      style={{
+                        backgroundColor: colors.line,
+                        height: mediaHeight,
+                        width: mediaWidth,
+                      }}
+                    />
+                  )
+                }
+                showsHorizontalScrollIndicator={false}
+                windowSize={3}
+              />
+              {media.length > 1 ? (
+                <View style={styles.mediaCount}>
+                  <Text style={styles.mediaCountText}>{activeMediaIndex + 1} / {media.length}</Text>
+                </View>
+              ) : null}
+            </>
           ) : null}
         </View>
 
