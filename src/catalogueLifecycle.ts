@@ -14,18 +14,9 @@ export function newestAlertChanged(
 }
 
 /**
- * True while the followed houses are still the install default, as a set: no
- * house has been followed or unfollowed by hand, so the catalogue may seed them.
- */
-export function shouldSeedFollows(followedBrandIds: string[], seedIds: string[]): boolean {
-  const followed = new Set(followedBrandIds);
-  return followed.size === new Set(seedIds).size && seedIds.every((id) => followed.has(id));
-}
-
-/**
  * Houses an import brought into the catalogue for the first time. Without a
  * previous catalogue there is nothing to compare against, so nothing is new:
- * the launch rule (`shouldSeedFollows`) decides that case.
+ * the one-time seeding on a new install (`followsSeeded`) covers that case.
  */
 export function brandsToFollowAfterImport(previousBrandIds: string[], nextBrandIds: string[]): string[] {
   if (previousBrandIds.length === 0) return [];

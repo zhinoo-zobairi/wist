@@ -29,7 +29,7 @@ import {
   setCatalogueWatch,
   type Catalogue,
 } from "./src/services/catalogueClient";
-import { brandsToFollowAfterImport, newestAlertChanged, shouldSeedFollows } from "./src/catalogueLifecycle";
+import { brandsToFollowAfterImport, newestAlertChanged } from "./src/catalogueLifecycle";
 import { selectPriceDropAnnouncements } from "./src/priceDropAnnouncements";
 import {
   isPriceDropPermissionUndetermined,
@@ -53,7 +53,7 @@ import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { resolveProfileGate } from "./src/profileGate";
 import { synchronizeStyleProfile } from "./src/styleProfileCommit";
 import { colors } from "./src/theme";
-import { seedFollowedBrandIds, useWistStore } from "./src/store/useWistStore";
+import { useWistStore } from "./src/store/useWistStore";
 // Aliased: the bare name Alert is React Native's dialog API in this file.
 import type { Alert as PriceDropAlert, CatalogueStatus, Garment, Item } from "./src/types";
 import { catalogueWatchErrorMessage, PURCHASE_UNWATCHED_NOTICE } from "./src/wardrobeMessages";
@@ -98,6 +98,8 @@ export default function App() {
   );
   const setWatchedSizes = useWistStore((state) => state.setWatchedSizes);
   const addFollowedBrands = useWistStore((state) => state.addFollowedBrands);
+  const followsSeeded = useWistStore((state) => state.followsSeeded);
+  const seedFollows = useWistStore((state) => state.seedFollows);
   const refreshWatches = useWistStore((state) => state.refreshWatches);
   const mergePriceDropAlerts = useWistStore(
     (state) => state.mergePriceDropAlerts,
@@ -146,11 +148,6 @@ export default function App() {
       .then((catalogue) => {
         setLiveCatalogue(catalogue);
         setCatalogueStatus("ready");
-        // Seed the follows once, while they are still the install default;
-        // after that an unfollowed house stays unfollowed.
-        if (shouldSeedFollows(useWistStore.getState().followedBrandIds, seedFollowedBrandIds)) {
-          addFollowedBrands(catalogue.brands.map((brand) => brand.id));
-        }
         setSelectedBrandId((current) => current || catalogue.brands[0]?.id || "");
         return catalogue;
       })
@@ -165,11 +162,19 @@ export default function App() {
         catalogueReload.current = null;
       });
     return catalogueReload.current;
-  }, [addFollowedBrands]);
+  }, []);
 
   useEffect(() => {
     void reloadCatalogue();
   }, [reloadCatalogue]);
+
+  // A new install follows the catalogue's houses once. It waits for the stored
+  // preferences, which say whether this phone already did; after that an
+  // unfollowed house stays unfollowed.
+  useEffect(() => {
+    if (!storeSettled || followsSeeded || liveCatalogue.brands.length === 0) return;
+    seedFollows(liveCatalogue.brands.map((brand) => brand.id));
+  }, [followsSeeded, liveCatalogue, seedFollows, storeSettled]);
 
   useEffect(() => {
     if (!storeSettled) return;

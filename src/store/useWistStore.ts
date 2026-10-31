@@ -111,7 +111,7 @@ const preferencesStorage = {
 };
 
 /** The follows a fresh install starts with; the catalogue seeds on top only while they are untouched. */
-export const seedFollowedBrandIds = seedBrands.map((brand) => brand.id);
+const seedFollowedBrandIds = seedBrands.map((brand) => brand.id);
 
 export const useWistStore = create<WistState>()(
   persist(
