@@ -591,7 +591,8 @@ export default function App() {
         <StatusBar style="dark" />
         {layout.wide ? <TopNav activeTab={activeTab} hasUnreadAlerts={hasUnreadAlerts} onChange={changeTab} /> : null}
         <View style={styles.content}>{renderScreen()}</View>
-        {!layout.wide && !selectedItemId ? <SafeAreaView edges={["bottom"]} style={styles.navSafeArea}>
+        {/* Stays on the product page too: any tab tap leaves it (changeTab clears the selection). */}
+        {!layout.wide ? <SafeAreaView edges={["bottom"]} style={styles.navSafeArea}>
           <BottomTabBar activeTab={activeTab} hasUnreadAlerts={hasUnreadAlerts} onChange={changeTab} />
         </SafeAreaView> : null}
       </SafeAreaView>
