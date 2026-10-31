@@ -133,7 +133,7 @@ export function ProfileScreen({
 
         <View style={[screenStyles.section, screenStyles.followedSection]}>
           <Text style={screenStyles.sectionLabel}>
-            FOLLOWED HOUSES · {followed.length}
+            FOLLOWED HOUSES · {brands.filter((brand) => followed.includes(brand.id)).length}
           </Text>
           {brands.map((brand, index) => {
             const selected = followed.includes(brand.id);
