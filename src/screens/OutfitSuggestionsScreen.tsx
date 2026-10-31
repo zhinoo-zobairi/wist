@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BackLink } from "../components/BackLink";
 import { Button } from "../components/Button";
 import { GarmentPhoto } from "../components/GarmentPhoto";
@@ -109,6 +109,17 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
     return () => clearInterval(timer);
   }, [waiting, refresh]);
 
+  const matches = (candidate: Occasion) => occasion === null || candidate === occasion;
+  const readyIdeas = state.status === "ready" ? state.board.suggestions.filter((idea) => matches(idea.occasion)).length : 0;
+  // iOS ignores accessibilityLiveRegion, so VoiceOver hears once that a run finished, never on the 15 s refresh.
+  const wasWaiting = useRef(false);
+  useEffect(() => {
+    if (wasWaiting.current && !waiting) {
+      AccessibilityInfo.announceForAccessibility(readyIdeas > 0 ? "New ideas are ready." : "No ideas yet.");
+    }
+    wasWaiting.current = waiting;
+  }, [waiting]);
+
   const act = async (action: () => Promise<string | null>) => {
     if (busy) return;
     setBusy(true);
@@ -125,7 +136,6 @@ export function OutfitSuggestionsScreen({ onBack, onEdit }: {
     }
   };
 
-  const matches = (candidate: Occasion) => occasion === null || candidate === occasion;
   const labelFor = (candidate: Occasion) =>
     OCCASION_OPTIONS.find((option) => option.id === candidate)?.label.toUpperCase() ?? "";
 

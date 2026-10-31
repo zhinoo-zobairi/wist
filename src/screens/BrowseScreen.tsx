@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { AccessibilityInfo, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { searchItems } from "../catalogueSearch";
 import { ActionLink } from "../components/ActionLink";
@@ -13,6 +13,9 @@ import { useWistStore } from "../store/useWistStore";
 import { formatPrice } from "../money";
 import { colors, fonts, radii, spacing, typography } from "../theme";
 import type { Brand, CatalogueStatus, Item } from "../types";
+
+// How long typing must pause before the result count is announced.
+const SEARCH_ANNOUNCE_MS = 600;
 
 type Props = {
   brands: Brand[];
@@ -34,12 +37,29 @@ export function BrowseScreen({ brands, catalogueStatus, items: allItems, selecte
   const { wide } = layout;
   const numColumns = wide ? 3 : 1;
   const [query, setQuery] = useState("");
-  const searching = query.trim().length > 0;
+  const trimmedQuery = query.trim();
+  const searching = trimmedQuery.length > 0;
   const brand = brands.find((candidate) => candidate.id === selectedBrandId) ?? brands[0];
   const brandsById = Object.fromEntries(brands.map((entry) => [entry.id, entry]));
   const items = searching
     ? searchItems(allItems, brands, query)
     : brand ? allItems.filter((item) => item.brandId === brand.id) : [];
+  const resultLine = `${items.length} ${items.length === 1 ? "piece matches" : "pieces match"} “${trimmedQuery}”`;
+
+  // VoiceOver hears the count once the reader stops typing, not on every keystroke.
+  const announcedQuery = useRef("");
+  useEffect(() => {
+    if (!trimmedQuery) {
+      announcedQuery.current = "";
+      return;
+    }
+    if (trimmedQuery === announcedQuery.current) return;
+    const timer = setTimeout(() => {
+      announcedQuery.current = trimmedQuery;
+      AccessibilityInfo.announceForAccessibility(resultLine);
+    }, SEARCH_ANNOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [trimmedQuery, resultLine]);
 
   // An element, not a component: the list keeps the same header mounted across
   // renders, so the search field keeps its focus while the reader types.
@@ -91,9 +111,7 @@ export function BrowseScreen({ brands, catalogueStatus, items: allItems, selecte
       </View>
       {searching ? (
         <View style={styles.resultsHead}>
-          <Text style={styles.count}>
-            {items.length} {items.length === 1 ? "piece matches" : "pieces match"} “{query.trim()}”
-          </Text>
+          <Text style={styles.count}>{resultLine}</Text>
         </View>
       ) : (
         <View style={[styles.brandHead, wide && styles.brandHeadWide]}>
