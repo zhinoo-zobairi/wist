@@ -10,10 +10,10 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { useWistStore } from "./useWistStore";
+import { newOnboardingDraft, useWistStore } from "./useWistStore";
 import { addGarmentFromItem, deleteGarment, loadWardrobe, loadWatches, retagGarment, saveGarment, uploadGarmentPhoto,
   type AddGarmentFromItemResult } from "../services/catalogueClient";
-import type { Garment } from "../types";
+import { emptyStyleDetails, type Garment } from "../types";
 
 vi.mock("../services/catalogueClient", () => ({
   addGarmentFromItem: vi.fn(), deleteGarment: vi.fn(), loadWardrobe: vi.fn(), loadWatches: vi.fn(), retagGarment: vi.fn(),
@@ -386,5 +386,78 @@ describe("Wist followed houses", () => {
     vi.mocked(AsyncStorage.getItem).mockResolvedValueOnce(null);
     await useWistStore.persist.rehydrate();
     expect(useWistStore.getState().followsSeeded).toBe(false);
+  });
+});
+
+describe("Wist style brief store", () => {
+  beforeEach(() => {
+    useWistStore.setState({
+      occasions: [],
+      styles: [],
+      styleDetails: emptyStyleDetails(),
+      profileStatus: "unknown",
+      profileUnsynced: false,
+      onboardingDraft: null,
+      followedBrandIds: ["seed-house"],
+      followsSeeded: false,
+    });
+  });
+
+  it("keeps the stored brief and its sync state when only occasions and styles change", () => {
+    const details = { ...emptyStyleDetails(), shopsFor: "menswear" as const };
+    useWistStore.getState().replaceStyleProfile(["work"], [], details, true);
+    useWistStore.getState().replaceStyleProfile(["travel"], ["bold"]);
+
+    expect(useWistStore.getState()).toMatchObject({
+      occasions: ["travel"],
+      styles: ["bold"],
+      styleDetails: details,
+      profileStatus: "answered",
+      profileUnsynced: true,
+    });
+  });
+
+  it("follows exactly the houses the reader chose and counts the follows as seeded", () => {
+    useWistStore.getState().chooseFollows(["sandro", "bobbies", "sandro"]);
+
+    expect(useWistStore.getState()).toMatchObject({
+      followedBrandIds: ["sandro", "bobbies"],
+      followsSeeded: true,
+    });
+  });
+
+  it("starts a draft from what the phone knows, without the sample follows", () => {
+    useWistStore.setState({ occasions: ["work"], styles: ["minimal"] });
+    useWistStore.getState().startStyleBrief();
+    expect(useWistStore.getState().onboardingDraft).toEqual({
+      stepIndex: 0,
+      answers: {
+        occasions: ["work"],
+        styles: ["minimal"],
+        details: emptyStyleDetails(),
+        houseIds: [],
+        notificationsAllowed: null,
+      },
+    });
+
+    useWistStore.getState().clearOnboardingDraft();
+    expect(useWistStore.getState().onboardingDraft).toBeNull();
+  });
+
+  it("prefills the houses of a reader who already chose them", () => {
+    useWistStore.setState({ followedBrandIds: ["sandro"], followsSeeded: true });
+    expect(newOnboardingDraft(useWistStore.getState()).answers.houseIds).toEqual(["sandro"]);
+  });
+
+  it("persists the brief, its sync state and the draft", () => {
+    const draft = newOnboardingDraft(useWistStore.getState());
+    useWistStore.getState().saveOnboardingDraft({ ...draft, stepIndex: 3 });
+    const persisted = useWistStore.persist.getOptions().partialize?.(useWistStore.getState());
+
+    expect(persisted).toMatchObject({
+      styleDetails: emptyStyleDetails(),
+      profileUnsynced: false,
+      onboardingDraft: { stepIndex: 3 },
+    });
   });
 });

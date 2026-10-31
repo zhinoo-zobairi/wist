@@ -12,7 +12,11 @@ import {
   addGarmentFromItem as purchaseCatalogueItem, deleteGarment, loadWardrobe, loadWatches,
   retagGarment, saveGarment, uploadGarmentPhoto, type AddGarmentFromItemResult, type Watches,
 } from "../services/catalogueClient";
-import type { Alert, Garment, GarmentInput, Occasion, PriceSnapshot, Style } from "../types";
+import {
+  emptyStyleDetails,
+  type Alert, type Garment, type GarmentInput, type Occasion, type OnboardingDraft, type PriceSnapshot,
+  type Style, type StyleDetails,
+} from "../types";
 
 export type ProfileStatus = "unknown" | "answered" | "skipped";
 
@@ -39,6 +43,11 @@ type WistState = {
   occasions: Occasion[];
   styles: Style[];
   profileStatus: ProfileStatus;
+  styleDetails: StyleDetails;
+  /** The style answers on this phone have not reached the catalogue yet. */
+  profileUnsynced: boolean;
+  /** N° 02 in progress, kept so a killed app resumes where the reader was (Decision 11). */
+  onboardingDraft: OnboardingDraft | null;
   /** The magazine intro has played once on this device. */
   introSeen: boolean;
   /** Stored preferences could not be read; the session runs on defaults. Not persisted. */
@@ -61,7 +70,14 @@ type WistState = {
   markProfileSkipped: () => void;
   setIntroSeen: (seen: boolean) => void;
   markHydrationFailed: () => void;
-  replaceStyleProfile: (occasions: Occasion[], styles: Style[]) => void;
+  /** Without details the stored brief stays; without unsynced the sync state stays. */
+  replaceStyleProfile: (occasions: Occasion[], styles: Style[], details?: StyleDetails, unsynced?: boolean) => void;
+  saveOnboardingDraft: (draft: OnboardingDraft) => void;
+  clearOnboardingDraft: () => void;
+  /** Opens N° 02 from Profile, prefilled with the stored answers. */
+  startStyleBrief: () => void;
+  /** The houses picked on screen 11: they replace the follow list. */
+  chooseFollows: (brandIds: string[]) => void;
 };
 
 // A list read started before a write must not undo the newer server response.
@@ -112,6 +128,23 @@ const preferencesStorage = {
 
 /** The follows a fresh install starts with; the catalogue seeds on top only while they are untouched. */
 const seedFollowedBrandIds = seedBrands.map((brand) => brand.id);
+
+/** A fresh N° 02 draft, prefilled with what this phone already knows. */
+export function newOnboardingDraft(
+  state: Pick<WistState, "occasions" | "styles" | "styleDetails" | "followedBrandIds" | "followsSeeded">,
+): OnboardingDraft {
+  return {
+    stepIndex: 0,
+    answers: {
+      occasions: [...state.occasions],
+      styles: [...state.styles],
+      details: state.styleDetails,
+      // Before the one-time follow the list holds sample ids, not a choice.
+      houseIds: state.followsSeeded ? [...state.followedBrandIds] : [],
+      notificationsAllowed: null,
+    },
+  };
+}
 
 export const useWistStore = create<WistState>()(
   persist(
@@ -206,6 +239,9 @@ export const useWistStore = create<WistState>()(
       occasions: [],
       styles: [],
       profileStatus: "unknown",
+      styleDetails: emptyStyleDetails(),
+      profileUnsynced: false,
+      onboardingDraft: null,
       introSeen: false,
       hydrationFailed: false,
       followsSeeded: false,
@@ -395,12 +431,21 @@ export const useWistStore = create<WistState>()(
       markProfileSkipped: () => set({ profileStatus: "skipped" }),
       setIntroSeen: (introSeen) => set({ introSeen }),
       markHydrationFailed: () => set({ hydrationFailed: true }),
-      replaceStyleProfile: (occasions, styles) =>
-        set({
+      replaceStyleProfile: (occasions, styles, details, unsynced) =>
+        set((state) => ({
           occasions: [...occasions],
           styles: [...styles],
+          styleDetails: details ?? state.styleDetails,
           profileStatus: "answered",
-        }),
+          profileUnsynced: unsynced ?? state.profileUnsynced,
+        })),
+      saveOnboardingDraft: (onboardingDraft) => set({ onboardingDraft }),
+      clearOnboardingDraft: () => set({ onboardingDraft: null }),
+      startStyleBrief: () => set((state) => ({ onboardingDraft: newOnboardingDraft(state) })),
+      // The reader's own picks replace the list, and WIST will not follow every
+      // house on top of them later.
+      chooseFollows: (brandIds) =>
+        set({ followedBrandIds: [...new Set(brandIds)], followsSeeded: true }),
     }),
     {
       name: "wist-preferences",
@@ -419,10 +464,13 @@ export const useWistStore = create<WistState>()(
         introSeen,
         notifiedAlertIds,
         occasions,
+        onboardingDraft,
         priceOverrides,
         profileStatus,
+        profileUnsynced,
         snapshots,
         starredItemIds,
+        styleDetails,
         styles,
         watchedSizesByItemId,
       }) => ({
@@ -433,10 +481,13 @@ export const useWistStore = create<WistState>()(
         introSeen,
         notifiedAlertIds,
         occasions,
+        onboardingDraft,
         priceOverrides,
         profileStatus,
+        profileUnsynced,
         snapshots,
         starredItemIds,
+        styleDetails,
         styles,
         watchedSizesByItemId,
       }),
