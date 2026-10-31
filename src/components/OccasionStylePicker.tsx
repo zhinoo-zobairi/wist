@@ -70,7 +70,7 @@ export function OccasionStylePicker<Value extends string>({
 const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   chip: {
-    borderColor: colors.ring,
+    borderColor: colors.muted,
     borderRadius: radii.card,
     borderWidth: 1,
     paddingHorizontal: 16,
