@@ -183,7 +183,7 @@ export function SavedScreen({
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.paper, flex: 1 },
-  importCard: { backgroundColor: colors.card, borderColor: colors.line, borderRadius: radii.card, borderWidth: 1, marginBottom: 28, marginHorizontal: 14, padding: 18 },
+  importCard: { backgroundColor: colors.card, borderColor: colors.line, borderRadius: radii.card, borderWidth: 1, marginBottom: 28, marginHorizontal: spacing.gutter, padding: 18 },
   importLabel: { ...typography.kicker, color: colors.wine },
   importTitle: { ...typography.titleL, marginTop: 4 },
   importBody: { ...typography.caption, marginTop: 3 },
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   importButton: { marginTop: 14 },
   columns: { alignItems: "flex-start", flexDirection: "row", gap: 48, paddingHorizontal: spacing.gutter },
   importCardWide: { flex: 5, marginBottom: 0, marginHorizontal: 0 },
-  collection: { borderTopColor: colors.ink, borderTopWidth: 1, marginHorizontal: 14 },
+  collection: { borderTopColor: colors.ink, borderTopWidth: 1, marginHorizontal: spacing.gutter },
   collectionWide: { flex: 7, marginHorizontal: 0 },
   row: { borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", minHeight: 200, paddingVertical: 14 },
   index: { ...typography.caption, paddingRight: 9, paddingTop: 3, width: 25 },

@@ -17,7 +17,7 @@ import { ScreenHeader } from "../components/ScreenHeader";
 import { READING_MAX_WIDTH, pageStyle, useLayout } from "../layout";
 import { saveStyleProfile } from "../services/catalogueClient";
 import { useWistStore } from "../store/useWistStore";
-import { colors, radii, typography } from "../theme";
+import { colors, radii, spacing, typography } from "../theme";
 import {
   OCCASION_OPTIONS,
   STYLE_OPTIONS,
@@ -281,7 +281,7 @@ const screenStyles = StyleSheet.create({
     backgroundColor: colors.moss,
     borderRadius: radii.card,
     marginBottom: 28,
-    marginHorizontal: 14,
+    marginHorizontal: spacing.gutter,
     marginTop: 35,
     padding: 22,
   },

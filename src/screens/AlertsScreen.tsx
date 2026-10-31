@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   columns: { alignItems: "flex-start", flexDirection: "row", gap: 48, paddingHorizontal: spacing.gutter },
   heroWide: { flex: 6, marginHorizontal: 0, maxWidth: "50%" },
   historyWide: { flex: 6, paddingHorizontal: 0, paddingVertical: 0 },
-  hero: { backgroundColor: colors.wine, borderRadius: radii.card, marginHorizontal: 14, padding: 8 },
+  hero: { backgroundColor: colors.wine, borderRadius: radii.card, marginHorizontal: spacing.gutter, padding: 8 },
   heroTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 8, paddingVertical: 8 },
   live: { ...typography.label, color: colors.card },
   time: { ...typography.label, color: colors.onWineMuted },
