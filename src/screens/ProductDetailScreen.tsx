@@ -48,17 +48,21 @@ const observedOn = (value?: string) =>
       }).format(new Date(value))
     : "Unknown";
 
-function ProductVideo({ height, url, width }: { height: number; url: string; width: number }) {
+function ProductVideo({ active, height, url, width }: { active: boolean; height: number; url: string; width: number }) {
   const player = useVideoPlayer(url, (videoPlayer) => {
     videoPlayer.loop = true;
     videoPlayer.muted = true;
-    videoPlayer.play();
   });
+  // Plays only while its gallery page is the one on screen.
+  useEffect(() => {
+    if (active) player.play();
+    else player.pause();
+  }, [active, player]);
 
   return (
     <VideoView
       contentFit="cover"
-      nativeControls
+      nativeControls={false}
       player={player}
       playsInline
       style={{ backgroundColor: colors.ink, height, width }}
@@ -159,9 +163,14 @@ export function ProductDetailScreen({
                 keyExtractor={(entry, index) => `${entry.url}-${index}`}
                 onMomentumScrollEnd={updateActiveMedia}
                 pagingEnabled
-                renderItem={({ item: entry }) =>
+                renderItem={({ index, item: entry }) =>
                   entry.type === "video" ? (
-                    <ProductVideo height={mediaHeight} url={entry.url} width={mediaWidth} />
+                    <ProductVideo
+                      active={index === activeMediaIndex}
+                      height={mediaHeight}
+                      url={entry.url}
+                      width={mediaWidth}
+                    />
                   ) : (
                     <Image
                       resizeMode="cover"
