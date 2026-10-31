@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   editItemLower: { marginTop: 38 },
   editItemWide: { marginBottom: 0, width: "22.6%" },
   editImage: { aspectRatio: 4 / 5, borderRadius: radii.card, width: "100%" },
-  covetButton: { alignItems: "center", backgroundColor: colors.card, borderRadius: radii.card, bottom: 8, height: 42, justifyContent: "center", position: "absolute", right: 8, width: 42 },
+  covetButton: { alignItems: "center", backgroundColor: colors.card, borderRadius: radii.card, bottom: 8, height: 44, justifyContent: "center", position: "absolute", right: 8, width: 44 },
   covetButtonSelected: { backgroundColor: colors.wash },
   itemBrand: { ...typography.kicker, marginTop: 9, textTransform: "uppercase" },
   itemName: { ...typography.titleS, marginTop: 3 },

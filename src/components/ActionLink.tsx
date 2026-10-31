@@ -17,7 +17,7 @@ export function ActionLink({ label, onPress, color = colors.ink, disabled = fals
       accessibilityRole="button"
       accessibilityState={{ disabled }}
       disabled={disabled}
-      hitSlop={8}
+      hitSlop={10}
       onPress={onPress}
       style={({ pressed }) => [styles.link, disabled && styles.disabled, pressed && styles.pressed]}
     >

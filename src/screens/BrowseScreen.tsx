@@ -75,6 +75,8 @@ export function BrowseScreen({ brands, catalogueStatus, items: allItems, selecte
                 <Pressable
                   accessibilityRole="tab"
                   accessibilityState={{ selected }}
+                  // The label is 11 px tall: the slop brings the target to about 44 pt.
+                  hitSlop={{ top: 12, bottom: 12 }}
                   key={item.id}
                   onPress={() => onSelectBrand(item.id)}
                   style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
@@ -145,6 +147,7 @@ export function BrowseScreen({ brands, catalogueStatus, items: allItems, selecte
             accessibilityLabel={`${selected ? "Remove" : "Covet"} ${item.name}`}
             accessibilityRole="button"
             accessibilityState={{ selected }}
+            hitSlop={8}
             onPress={() => onToggleCovet(item)}
             style={({ pressed }) => [styles.covet, pressed && styles.pressed]}
           >
