@@ -221,7 +221,7 @@ export function StepBody({ answers, onChange, pieces = [], step }: {
 const bodyStyles = StyleSheet.create({
   stack: { gap: 20 },
   pair: { flexDirection: "row", gap: 10 },
-  look: { aspectRatio: 3 / 4, flex: 1 },
+  look: { aspectRatio: 3 / 4, flexBasis: "48%" },
   group: { gap: 8 },
   groupLabel: { ...typography.kicker },
   note: { ...typography.caption },

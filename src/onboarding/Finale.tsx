@@ -168,7 +168,7 @@ const finaleStyles = StyleSheet.create({
   promiseText: { color: colors.ink, flex: 1, fontFamily: fonts.text, fontSize: 16, lineHeight: 20 },
   revealPhoto: { aspectRatio: 4 / 5 },
   pieces: { flexDirection: "row", gap: 8 },
-  piece: { flex: 1, gap: 4 },
+  piece: { flexBasis: "31%", gap: 4 },
   piecePhoto: { aspectRatio: 3 / 4 },
   piecePrice: { ...typography.price, fontSize: 14 },
   footer: { marginTop: 16 },
