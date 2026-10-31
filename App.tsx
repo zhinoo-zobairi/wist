@@ -451,6 +451,9 @@ export default function App() {
   // false and the screen reports it softly instead of as an error.
   const importLiveProduct = async (productUrl: string): Promise<boolean> => {
     await importCatalogueWatch(productUrl);
+    // A reload already in flight may have read the index before the piece
+    // landed, so joining it could miss the piece: let it finish, then read again.
+    await catalogueReload.current;
     const previousBrandIds = brands.map((brand) => brand.id);
     const [catalogue, watchesRefreshed] = await Promise.all([
       reloadCatalogue(),
