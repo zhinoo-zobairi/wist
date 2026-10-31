@@ -70,7 +70,7 @@ export function PhotoChoice<Id extends string>({
           >
             {photoPrefix ? (
               <PhotoFrame
-                fallback={layout === "grid" ? option.label : ""}
+                fallback=""
                 photoKey={`${photoPrefix}.${option.id}`}
                 position={position}
                 shopsFor={shopsFor}
@@ -139,7 +139,7 @@ export function ThisOrThatRound({ axis, onAnswer, round, shopsFor }: {
             onPress={() => onAnswer(pole.id)}
             style={({ pressed }) => [inputStyles.pole, pressed && inputStyles.pressed]}
           >
-            <PhotoFrame fallback={pole.label} photoKey={`taste.${axis.id}.${pole.id}`} position={round + position} shopsFor={shopsFor} style={inputStyles.polePhoto} />
+            <PhotoFrame fallback="" photoKey={`taste.${axis.id}.${pole.id}`} position={round + position} shopsFor={shopsFor} style={inputStyles.polePhoto} />
             <Text style={inputStyles.label}>{pole.label}</Text>
             {pole.detail ? <Text style={inputStyles.detail}>{pole.detail}</Text> : null}
           </Pressable>
