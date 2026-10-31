@@ -62,7 +62,7 @@ export function AlertsScreen({ brands, catalogueStatus, items, onReload, onViewI
               <Text style={styles.live}>●  NEW SIGNAL</Text>
               <Text style={styles.time}>{relativeTime(hero.createdAt)}</Text>
             </View>
-            <ProductPhoto style={styles.heroImage} uri={heroItem.imageUrl} />
+            <ProductPhoto accessibilityLabel={heroItem.name} style={styles.heroImage} uri={heroItem.imageUrl} />
             <View style={styles.heroCopy}>
               <Text style={styles.brand}>{heroBrand.name}</Text>
               <Text style={styles.heroName}>{heroItem.name}</Text>
@@ -88,7 +88,9 @@ export function AlertsScreen({ brands, catalogueStatus, items, onReload, onViewI
               <Text style={styles.historyTitle}>Earlier signals</Text>
               {earlier.map(({ alert, brand, item }) => {
                 return (
+                  // No label: VoiceOver reads the brand, name and prices from the row's text.
                   <Pressable
+                    accessibilityRole="button"
                     key={alert.id}
                     onPress={() => { markRead(alert.id); onViewItem(alert.itemId); }}
                     style={({ pressed }) => [styles.historyRow, pressed && styles.pressed]}

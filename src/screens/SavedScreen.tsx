@@ -153,16 +153,17 @@ export function SavedScreen({
               const drop = alerts.find((alert) => alert.itemId === item.id);
               const snapshot = snapshots.find((candidate) => candidate.itemId === item.id);
               const watchedSizes = watchedSizesByItemId[item.id] ?? [];
+              const label = brand ? `${brand.name} ${item.name}` : item.name;
               return (
                 <View key={item.id} style={styles.entry}>
                   <View style={styles.row}>
-                    <Text style={styles.index}>0{index + 1}</Text>
-                    <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
+                    <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.index}>0{index + 1}</Text>
+                    <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
                       <ProductPhoto style={[styles.image, wide && styles.imageWide]} uri={item.imageUrl} />
                     </Pressable>
                     <View style={styles.body}>
                       <Text style={styles.brand}>{brand?.name}</Text>
-                      <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
+                      <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
                         <Text style={styles.name}>{item.name}</Text>
                       </Pressable>
                       <View style={styles.priceRow}>
@@ -176,7 +177,7 @@ export function SavedScreen({
                         </Text>
                       ) : null}
                       <View style={styles.remove}>
-                        <ActionLink label="Remove" onPress={() => setConfirmRemoveId(confirmRemoveId === item.id ? null : item.id)} />
+                        <ActionLink accessibilityLabel={`Remove ${item.name}`} label="Remove" onPress={() => setConfirmRemoveId(confirmRemoveId === item.id ? null : item.id)} />
                       </View>
                     </View>
                   </View>

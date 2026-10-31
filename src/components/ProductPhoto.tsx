@@ -17,7 +17,8 @@ export function ProductPhoto({ accessibilityLabel, compact = false, style, uri }
   return (
     <View style={[styles.frame, style]}>
       {!failed ? (
-        <Image accessibilityLabel={accessibilityLabel} onError={() => setFailed(true)} resizeMode="cover"
+        // Only a labelled photo is a VoiceOver stop; inside a labelled button it stays silent.
+        <Image accessible={accessibilityLabel !== undefined} accessibilityLabel={accessibilityLabel} onError={() => setFailed(true)} resizeMode="cover"
           source={{ uri }} style={StyleSheet.absoluteFill} />
       ) : compact ? null : <Text style={styles.placeholder}>Photo unavailable</Text>}
     </View>

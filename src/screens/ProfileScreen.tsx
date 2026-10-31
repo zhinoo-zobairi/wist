@@ -139,7 +139,7 @@ export function ProfileScreen({
             const selected = followed.includes(brand.id);
             return (
               <View key={brand.id} style={screenStyles.row}>
-                <Text style={screenStyles.index}>0{index + 1}</Text>
+                <Text accessibilityElementsHidden importantForAccessibility="no" style={screenStyles.index}>0{index + 1}</Text>
                 <View style={screenStyles.monogram}>
                   <Text style={screenStyles.monogramText}>{brand.monogram}</Text>
                 </View>
@@ -226,6 +226,7 @@ function TasteRow({
 }) {
   return (
     <Pressable
+      accessibilityRole="button"
       onPress={onEdit}
       style={({ pressed }) => [screenStyles.tasteRow, pressed && screenStyles.pressed]}
     >

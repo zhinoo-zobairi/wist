@@ -73,6 +73,8 @@ export function BrowseScreen({ brands, catalogueStatus, items: allItems, selecte
               const selected = item.id === brand?.id;
               return (
                 <Pressable
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected }}
                   key={item.id}
                   onPress={() => onSelectBrand(item.id)}
                   style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
@@ -136,9 +138,12 @@ export function BrowseScreen({ brands, catalogueStatus, items: allItems, selecte
       }
       renderItem={({ item, index }) => {
         const selected = coveted.includes(item.id);
+        const brandName = brandsById[item.brandId]?.name;
+        const label = brandName ? `${brandName} ${item.name}` : item.name;
         const covet = (
           <Pressable
             accessibilityLabel={`${selected ? "Remove" : "Covet"} ${item.name}`}
+            accessibilityRole="button"
             accessibilityState={{ selected }}
             onPress={() => onToggleCovet(item)}
             style={({ pressed }) => [styles.covet, pressed && styles.pressed]}
@@ -150,11 +155,11 @@ export function BrowseScreen({ brands, catalogueStatus, items: allItems, selecte
         if (wide) {
           return (
             <View style={styles.cardWide}>
-              <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
+              <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
                 <ProductPhoto style={styles.image} uri={item.imageUrl} />
               </Pressable>
-              <Text style={styles.cardBrandWide}>{brandsById[item.brandId]?.name}</Text>
-              <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
+              <Text style={styles.cardBrandWide}>{brandName}</Text>
+              <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
                 <Text style={styles.productName}>{item.name}</Text>
               </Pressable>
               <Text style={styles.price}>{formatPrice(item.currentPrice, item.currency)}</Text>
@@ -165,17 +170,20 @@ export function BrowseScreen({ brands, catalogueStatus, items: allItems, selecte
         return (
           <View style={[styles.product, index % 2 === 1 && styles.reverse]}>
             <Pressable
+              accessibilityLabel={label}
+              accessibilityRole="button"
               onPress={() => onOpenItem(item.id)}
               style={({ pressed }) => [styles.imageLink, pressed && styles.pressed]}
             >
               <ProductPhoto style={styles.image} uri={item.imageUrl} />
             </Pressable>
             <View style={styles.productBody}>
-              <Text style={styles.number}>
-                {searching ? brandsById[item.brandId]?.name.toUpperCase() : `0${index + 1}`}
+              {/* The index is decoration and the brand is already in both labels: VoiceOver skips it. */}
+              <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.number}>
+                {searching ? brandName?.toUpperCase() : `0${index + 1}`}
               </Text>
               <View>
-                <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
+                <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
                   <Text style={styles.productName}>{item.name}</Text>
                 </Pressable>
                 <Text style={styles.price}>{formatPrice(item.currentPrice, item.currency)}</Text>

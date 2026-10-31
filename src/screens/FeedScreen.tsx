@@ -52,6 +52,7 @@ export function FeedScreen({ brands, catalogueStatus, hasUnreadAlerts, items, on
           <Wordmark />
           <Pressable
             accessibilityLabel={hasUnreadAlerts ? "Alerts, new price drop" : "Open alerts"}
+            accessibilityRole="button"
             hitSlop={12}
             onPress={onOpenAlerts}
             style={({ pressed }) => pressed && styles.pressed}
@@ -107,11 +108,13 @@ export function FeedScreen({ brands, catalogueStatus, hasUnreadAlerts, items, on
       <ScrollView contentContainerStyle={styles.houses} horizontal showsHorizontalScrollIndicator={false}>
         {followedBrands.map((brand, index) => (
           <Pressable
+            accessibilityLabel={brand.name}
+            accessibilityRole="button"
             key={brand.id}
             onPress={() => onBrowseBrand(brand.id)}
             style={({ pressed }) => [styles.house, pressed && styles.pressed]}
           >
-            <Text style={styles.houseIndex}>0{index + 1}</Text>
+            <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.houseIndex}>0{index + 1}</Text>
             <Text numberOfLines={2} style={styles.houseName}>{brand.name}</Text>
           </Pressable>
         ))}
@@ -136,14 +139,16 @@ export function FeedScreen({ brands, catalogueStatus, hasUnreadAlerts, items, on
         {edit.map((item, index) => {
           const coveted = covetedIds.includes(item.id);
           const brand = brandsById[item.brandId];
+          const label = brand ? `${brand.name} ${item.name}` : item.name;
           return (
             <View key={item.id} style={[styles.editItem, wide ? styles.editItemWide : index % 2 === 1 && styles.editItemLower]}>
               <View>
-                <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
+                <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
                   <ProductPhoto style={styles.editImage} uri={item.imageUrl} />
                 </Pressable>
                 <Pressable
                   accessibilityLabel={`${coveted ? "Remove" : "Covet"} ${item.name}`}
+                  accessibilityRole="button"
                   accessibilityState={{ selected: coveted }}
                   onPress={() => onToggleCovet(item)}
                   style={({ pressed }) => [
@@ -156,7 +161,7 @@ export function FeedScreen({ brands, catalogueStatus, hasUnreadAlerts, items, on
                 </Pressable>
               </View>
               <Text style={styles.itemBrand}>{brand?.name}</Text>
-              <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
+              <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
                 <Text numberOfLines={2} style={styles.itemName}>{item.name}</Text>
               </Pressable>
               <Text style={styles.itemPrice}>{formatPrice(item.currentPrice, item.currency)}</Text>
