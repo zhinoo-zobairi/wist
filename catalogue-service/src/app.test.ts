@@ -342,6 +342,52 @@ describe("catalogue API", () => {
     });
   });
 
+  it("keeps brief answers a request leaves out and clears the ones sent as null", async () => {
+    const profiles = new MemoryStyleProfileRepository();
+    const put = (body: unknown) =>
+      handleRequest("PUT", "/v1/profile", repository, auth, {
+        profiles,
+        body: JSON.stringify(body),
+      });
+    await put({
+      occasions: ["work"],
+      styles: [],
+      shopsFor: "menswear",
+      palettes: ["earth"],
+      dropThreshold: 30,
+    });
+
+    await expect(
+      put({ occasions: ["work"], styles: ["minimal"], palettes: null }),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: {
+        profile: {
+          styles: ["minimal"],
+          shopsFor: "menswear",
+          palettes: [],
+          dropThreshold: 30,
+        },
+      },
+    });
+    await expect(
+      handleRequest("GET", "/v1/profile", repository, auth, { profiles }),
+    ).resolves.toMatchObject({
+      body: { profile: { shopsFor: "menswear", palettes: [], dropThreshold: 30 } },
+    });
+  });
+
+  it("rejects an invalid brief answer without storing anything", async () => {
+    const profiles = new MemoryStyleProfileRepository();
+    await expect(
+      handleRequest("PUT", "/v1/profile", repository, auth, {
+        profiles,
+        body: JSON.stringify({ occasions: [], styles: [], dropThreshold: 15 }),
+      }),
+    ).resolves.toEqual({ status: 400, body: { error: "invalid_profile" } });
+    expect(profiles.profile).toBeNull();
+  });
+
   it("protects and validates profile requests", async () => {
     const profiles = new MemoryStyleProfileRepository();
     await expect(
