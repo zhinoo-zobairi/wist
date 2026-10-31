@@ -50,6 +50,8 @@ export function SavedScreen({
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
   const [importNotice, setImportNotice] = useState("");
+  // The one piece whose Remove waits for a second tap; opening another closes it.
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const ids = useWistStore((state) => state.starredItemIds);
   const watchedSizesByItemId = useWistStore(
     (state) => state.watchedSizesByItemId,
@@ -147,30 +149,39 @@ export function SavedScreen({
               const snapshot = snapshots.find((candidate) => candidate.itemId === item.id);
               const watchedSizes = watchedSizesByItemId[item.id] ?? [];
               return (
-                <View key={item.id} style={styles.row}>
-                  <Text style={styles.index}>0{index + 1}</Text>
-                  <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
-                    <ProductPhoto style={[styles.image, wide && styles.imageWide]} uri={item.imageUrl} />
-                  </Pressable>
-                  <View style={styles.body}>
-                    <Text style={styles.brand}>{brand?.name}</Text>
+                <View key={item.id} style={styles.entry}>
+                  <View style={styles.row}>
+                    <Text style={styles.index}>0{index + 1}</Text>
                     <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
-                      <Text style={styles.name}>{item.name}</Text>
+                      <ProductPhoto style={[styles.image, wide && styles.imageWide]} uri={item.imageUrl} />
                     </Pressable>
-                    <View style={styles.priceRow}>
-                      <Text style={[styles.price, drop && styles.sale]}>{formatPrice(item.currentPrice, item.currency)}</Text>
-                      {drop ? <Text style={styles.oldPrice}>{formatPrice(drop.oldPrice, item.currency)}</Text> : null}
-                    </View>
-                    <Text style={styles.since}>COVETED {covetedOn(snapshot?.capturedAt).toUpperCase()}</Text>
-                    {watchedSizes.length > 0 ? (
-                      <Text style={styles.sizes}>
-                        ALERTS ON {watchedSizes.join(" · ")}
-                      </Text>
-                    ) : null}
-                    <View style={styles.remove}>
-                      <ActionLink label="Remove" onPress={() => onToggleCovet(item)} />
+                    <View style={styles.body}>
+                      <Text style={styles.brand}>{brand?.name}</Text>
+                      <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
+                        <Text style={styles.name}>{item.name}</Text>
+                      </Pressable>
+                      <View style={styles.priceRow}>
+                        <Text style={[styles.price, drop && styles.sale]}>{formatPrice(item.currentPrice, item.currency)}</Text>
+                        {drop ? <Text style={styles.oldPrice}>{formatPrice(drop.oldPrice, item.currency)}</Text> : null}
+                      </View>
+                      <Text style={styles.since}>COVETED {covetedOn(snapshot?.capturedAt).toUpperCase()}</Text>
+                      {watchedSizes.length > 0 ? (
+                        <Text style={styles.sizes}>
+                          ALERTS ON {watchedSizes.join(" · ")}
+                        </Text>
+                      ) : null}
+                      <View style={styles.remove}>
+                        <ActionLink label="Remove" onPress={() => setConfirmRemoveId(confirmRemoveId === item.id ? null : item.id)} />
+                      </View>
                     </View>
                   </View>
+                  {confirmRemoveId === item.id ? (
+                    <View style={styles.confirm}>
+                      <Text style={styles.help}>Stop watching this piece? Its sizes are forgotten too.</Text>
+                      <ActionLink color={colors.wine} label="Remove" onPress={() => { setConfirmRemoveId(null); onToggleCovet(item); }} />
+                      <ActionLink label="Keep" onPress={() => setConfirmRemoveId(null)} />
+                    </View>
+                  ) : null}
                 </View>
               );
             })}
@@ -195,7 +206,8 @@ const styles = StyleSheet.create({
   importCardWide: { flex: 5, marginBottom: 0, marginHorizontal: 0 },
   collection: { borderTopColor: colors.ink, borderTopWidth: 1, marginHorizontal: spacing.gutter },
   collectionWide: { flex: 7, marginHorizontal: 0 },
-  row: { borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", minHeight: 200, paddingVertical: 14 },
+  entry: { borderBottomColor: colors.line, borderBottomWidth: 1 },
+  row: { flexDirection: "row", minHeight: 200, paddingVertical: 14 },
   index: { ...typography.caption, paddingRight: 9, paddingTop: 3, width: 25 },
   image: { aspectRatio: 4 / 5, borderRadius: radii.card, width: 126 },
   imageWide: { width: 160 },
@@ -209,6 +221,9 @@ const styles = StyleSheet.create({
   since: { ...typography.kicker, marginTop: 19 },
   sizes: { ...typography.kicker, color: colors.ink, marginTop: 6 },
   remove: { alignSelf: "flex-start", marginTop: 8 },
+  // The GarmentEdit confirm box; its links hug their label.
+  confirm: { alignItems: "flex-start", backgroundColor: colors.wash, borderRadius: radii.card, gap: 6, marginBottom: 14, padding: 16 },
+  help: { ...typography.body, marginVertical: 8 },
   empty: { alignItems: "center", borderTopColor: colors.line, borderTopWidth: 1, marginHorizontal: spacing.gutter, paddingHorizontal: 28, paddingTop: 100 },
   emptyWide: { flex: 7, marginHorizontal: 0 },
   emptyTitle: { ...typography.titleL, marginTop: 15 },
