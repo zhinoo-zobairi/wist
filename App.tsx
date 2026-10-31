@@ -117,9 +117,9 @@ export default function App() {
   const markAlertRead = useWistStore((state) => state.markAlertRead);
   const setStarredItem = useWistStore((state) => state.setStarredItem);
   const profileStatus = useWistStore((state) => state.profileStatus);
-  const onboardingDraft = useWistStore((state) => state.onboardingDraft);
+  const onboardingInProgress = useWistStore((state) => state.onboardingDraft !== null);
   // N° 02 is on screen, or will be: the houses step makes the reader's own follow choice.
-  const onboardingOpen = profileStatus === "unknown" || onboardingDraft !== null;
+  const onboardingOpen = profileStatus === "unknown" || onboardingInProgress;
   const introSeen = useWistStore((state) => state.introSeen);
   const hydrationFailed = useWistStore((state) => state.hydrationFailed);
   // Unreadable preferences count as settled: the session runs on defaults.
@@ -427,7 +427,7 @@ export default function App() {
     fontsLoaded,
     fontError,
     introSeen,
-    onboardingInProgress: onboardingDraft !== null,
+    onboardingInProgress,
     profileLookupComplete,
     profileStatus,
     storeHydrated: storeSettled,
