@@ -15,18 +15,50 @@ import { Button } from "../components/Button";
 import { OccasionStylePicker } from "../components/OccasionStylePicker";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { READING_MAX_WIDTH, pageStyle, useLayout } from "../layout";
-import { saveStyleProfile } from "../services/catalogueClient";
+import { StepBody, type AnswerStepId } from "../onboarding/StepBody";
+import { ONBOARDING_STEPS } from "../onboarding/steps";
+import { eyeText, fitText, hasStyleBrief, labelOf, paletteText, sizesText, wardrobeText } from "../onboardingCopy";
+import { saveStyleBrief } from "../services/catalogueClient";
 import { useWistStore } from "../store/useWistStore";
 import { colors, radii, spacing, typography } from "../theme";
 import {
+  DROP_THRESHOLD_OPTIONS,
+  HELP_WITH_OPTIONS,
   OCCASION_OPTIONS,
+  SHOPS_FOR_OPTIONS,
   STYLE_OPTIONS,
+  WORK_DRESS_CODE_OPTIONS,
   type Brand,
   type Occasion,
+  type OnboardingAnswers,
   type Style,
+  type StyleDetails,
 } from "../types";
 
-type Editor = "occasions" | "styles";
+type BriefStep = Exclude<AnswerStepId, "occasions" | "styles">;
+type Editor = "occasions" | "styles" | BriefStep;
+
+// One row per N° 02 question; each opens that question's own input.
+const BRIEF_ROWS: ReadonlyArray<{
+  step: BriefStep;
+  label: string;
+  fields: readonly (keyof StyleDetails)[];
+  value: (answers: OnboardingAnswers) => string;
+}> = [
+  { step: "shopsFor", label: "SHOPS FOR", fields: ["shopsFor"],
+    value: ({ details }) => (details.shopsFor ? labelOf(SHOPS_FOR_OPTIONS, details.shopsFor) : "") },
+  { step: "helpWith", label: "WHAT WOULD HELP", fields: ["helpWith"],
+    value: ({ details }) => details.helpWith.map((id) => labelOf(HELP_WITH_OPTIONS, id)).join(", ") },
+  { step: "workDressCode", label: "WORK", fields: ["workDressCode"],
+    value: ({ details }) => (details.workDressCode ? labelOf(WORK_DRESS_CODE_OPTIONS, details.workDressCode) : "") },
+  { step: "taste", label: "YOUR EYE", fields: ["tasteAxes"], value: eyeText },
+  { step: "palette", label: "PALETTE", fields: ["palettes", "neverColours", "prints"], value: paletteText },
+  { step: "fit", label: "FIT", fields: ["fit"], value: fitText },
+  { step: "sizes", label: "SIZES", fields: ["defaultSizes"], value: sizesText },
+  { step: "wardrobe", label: "WARDROBE", fields: ["signature", "gaps"], value: wardrobeText },
+  { step: "threshold", label: "DROP ALERTS", fields: ["dropThreshold"],
+    value: ({ details }) => (details.dropThreshold === null ? "" : labelOf(DROP_THRESHOLD_OPTIONS, details.dropThreshold)) },
+];
 
 function selectionLabels<Value extends string>(
   selected: Value[],
@@ -58,9 +90,14 @@ export function ProfileScreen({
   const replaceStyleProfile = useWistStore(
     (state) => state.replaceStyleProfile,
   );
+  const styleDetails = useWistStore((state) => state.styleDetails);
+  const profileUnsynced = useWistStore((state) => state.profileUnsynced);
+  const startStyleBrief = useWistStore((state) => state.startStyleBrief);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [draftOccasions, setDraftOccasions] = useState<Occasion[]>([]);
   const [draftStyles, setDraftStyles] = useState<Style[]>([]);
+  const [draftDetails, setDraftDetails] = useState<StyleDetails>(styleDetails);
+  const briefAnswers: OnboardingAnswers = { occasions, styles, details: styleDetails, houseIds: [], notificationsAllowed: null };
   const [saving, setSaving] = useState(false);
   const layout = useLayout();
   const { wide } = layout;
@@ -68,14 +105,25 @@ export function ProfileScreen({
   const openEditor = (nextEditor: Editor) => {
     setDraftOccasions(occasions);
     setDraftStyles(styles);
+    setDraftDetails(styleDetails);
     setEditor(nextEditor);
   };
 
   const saveEditor = async () => {
     setSaving(true);
     try {
-      const profile = await saveStyleProfile(draftOccasions, draftStyles);
-      replaceStyleProfile(profile.occasions, profile.styles);
+      const row = BRIEF_ROWS.find((candidate) => candidate.step === editor);
+      const patch = row
+        ? (Object.fromEntries(row.fields.map((field) => [field, draftDetails[field]])) as Partial<StyleDetails>)
+        : {};
+      // Answers this phone never synced travel with the edit so they are not
+      // lost; otherwise only the edited answers are sent (Decision 4).
+      const profile = await saveStyleBrief(
+        draftOccasions,
+        draftStyles,
+        profileUnsynced ? { ...styleDetails, ...patch } : patch,
+      );
+      replaceStyleProfile(profile.occasions, profile.styles, profile.details, false);
       setEditor(null);
     } catch {
       Alert.alert(
@@ -131,6 +179,18 @@ export function ProfileScreen({
           />
         </View>
 
+        <View style={[screenStyles.section, { marginTop: 28 }]}>
+          <Text style={screenStyles.sectionLabel}>YOUR STYLE BRIEF</Text>
+          {hasStyleBrief(styleDetails) ? (
+            BRIEF_ROWS.map((row) => (
+              <TasteRow key={row.step} label={row.label} onEdit={() => openEditor(row.step)} value={row.value(briefAnswers) || "Not set"} />
+            ))
+          ) : (
+            // Decision 12: readers of the two-question onboarding are invited, not forced.
+            <TasteRow action="START" label="COMPLETE YOUR STYLE BRIEF" onEdit={startStyleBrief} value="Fourteen questions, so WIST can dress you better" />
+          )}
+        </View>
+
         <View style={[screenStyles.section, screenStyles.followedSection]}>
           <Text style={screenStyles.sectionLabel}>
             FOLLOWED HOUSES · {brands.filter((brand) => followed.includes(brand.id)).length}
@@ -182,28 +242,26 @@ export function ProfileScreen({
           </View>
           <ScrollView contentContainerStyle={[screenStyles.modalContent, wide && screenStyles.modalContentWide]}>
             <Text style={screenStyles.modalTitle}>
-              {editor === "occasions" ? "Your occasions" : "Your style"}
+              {editor === "occasions" ? "Your occasions" : editor === "styles" ? "Your style"
+                : ONBOARDING_STEPS.find((step) => step.id === editor)?.title ?? ""}
             </Text>
             <Text style={screenStyles.modalSubtitle}>
-              {editor === "occasions"
-                ? "Choose every setting you dress for."
-                : "Choose up to three words."}
+              {editor === "occasions" ? "Choose every setting you dress for."
+                : editor === "styles" ? "Choose up to three words."
+                  : ONBOARDING_STEPS.find((step) => step.id === editor)?.subtitle ?? ""}
             </Text>
             <View style={screenStyles.modalPicker}>
               {editor === "occasions" ? (
-                <OccasionStylePicker
-                  onChange={setDraftOccasions}
-                  options={OCCASION_OPTIONS}
-                  selected={draftOccasions}
+                <OccasionStylePicker onChange={setDraftOccasions} options={OCCASION_OPTIONS} selected={draftOccasions} />
+              ) : editor === "styles" ? (
+                <OccasionStylePicker maxSelections={3} onChange={setDraftStyles} options={STYLE_OPTIONS} selected={draftStyles} />
+              ) : editor ? (
+                <StepBody
+                  answers={{ ...briefAnswers, details: draftDetails }}
+                  onChange={(updated) => setDraftDetails(updated.details)}
+                  step={editor}
                 />
-              ) : (
-                <OccasionStylePicker
-                  maxSelections={3}
-                  onChange={setDraftStyles}
-                  options={STYLE_OPTIONS}
-                  selected={draftStyles}
-                />
-              )}
+              ) : null}
             </View>
           </ScrollView>
           <View style={[screenStyles.saveButton, wide && screenStyles.saveButtonWide]}>
@@ -216,10 +274,12 @@ export function ProfileScreen({
 }
 
 function TasteRow({
+  action = "EDIT",
   label,
   onEdit,
   value,
 }: {
+  action?: string;
   label: string;
   onEdit: () => void;
   value: string;
@@ -234,7 +294,7 @@ function TasteRow({
         <Text style={screenStyles.tasteLabel}>{label}</Text>
         <Text style={screenStyles.tasteValue}>{value}</Text>
       </View>
-      <Text style={[screenStyles.rowAction, { color: colors.wine }]}>EDIT</Text>
+      <Text style={[screenStyles.rowAction, { color: colors.wine }]}>{action}</Text>
     </Pressable>
   );
 }
