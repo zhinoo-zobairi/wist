@@ -114,6 +114,13 @@ export function OnboardingFlow({ brands, catalogueStatus, coveted, items, onRelo
     next();
   };
 
+  // Skipping the houses question means no houses were picked, so the brief and
+  // the covet list must not use them and the one-time follow runs later.
+  const skipQuestion = () => {
+    if (step.id === "houses") setAnswers({ ...answers, houseIds: [] });
+    next();
+  };
+
   const finish = () => clearOnboardingDraft();
   const skipAll = () => {
     clearOnboardingDraft();
@@ -217,7 +224,7 @@ export function OnboardingFlow({ brands, catalogueStatus, coveted, items, onRelo
             <Button color={colors.wine} label="Continue" onPress={step.id === "houses" ? continueFromHouses : next} />
           </View>
         )}
-        {step.id === "notify" ? null : <ActionLink color={colors.muted} label="Skip this question" onPress={next} />}
+        {step.id === "notify" ? null : <ActionLink color={colors.muted} label="Skip this question" onPress={skipQuestion} />}
       </View>
     </View>
   );
