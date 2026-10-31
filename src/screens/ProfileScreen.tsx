@@ -77,10 +77,10 @@ export function ProfileScreen({
       const profile = await saveStyleProfile(draftOccasions, draftStyles);
       replaceStyleProfile(profile.occasions, profile.styles);
       setEditor(null);
-    } catch (error) {
+    } catch {
       Alert.alert(
         "Could not update your profile",
-        error instanceof Error ? error.message : "Unknown catalogue error",
+        "Couldn't save your taste. Check your connection and try again.",
       );
     } finally {
       setSaving(false);

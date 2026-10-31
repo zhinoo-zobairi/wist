@@ -20,6 +20,7 @@ import { useWistStore } from "../store/useWistStore";
 import { formatPrice } from "../money";
 import { colors, radii, spacing, typography } from "../theme";
 import type { Brand, CatalogueStatus, Item } from "../types";
+import { importErrorMessage } from "../wardrobeMessages";
 
 type Props = {
   brands: Brand[];
@@ -76,9 +77,7 @@ export function SavedScreen({
       setProductUrl("");
       if (!refreshed) setImportNotice("Added. WIST could not refresh the list yet.");
     } catch (error) {
-      setImportError(
-        error instanceof Error ? error.message : "Could not add this product",
-      );
+      setImportError(importErrorMessage(error));
     } finally {
       setImporting(false);
     }

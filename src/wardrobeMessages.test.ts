@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { UncertainWardrobeRequestError, WardrobeApiError } from "./services/catalogueClient";
-import { WardrobeNotice, captureErrorMessage, garmentEditErrorMessage, purchaseRefreshErrorMessage, purchaseErrorMessage, purchaseRecoveryAfterError, catalogueWatchErrorMessage } from "./wardrobeMessages";
+import { CatalogueNotice, UncertainWardrobeRequestError, WardrobeApiError, importCatalogueWatch } from "./services/catalogueClient";
+import { WardrobeNotice, captureErrorMessage, garmentEditErrorMessage, importErrorMessage, purchaseRefreshErrorMessage, purchaseErrorMessage, purchaseRecoveryAfterError, catalogueWatchErrorMessage } from "./wardrobeMessages";
 
 describe("captureErrorMessage", () => {
   it("explains a full wardrobe and an oversized photo", () => {
@@ -104,5 +104,39 @@ describe("purchaseRecoveryAfterError", () => {
 
   it("keeps the duplicate warning for any other failure", () => {
     expect(purchaseRecoveryAfterError(new TypeError("Network request failed"))).toBe("repeat");
+  });
+});
+
+describe("importErrorMessage", () => {
+  const LINK_FAILED = "Couldn't add this link. Check that it opens in the shop and try again.";
+  const importWith = (body: unknown, status: number) =>
+    importCatalogueWatch(
+      "https://example.com/product",
+      async () => new Response(JSON.stringify(body), { status }),
+      "http://catalogue.test",
+      "owner-token",
+    ).catch((caught: unknown) => caught);
+
+  it("keeps the catalogue's plain-language sentences", async () => {
+    expect(importErrorMessage(await importWith({ error: "robots_disallowed" }, 422))).toBe(
+      "This shop asks automated tools not to read this page, so Wist can't watch it.",
+    );
+    expect(importErrorMessage(await importWith({ error: "storefront_timeout" }, 422))).toBe(
+      "This shop didn't answer in time. Please try again later.",
+    );
+    expect(importErrorMessage(new CatalogueNotice("Written for people."))).toBe("Written for people.");
+  });
+
+  it("never shows a status code or a validation message", async () => {
+    expect(importErrorMessage(await importWith({ error: "internal" }, 500))).toBe(LINK_FAILED);
+    expect(importErrorMessage(await importWith({ watched: false }, 200))).toBe(LINK_FAILED);
+  });
+
+  it.each([
+    new TypeError("Network request failed"),
+    new Error("Catalogue returned an invalid imported watch"),
+    "not an error",
+  ])("maps %s to the link sentence", (caught) => {
+    expect(importErrorMessage(caught)).toBe(LINK_FAILED);
   });
 });

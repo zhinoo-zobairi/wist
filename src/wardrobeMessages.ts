@@ -1,4 +1,4 @@
-import { UncertainWardrobeRequestError, WardrobeApiError } from "./services/catalogueClient";
+import { CatalogueNotice, UncertainWardrobeRequestError, WardrobeApiError } from "./services/catalogueClient";
 
 /** An error whose message is written for the owner and is safe to show as-is. */
 export class WardrobeNotice extends Error {
@@ -47,6 +47,12 @@ export const PURCHASE_UNWATCHED_NOTICE =
 
 export function purchaseRefreshErrorMessage(_caught: unknown): string {
   return "Could not refresh your wardrobe and Coveted. Please try Refresh again before adding this piece.";
+}
+
+// A shop link that did not become a watch: only the catalogue's own sentences reach the screen.
+export function importErrorMessage(caught: unknown): string {
+  if (caught instanceof CatalogueNotice) return caught.message;
+  return "Couldn't add this link. Check that it opens in the shop and try again.";
 }
 
 export function catalogueWatchErrorMessage(_caught: unknown, sizes = false): string {

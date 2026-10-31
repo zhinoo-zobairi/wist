@@ -45,10 +45,10 @@ export function OnboardingScreen() {
         apply: replaceStyleProfile,
         save: saveStyleProfile,
       });
-    } catch (error) {
+    } catch {
       Alert.alert(
         "Saved on this device",
-        error instanceof Error ? error.message : "Unknown catalogue error",
+        "Your choices are saved on this phone. WIST will sync them when it can reach the index.",
       );
     }
   };

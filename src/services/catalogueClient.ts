@@ -210,6 +210,14 @@ function toStyleProfile(value: unknown): StyleProfile {
   };
 }
 
+/** Catalogue copy written for the owner: safe to show as-is, unlike the other errors here. */
+export class CatalogueNotice extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CatalogueNotice";
+  }
+}
+
 // Backend error codes the owner can act on, written for the screen.
 const ownerErrorCopy: Record<string, string> = {
   robots_disallowed:
@@ -222,7 +230,7 @@ async function responseJson(response: Response): Promise<JsonObject> {
   if (!isObject(value)) throw new Error("Catalogue returned invalid JSON");
   if (!response.ok) {
     const copy = typeof value.error === "string" ? ownerErrorCopy[value.error] : undefined;
-    if (copy) throw new Error(copy);
+    if (copy) throw new CatalogueNotice(copy);
     const message = value.message;
     throw new Error(
       typeof message === "string"
