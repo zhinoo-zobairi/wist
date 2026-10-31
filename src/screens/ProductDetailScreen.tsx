@@ -313,7 +313,9 @@ export function ProductDetailScreen({
           </View>
 
           <View style={styles.official}>
-            <Button icon="arrow" label={`View on ${brand.name}`} onPress={() => void Linking.openURL(item.url)} />
+            <Button icon="arrow" label={`View on ${brand.name}`} onPress={() => {
+              Linking.openURL(item.url).catch(() => setBuyError("Could not open the brand page."));
+            }} />
           </View>
           <Text style={styles.note}>
             Product details and checkout remain authoritative on the brand’s official page.
