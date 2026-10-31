@@ -4,7 +4,7 @@ import {
   commitStyleProfile,
   synchronizeStyleProfile,
 } from "./styleProfileCommit";
-import type { Occasion, Style, StyleProfile } from "./types";
+import { emptyStyleDetails, type Occasion, type Style, type StyleProfile } from "./types";
 
 describe("commitStyleProfile", () => {
   it("applies the local selection before syncing, so a failed PUT still leaves onboarding", async () => {
@@ -34,6 +34,7 @@ describe("commitStyleProfile", () => {
     const canonical: StyleProfile = {
       occasions: ["work", "evening"],
       styles: ["bold"],
+      details: emptyStyleDetails(),
       updatedAt: "2026-08-23T00:00:00.000Z",
     };
     const save = () => Promise.resolve(canonical);
@@ -56,6 +57,7 @@ describe("commitStyleProfile", () => {
     const save = vi.fn(async (): Promise<StyleProfile> => ({
       occasions: ["work", "travel"],
       styles: ["minimal", "bold"],
+      details: emptyStyleDetails(),
       updatedAt: "2026-08-23T00:00:00.000Z",
     }));
 

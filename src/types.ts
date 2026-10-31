@@ -274,6 +274,7 @@ export type OnboardingDraft = { stepIndex: number; answers: OnboardingAnswers };
 export type StyleProfile = {
   occasions: Occasion[];
   styles: Style[];
+  details: StyleDetails;
   updatedAt: string;
 };
 

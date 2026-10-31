@@ -6,11 +6,13 @@ import {
   loadPriceDropAlerts,
   loadStyleProfile,
   loadWatches,
+  saveStyleBrief,
   saveStyleProfile,
   saveWatchSizes,
   setCatalogueWatch,
   withTimeout,
 } from "./catalogueClient";
+import { emptyStyleDetails } from "../types";
 
 describe("catalogue client", () => {
   it("loads brands and their products from the backend", async () => {
@@ -352,7 +354,7 @@ describe("catalogue client", () => {
 
     await expect(
       loadStyleProfile(fetchImpl, "http://catalogue.test", "owner-token"),
-    ).resolves.toEqual(profile);
+    ).resolves.toEqual({ ...profile, details: emptyStyleDetails() });
     await expect(
       saveStyleProfile(
         ["work", "travel"],
@@ -361,7 +363,7 @@ describe("catalogue client", () => {
         "http://catalogue.test",
         "owner-token",
       ),
-    ).resolves.toEqual(profile);
+    ).resolves.toEqual({ ...profile, details: emptyStyleDetails() });
 
     expect(fetchImpl).toHaveBeenNthCalledWith(
       2,
@@ -380,6 +382,66 @@ describe("catalogue client", () => {
         signal: expect.any(AbortSignal),
       },
     );
+  });
+
+  it("reads the style brief and sends only the answers it is given", async () => {
+    const profile = {
+      occasions: ["work"],
+      styles: [],
+      updatedAt: "2026-10-31T12:00:00.000Z",
+      shopsFor: "menswear",
+      helpWith: [],
+      workDressCode: "smart",
+      tasteAxes: { edge: "soft" },
+      palettes: ["earth"],
+      neverColours: [],
+      prints: null,
+      fit: { coats: "long" },
+      defaultSizes: { shoes: "43" },
+      signature: ["overcoat"],
+      gaps: [],
+      dropThreshold: 10,
+    };
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ profile })));
+
+    await expect(
+      saveStyleBrief(
+        ["work"],
+        [],
+        { dropThreshold: 10, palettes: ["earth"] },
+        fetchImpl,
+        "http://catalogue.test",
+        "owner-token",
+      ),
+    ).resolves.toMatchObject({
+      details: {
+        shopsFor: "menswear",
+        tasteAxes: { edge: "soft" },
+        fit: { coats: "long" },
+        defaultSizes: { shoes: "43" },
+        dropThreshold: 10,
+      },
+    });
+    expect(JSON.parse(fetchImpl.mock.calls[0]![1].body)).toEqual({
+      occasions: ["work"],
+      styles: [],
+      dropThreshold: 10,
+      palettes: ["earth"],
+    });
+  });
+
+  it("rejects a brief answer this app does not know", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        profile: { occasions: [], styles: [], updatedAt: "2026-10-31T12:00:00.000Z", palettes: ["neon"] },
+      })),
+    );
+
+    await expect(
+      loadStyleProfile(fetchImpl, "http://catalogue.test", "owner-token"),
+    ).rejects.toThrow("invalid palettes");
   });
 
   it("distinguishes an unanswered profile and rejects invalid selections", async () => {

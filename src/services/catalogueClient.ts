@@ -5,11 +5,26 @@ import {
   type Item,
   type ItemMedia,
   type ItemVariant,
+  DROP_THRESHOLD_OPTIONS,
+  FIT_ROW_OPTIONS,
+  GAP_OPTIONS,
+  HELP_WITH_OPTIONS,
+  NEVER_COLOUR_OPTIONS,
   OCCASION_OPTIONS,
+  PALETTE_OPTIONS,
+  PRINT_OPTIONS,
+  SHOPS_FOR_OPTIONS,
+  SIGNATURE_OPTIONS,
   STYLE_OPTIONS,
+  TASTE_AXIS_OPTIONS,
+  WORK_DRESS_CODE_OPTIONS,
+  type FitRow,
   type Occasion,
+  type SizeKind,
   type Style,
+  type StyleDetails,
   type StyleProfile,
+  type TasteAxis,
   GARMENT_CATEGORY_OPTIONS,
   FORMALITY_OPTIONS,
   WARMTH_OPTIONS,
@@ -178,6 +193,60 @@ function toAlert(value: unknown): Alert {
   };
 }
 
+const TASTE_ANSWERS = Object.fromEntries(
+  TASTE_AXIS_OPTIONS.map((axis) => [axis.id, [...axis.poles.map((pole) => pole.id), "both", "neither"]]),
+) as unknown as Record<TasteAxis, readonly string[]>;
+const FIT_ANSWERS = Object.fromEntries(
+  FIT_ROW_OPTIONS.map((row) => [row.id, row.options.map((option) => option.id)]),
+) as unknown as Record<FitRow, readonly string[]>;
+const SIZE_KINDS: readonly SizeKind[] = ["tops", "bottoms", "shoes"];
+
+// The brief's answers. A catalogue that predates a field leaves it out, which
+// reads as unanswered; an id this app does not know fails the profile, as an
+// unknown occasion does.
+function toStyleDetails(value: Record<string, unknown>): StyleDetails {
+  const invalid = (key: string) => new Error(`Catalogue returned an invalid ${key}`);
+  const one = <Id extends string | number>(key: string, options: readonly { id: Id }[]): Id | null => {
+    const answer = value[key];
+    if (answer === undefined || answer === null) return null;
+    if (!options.some((option) => option.id === answer)) throw invalid(key);
+    return answer as Id;
+  };
+  const many = <Id extends string>(key: string, options: readonly { id: Id }[]): Id[] => {
+    const answer = value[key];
+    if (answer === undefined || answer === null) return [];
+    if (!Array.isArray(answer) || answer.some((id) => !options.some((option) => option.id === id))) {
+      throw invalid(key);
+    }
+    return options.map((option) => option.id).filter((id) => answer.includes(id));
+  };
+  const rows = (key: string, allowed: (row: string, answer: unknown) => boolean): Record<string, string> => {
+    const answer = value[key];
+    if (answer === undefined || answer === null) return {};
+    if (!isObject(answer) || Object.entries(answer).some(([row, id]) => !allowed(row, id))) {
+      throw invalid(key);
+    }
+    return answer as Record<string, string>;
+  };
+  return {
+    shopsFor: one("shopsFor", SHOPS_FOR_OPTIONS),
+    helpWith: many("helpWith", HELP_WITH_OPTIONS),
+    workDressCode: one("workDressCode", WORK_DRESS_CODE_OPTIONS),
+    tasteAxes: rows("tasteAxes", (axis, id) =>
+      (TASTE_ANSWERS[axis as TasteAxis] ?? []).includes(id as string)) as StyleDetails["tasteAxes"],
+    palettes: many("palettes", PALETTE_OPTIONS),
+    neverColours: many("neverColours", NEVER_COLOUR_OPTIONS),
+    prints: one("prints", PRINT_OPTIONS),
+    fit: rows("fit", (row, id) =>
+      (FIT_ANSWERS[row as FitRow] ?? []).includes(id as string)) as StyleDetails["fit"],
+    defaultSizes: rows("defaultSizes", (kind, label) =>
+      SIZE_KINDS.includes(kind as SizeKind) && typeof label === "string"),
+    signature: many("signature", SIGNATURE_OPTIONS),
+    gaps: many("gaps", GAP_OPTIONS),
+    dropThreshold: one("dropThreshold", DROP_THRESHOLD_OPTIONS),
+  };
+}
+
 function toStyleProfile(value: unknown): StyleProfile {
   if (!isObject(value)) {
     throw new Error("Catalogue returned an invalid style profile");
@@ -206,6 +275,7 @@ function toStyleProfile(value: unknown): StyleProfile {
     styles: STYLE_OPTIONS.map((option) => option.id).filter((style) =>
       styleIds.has(style),
     ),
+    details: toStyleDetails(value),
     updatedAt: stringField(value, "updatedAt"),
   };
 }
@@ -553,9 +623,10 @@ export async function loadStyleProfile(
   return body.profile === null ? null : toStyleProfile(body.profile);
 }
 
-export async function saveStyleProfile(
+export async function saveStyleBrief(
   occasions: Occasion[],
   styles: Style[],
+  details: Partial<StyleDetails>,
   fetchImpl: Fetch = fetch,
   baseUrl = defaultBaseUrl,
   ownerToken = defaultOwnerToken,
@@ -564,7 +635,7 @@ export async function saveStyleProfile(
   const fetchWithTimeout = withTimeout(fetchImpl, CATALOGUE_TIMEOUT_MS);
   const body = await responseJson(
     await fetchWithTimeout(`${root}/v1/profile`, {
-      body: JSON.stringify({ occasions, styles }),
+      body: JSON.stringify({ occasions, styles, ...details }),
       headers: {
         ...authorizationHeaders(ownerToken),
         "content-type": "application/json",
@@ -573,6 +644,17 @@ export async function saveStyleProfile(
     }),
   );
   return toStyleProfile(body.profile);
+}
+
+/** Occasions and styles only: the catalogue keeps every brief answer it holds. */
+export function saveStyleProfile(
+  occasions: Occasion[],
+  styles: Style[],
+  fetchImpl: Fetch = fetch,
+  baseUrl = defaultBaseUrl,
+  ownerToken = defaultOwnerToken,
+): Promise<StyleProfile> {
+  return saveStyleBrief(occasions, styles, {}, fetchImpl, baseUrl, ownerToken);
 }
 
 export async function setCatalogueWatch(
