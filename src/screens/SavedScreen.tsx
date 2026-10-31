@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,6 +13,7 @@ import { ActionLink } from "../components/ActionLink";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { IndexStatus } from "../components/IndexStatus";
+import { ProductPhoto } from "../components/ProductPhoto";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { pageStyle, useLayout } from "../layout";
 import { useWistStore } from "../store/useWistStore";
@@ -150,7 +150,7 @@ export function SavedScreen({
                 <View key={item.id} style={styles.row}>
                   <Text style={styles.index}>0{index + 1}</Text>
                   <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
-                    <Image source={{ uri: item.imageUrl }} style={[styles.image, wide && styles.imageWide]} />
+                    <ProductPhoto style={[styles.image, wide && styles.imageWide]} uri={item.imageUrl} />
                   </Pressable>
                   <View style={styles.body}>
                     <Text style={styles.brand}>{brand?.name}</Text>
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   collectionWide: { flex: 7, marginHorizontal: 0 },
   row: { borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", minHeight: 200, paddingVertical: 14 },
   index: { ...typography.caption, paddingRight: 9, paddingTop: 3, width: 25 },
-  image: { aspectRatio: 4 / 5, backgroundColor: colors.line, borderRadius: radii.card, width: 126 },
+  image: { aspectRatio: 4 / 5, borderRadius: radii.card, width: 126 },
   imageWide: { width: 160 },
   body: { flex: 1, paddingLeft: 15, paddingVertical: 3 },
   brand: { ...typography.kicker, textTransform: "uppercase" },

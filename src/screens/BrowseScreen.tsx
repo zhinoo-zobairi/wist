@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { searchItems } from "../catalogueSearch";
 import { ActionLink } from "../components/ActionLink";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { IndexStatus } from "../components/IndexStatus";
+import { ProductPhoto } from "../components/ProductPhoto";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { pageStyle, useLayout } from "../layout";
 import { useWistStore } from "../store/useWistStore";
@@ -148,7 +149,7 @@ export function BrowseScreen({ brands, catalogueStatus, items: allItems, selecte
             return (
               <View style={styles.cardWide}>
                 <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
-                  <Image source={{ uri: item.imageUrl }} style={styles.image} />
+                  <ProductPhoto style={styles.image} uri={item.imageUrl} />
                 </Pressable>
                 <Text style={styles.cardBrandWide}>{brandsById[item.brandId]?.name}</Text>
                 <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
@@ -165,7 +166,7 @@ export function BrowseScreen({ brands, catalogueStatus, items: allItems, selecte
                 onPress={() => onOpenItem(item.id)}
                 style={({ pressed }) => [styles.imageLink, pressed && styles.pressed]}
               >
-                <Image source={{ uri: item.imageUrl }} style={styles.image} />
+                <ProductPhoto style={styles.image} uri={item.imageUrl} />
               </Pressable>
               <View style={styles.productBody}>
                 <Text style={styles.number}>
@@ -219,7 +220,7 @@ const styles = StyleSheet.create({
   emptyBody: { ...typography.body, marginTop: 7, textAlign: "center" },
   product: { flexDirection: "row", marginBottom: 14, minHeight: 226 },
   reverse: { flexDirection: "row-reverse" },
-  image: { aspectRatio: 4 / 5, backgroundColor: colors.line, borderRadius: radii.card, width: "100%" },
+  image: { aspectRatio: 4 / 5, borderRadius: radii.card, width: "100%" },
   imageLink: { width: "61%" },
   productBody: { justifyContent: "space-between", padding: 14, width: "39%" },
   number: typography.kicker,

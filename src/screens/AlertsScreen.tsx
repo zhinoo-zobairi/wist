@@ -1,8 +1,9 @@
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { IndexStatus } from "../components/IndexStatus";
+import { ProductPhoto } from "../components/ProductPhoto";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { describableAlerts } from "../describableAlerts";
 import { pageStyle, useLayout } from "../layout";
@@ -61,7 +62,7 @@ export function AlertsScreen({ brands, catalogueStatus, items, onReload, onViewI
               <Text style={styles.live}>●  NEW SIGNAL</Text>
               <Text style={styles.time}>{relativeTime(hero.createdAt)}</Text>
             </View>
-            <Image source={{ uri: heroItem.imageUrl }} style={styles.heroImage} />
+            <ProductPhoto style={styles.heroImage} uri={heroItem.imageUrl} />
             <View style={styles.heroCopy}>
               <Text style={styles.brand}>{heroBrand.name}</Text>
               <Text style={styles.heroName}>{heroItem.name}</Text>
@@ -92,7 +93,7 @@ export function AlertsScreen({ brands, catalogueStatus, items, onReload, onViewI
                     onPress={() => { markRead(alert.id); onViewItem(alert.itemId); }}
                     style={({ pressed }) => [styles.historyRow, pressed && styles.pressed]}
                   >
-                    <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
+                    <ProductPhoto compact style={styles.thumb} uri={item.imageUrl} />
                     <View style={styles.historyBody}>
                       <Text style={styles.historyBrand}>{brand.name}</Text>
                       <Text style={styles.historyName}>{item.name}</Text>
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
   heroTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 8, paddingVertical: 8 },
   live: { ...typography.label, color: colors.card },
   time: { ...typography.label, color: colors.onWineMuted },
-  heroImage: { aspectRatio: 4 / 5, backgroundColor: colors.line, width: "100%" },
+  heroImage: { aspectRatio: 4 / 5, width: "100%" },
   heroCopy: { padding: 14 },
   brand: { ...typography.kicker, color: colors.onWineMuted, textTransform: "uppercase" },
   heroName: { ...typography.titleL, color: colors.card, fontSize: 31, lineHeight: 33, marginTop: 4 },

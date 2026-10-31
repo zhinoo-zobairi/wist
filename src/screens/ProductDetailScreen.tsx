@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Linking,
   Modal,
   type NativeScrollEvent,
@@ -19,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ActionLink } from "../components/ActionLink";
 import { BackLink } from "../components/BackLink";
 import { Button } from "../components/Button";
+import { ProductPhoto } from "../components/ProductPhoto";
 import { Wordmark } from "../components/Wordmark";
 import { pageStyle, useLayout } from "../layout";
 import { formatPrice } from "../money";
@@ -172,15 +172,7 @@ export function ProductDetailScreen({
                       width={mediaWidth}
                     />
                   ) : (
-                    <Image
-                      resizeMode="cover"
-                      source={{ uri: entry.url }}
-                      style={{
-                        backgroundColor: colors.line,
-                        height: mediaHeight,
-                        width: mediaWidth,
-                      }}
-                    />
+                    <ProductPhoto style={{ height: mediaHeight, width: mediaWidth }} uri={entry.url} />
                   )
                 }
                 showsHorizontalScrollIndicator={false}

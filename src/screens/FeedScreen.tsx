@@ -1,8 +1,9 @@
-import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { ActionLink } from "../components/ActionLink";
 import { Icon } from "../components/Icon";
 import { IndexStatus } from "../components/IndexStatus";
+import { ProductPhoto } from "../components/ProductPhoto";
 import { Wordmark } from "../components/Wordmark";
 import { pageStyle, useLayout } from "../layout";
 import { useWistStore } from "../store/useWistStore";
@@ -76,7 +77,7 @@ export function FeedScreen({ brands, catalogueStatus, hasUnreadAlerts, items, on
             onPress={onOpenAlerts}
             style={({ pressed }) => [styles.signal, wide && styles.signalWide, pressed && styles.pressed]}
           >
-            <Image source={{ uri: alertItem.imageUrl }} style={styles.signalImage} />
+            <ProductPhoto style={styles.signalImage} uri={alertItem.imageUrl} />
             <View style={styles.signalBody}>
               <Text style={styles.signalKicker}>A COVETED PIECE JUST DROPPED</Text>
               <Text style={styles.signalName}>{alertItem.name}</Text>
@@ -138,7 +139,7 @@ export function FeedScreen({ brands, catalogueStatus, hasUnreadAlerts, items, on
             <View key={item.id} style={[styles.editItem, wide ? styles.editItemWide : index % 2 === 1 && styles.editItemLower]}>
               <View>
                 <Pressable onPress={() => onOpenItem(item.id)} style={({ pressed }) => pressed && styles.pressed}>
-                  <Image source={{ uri: item.imageUrl }} style={styles.editImage} />
+                  <ProductPhoto style={styles.editImage} uri={item.imageUrl} />
                 </Pressable>
                 <Pressable
                   accessibilityLabel={`${coveted ? "Remove" : "Covet"} ${item.name}`}
@@ -179,7 +180,7 @@ const styles = StyleSheet.create({
   dek: { ...typography.body, marginTop: 13, maxWidth: 300 },
   signal: { backgroundColor: colors.wine, borderRadius: radii.card, flexDirection: "row", marginBottom: 38, marginHorizontal: 14, minHeight: 190, overflow: "hidden" },
   signalWide: { flex: 5, marginBottom: 0, marginHorizontal: 0 },
-  signalImage: { backgroundColor: colors.line, width: "40%" },
+  signalImage: { width: "40%" },
   signalBody: { flex: 1, justifyContent: "center", padding: 18 },
   signalKicker: { ...typography.kicker, color: colors.onWineSoft },
   signalName: { ...typography.titleM, color: colors.card, fontSize: 24, lineHeight: 26, marginTop: 8 },
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
   editItem: { marginBottom: 24, width: "48%" },
   editItemLower: { marginTop: 38 },
   editItemWide: { marginBottom: 0, width: "22.6%" },
-  editImage: { aspectRatio: 4 / 5, backgroundColor: colors.line, borderRadius: radii.card, width: "100%" },
+  editImage: { aspectRatio: 4 / 5, borderRadius: radii.card, width: "100%" },
   covetButton: { alignItems: "center", backgroundColor: colors.card, borderRadius: radii.card, bottom: 0, height: 42, justifyContent: "center", position: "absolute", right: 0, width: 42 },
   covetButtonSelected: { backgroundColor: colors.wash },
   itemBrand: { ...typography.kicker, marginTop: 9, textTransform: "uppercase" },
