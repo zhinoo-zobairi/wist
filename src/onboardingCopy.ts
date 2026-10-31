@@ -26,7 +26,7 @@ export function listJoin(words: readonly string[], conjunction = "and"): string 
 
 const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const lower = (text: string) => text.toLowerCase();
-const NUMBER_WORDS = ["no", "one", "two", "three"];
+const NUMBER_WORDS: Record<number, string> = { 2: "two", 3: "three" };
 
 const OCCASION_PHRASES: Record<Occasion, string> = {
   work: "work", evening: "evenings out", weekend: "the weekend", celebration: "celebrations", travel: "travel",
@@ -174,14 +174,20 @@ export function briefPromises(answers: OnboardingAnswers, coveted: number): stri
   const pieces =
     coveted === 0 ? "a piece you covet falls" : coveted === 1 ? "your piece falls" : `your ${NUMBER_WORDS[coveted] ?? coveted} pieces fall`;
   const depth = details.dropThreshold ? `${details.dropThreshold}% or more` : "to a new low";
+  // Only promise a palette or a size the reader actually gave: with no default
+  // sizes the alert fires in any size.
+  const inPalette = details.palettes.length > 0;
+  const sized = sizeLabels(details).length > 0;
   // The second promise says "keep on your list", never "look for": there is no
   // product discovery yet (Decision 7, issue #18).
   return [
     `Dress you for ${forWork ? "work" : "your week"} from what you own${nouns.length > 0 ? `, starting with your ${listJoin(nouns)}` : ""}.`,
     gaps.length > 0
-      ? `Keep ${listJoin(gaps)} on your list, in your palette and size.`
-      : "Build every outfit inside your palette, in your size.",
-    `Tell you when ${pieces} ${depth}, in your size.${answers.notificationsAllowed === false ? " You will find it in Alerts rather than as a banner." : ""}`,
+      ? `Keep ${listJoin(gaps)} on your list${inPalette && sized ? ", in your palette and size" : inPalette ? ", in your palette" : sized ? ", in your size" : ""}.`
+      : inPalette
+        ? `Build every outfit inside your palette${sized ? ", in your size" : ""}.`
+        : "Build every outfit around what you already wear.",
+    `Tell you when ${pieces} ${depth}${sized ? ", in your size" : ""}.${answers.notificationsAllowed === false ? " You will find it in Alerts rather than as a banner." : ""}`,
   ];
 }
 

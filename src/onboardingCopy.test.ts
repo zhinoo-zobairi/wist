@@ -77,8 +77,17 @@ describe("onboarding copy", () => {
       "Tell you when your three pieces fall 20% or more, in your size.",
     ]);
     expect(briefPromises({ ...blank, notificationsAllowed: false }, 0)[2]).toBe(
-      "Tell you when a piece you covet falls to a new low, in your size. You will find it in Alerts rather than as a banner.",
+      "Tell you when a piece you covet falls to a new low. You will find it in Alerts rather than as a banner.",
     );
+  });
+
+  it("promises a size and a palette only when the reader gave them", () => {
+    const noGaps = { ...reader, details: { ...reader.details, gaps: [] } };
+    expect(briefPromises(noGaps, 1)[1]).toBe("Build every outfit inside your palette, in your size.");
+    expect(briefPromises(noGaps, 1)[2]).toBe("Tell you when your piece falls 20% or more, in your size.");
+    expect(briefPromises(blank, 0)[1]).toBe("Build every outfit around what you already wear.");
+    const noSizes = { ...reader, details: { ...reader.details, defaultSizes: {} } };
+    expect(briefPromises(noSizes, 3)[1]).toBe("Keep a long coat and evening shoes on your list, in your palette.");
   });
 
   it("composes from the houses, sizes and pieces", () => {
