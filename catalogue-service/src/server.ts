@@ -22,8 +22,10 @@ import { OpenMeteoWeatherSource } from "./weather.js";
 
 const databasePath =
   process.env.CATALOGUE_DB_PATH ?? resolve("catalogue-service/data/wist.sqlite");
-const repository = new SqliteCatalogueRepository(databasePath);
 const profiles = new SqliteStyleProfileRepository(databasePath);
+const repository = new SqliteCatalogueRepository(databasePath, {
+  dropThreshold: () => profiles.getDropThreshold(),
+});
 const wardrobe = new SqliteWardrobeRepository(databasePath);
 const photoStore = new DiskGarmentPhotoStore(join(dirname(databasePath), "wardrobe-photos"));
 const anthropic = process.env.ANTHROPIC_API_KEY

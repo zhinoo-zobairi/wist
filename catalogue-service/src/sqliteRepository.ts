@@ -121,12 +121,22 @@ function rowToItem(
   };
 }
 
+type CatalogueRepositoryOptions = {
+  /** The owner's drop threshold in whole percent, read at each observation. */
+  dropThreshold?: () => number;
+};
+
 export class SqliteCatalogueRepository
   implements CatalogueObservationRepository
 {
   private readonly database: DatabaseSync;
+  private readonly dropThreshold: () => number;
 
-  constructor(path: string) {
+  constructor(
+    path: string,
+    { dropThreshold = () => 0 }: CatalogueRepositoryOptions = {},
+  ) {
+    this.dropThreshold = dropThreshold;
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.database = new DatabaseSync(path);
     this.database.exec("PRAGMA foreign_keys = ON");
@@ -486,13 +496,14 @@ export class SqliteCatalogueRepository
         .run(item.id, item.currentPrice, item.currency, item.observedAt);
 
       // A drop is only worth telling the owner about if it reaches a size they
-      // asked for. The rule reads the sizes stored against the watch and the
-      // variants from this very observation, so it judges current availability.
+      // asked for and is at least as deep as the threshold they chose. Both
+      // rules silence a drop without moving the floor below.
       const watchedSizeRows = this.database
         .prepare("SELECT label FROM catalogue_watch_sizes WHERE item_id = ?")
         .all(item.id) as unknown as Array<{ label: string }>;
       const alerted =
         priceDrop !== null &&
+        priceDrop.pctOff >= this.dropThreshold() &&
         reachesWatchedSize({
           variants: item.variants,
           watchedSizes: watchedSizeRows.map((row) => row.label),

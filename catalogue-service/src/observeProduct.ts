@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { createDefaultPoliteFetch } from "./politeFetch.js";
 import { fetchProductObservation } from "./productObservation.js";
 import { SqliteCatalogueRepository } from "./sqliteRepository.js";
+import { SqliteStyleProfileRepository } from "./sqliteStyleProfileRepository.js";
 
 async function main() {
   const productUrl = process.argv[2];
@@ -15,7 +16,10 @@ async function main() {
   const databasePath =
     process.env.CATALOGUE_DB_PATH ??
     resolve("catalogue-service/data/wist.sqlite");
-  const repository = new SqliteCatalogueRepository(databasePath);
+  const profiles = new SqliteStyleProfileRepository(databasePath);
+  const repository = new SqliteCatalogueRepository(databasePath, {
+    dropThreshold: () => profiles.getDropThreshold(),
+  });
 
   try {
     const { brand, item } = await fetchProductObservation(
@@ -26,6 +30,7 @@ async function main() {
     console.log(JSON.stringify(result, null, 2));
   } finally {
     repository.close();
+    profiles.close();
   }
 }
 

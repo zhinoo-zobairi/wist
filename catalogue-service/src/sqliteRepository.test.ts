@@ -395,4 +395,26 @@ describe("SQLite catalogue repository", () => {
 
     await expect(repository.listWatchSizes(item.id)).resolves.toEqual([]);
   });
+
+  // A drop under the owner's threshold is silenced like a drop that misses
+  // their size: no alert, and the floor stays where it was, so a deeper drop
+  // later still reaches them.
+  it("stays silent below the owner's drop threshold and speaks at a deeper drop", async () => {
+    const repository = new SqliteCatalogueRepository(":memory:", {
+      dropThreshold: () => 20,
+    });
+    repositories.push(repository);
+    await repository.recordObservation(brand, itemAt(200, "2026-08-08T12:00:00.000Z"));
+    await repository.watchItem("bobbies-L-M24WO-OPE01");
+
+    await expect(
+      repository.recordObservation(brand, itemAt(180, "2026-08-09T12:00:00.000Z")),
+    ).resolves.toMatchObject({ priceDrop: { pctOff: 10 }, alerted: false });
+    await expect(
+      repository.recordObservation(brand, itemAt(160, "2026-08-10T12:00:00.000Z")),
+    ).resolves.toMatchObject({ priceDrop: { pctOff: 20 }, alerted: true });
+    await expect(repository.listPriceDropAlerts()).resolves.toMatchObject([
+      { newPrice: 160, pctOff: 20 },
+    ]);
+  });
 });
