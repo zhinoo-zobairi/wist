@@ -30,8 +30,10 @@ export function TopNav({ activeTab, hasUnreadAlerts, onChange }: Props) {
         <View style={styles.links}>
           {links.map((link) => {
             const active = link.id === activeTab;
+            const unread = link.id === "alerts" && hasUnreadAlerts;
             return (
               <Pressable
+                accessibilityLabel={unread ? "Alerts, new price drop" : link.label}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: active }}
                 hitSlop={8}
@@ -40,7 +42,7 @@ export function TopNav({ activeTab, hasUnreadAlerts, onChange }: Props) {
                 style={({ pressed }) => [styles.link, pressed && styles.pressed]}
               >
                 <Text style={[styles.label, active && styles.labelActive]}>{link.label}</Text>
-                {link.id === "alerts" && hasUnreadAlerts ? <View style={styles.badge} /> : null}
+                {unread ? <View style={styles.badge} /> : null}
                 {active ? <View style={styles.underline} /> : null}
               </Pressable>
             );

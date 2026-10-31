@@ -28,10 +28,12 @@ export function BottomTabBar({ activeTab, hasUnreadAlerts, onChange }: Props) {
     <View style={styles.bar}>
       {tabs.map((tab) => {
         const active = activeTab === tab.id;
+        // The dot alone is invisible to VoiceOver, so the label says it too.
+        const unread = tab.id === "alerts" && hasUnreadAlerts;
 
         return (
           <Pressable
-            accessibilityLabel={tab.label}
+            accessibilityLabel={unread ? "Alerts, new price drop" : tab.label}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
             hitSlop={8}
@@ -45,7 +47,7 @@ export function BottomTabBar({ activeTab, hasUnreadAlerts, onChange }: Props) {
                 name={tab.icon}
                 size={21}
               />
-              {tab.id === "alerts" && hasUnreadAlerts ? (
+              {unread ? (
                 <View style={styles.badge} />
               ) : null}
             </View>

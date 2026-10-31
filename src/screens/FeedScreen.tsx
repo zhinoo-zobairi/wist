@@ -50,7 +50,7 @@ export function FeedScreen({ brands, catalogueStatus, hasUnreadAlerts, items, on
         <View style={styles.header}>
           <Wordmark />
           <Pressable
-            accessibilityLabel="Open alerts"
+            accessibilityLabel={hasUnreadAlerts ? "Alerts, new price drop" : "Open alerts"}
             hitSlop={12}
             onPress={onOpenAlerts}
             style={({ pressed }) => pressed && styles.pressed}
