@@ -15,6 +15,11 @@ if (Platform.OS !== "web") {
   });
 }
 
+// The library hook reads the native notification centre when it mounts and
+// throws on web, which has none. Web never receives a tap, so there it is null.
+export const useLastNotificationResponse: () => Notifications.MaybeNotificationResponse =
+  Platform.OS === "web" ? () => null : Notifications.useLastNotificationResponse;
+
 // Android shows no permission prompt until a channel exists, so the channel is
 // created before asking as well as before sending.
 async function ensurePriceDropChannel() {

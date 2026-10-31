@@ -35,7 +35,9 @@ import {
   isPriceDropPermissionUndetermined,
   requestPriceDropPermission,
   sendPriceDropNotification,
+  useLastNotificationResponse,
 } from "./src/services/notifications";
+import { priceDropTapFromData, type PriceDropTap } from "./src/priceDropTap";
 import { AlertsScreen } from "./src/screens/AlertsScreen";
 import { BrowseScreen } from "./src/screens/BrowseScreen";
 import { FeedScreen } from "./src/screens/FeedScreen";
@@ -84,6 +86,10 @@ export default function App() {
   // The notification question is put at most once per session, so two quick
   // covets cannot stack two explanations.
   const permissionAsked = useRef(false);
+  const notificationResponse = useLastNotificationResponse();
+  // Each tap is handled once; its piece waits here until the catalogue has it.
+  const handledResponseId = useRef<string | null>(null);
+  const pendingTap = useRef<PriceDropTap | null>(null);
   const alerts = useWistStore((state) => state.alerts);
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const watchedSizesByItemId = useWistStore(
@@ -98,6 +104,7 @@ export default function App() {
   const markAlertsAnnounced = useWistStore(
     (state) => state.markAlertsAnnounced,
   );
+  const markAlertRead = useWistStore((state) => state.markAlertRead);
   const setStarredItem = useWistStore((state) => state.setStarredItem);
   const profileStatus = useWistStore((state) => state.profileStatus);
   const introSeen = useWistStore((state) => state.introSeen);
@@ -299,6 +306,28 @@ export default function App() {
     });
     return () => subscription.remove();
   }, [refreshWatches, reloadCatalogue, storeSettled]);
+
+  // A tapped price-drop banner opens its piece. On a cold start the tap arrives
+  // before the catalogue, so it is held until the item is loaded.
+  useEffect(() => {
+    if (!notificationResponse) return;
+    const { content, identifier } = notificationResponse.notification.request;
+    if (identifier === handledResponseId.current) return;
+    handledResponseId.current = identifier;
+    pendingTap.current = priceDropTapFromData(content.data);
+  }, [notificationResponse]);
+
+  // Runs after the effect above in the same commit, and again on every
+  // catalogue load, so a held tap opens as soon as its item is there. It also
+  // waits for the stored alerts, or hydration would undo the read mark.
+  useEffect(() => {
+    const tap = pendingTap.current;
+    if (!tap || !storeSettled) return;
+    if (!liveCatalogue.items.some((item) => item.id === tap.itemId)) return;
+    pendingTap.current = null;
+    if (tap.alertId) markAlertRead(tap.alertId);
+    setSelectedItemId(tap.itemId);
+  }, [liveCatalogue, markAlertRead, notificationResponse, storeSettled]);
 
   const brands = liveCatalogue.brands;
   const items = liveCatalogue.items;
