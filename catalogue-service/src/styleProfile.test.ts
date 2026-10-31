@@ -104,6 +104,13 @@ describe("style profile validation", () => {
     expect(parseStyleProfile(boundary)).toStrictEqual(boundary);
   });
 
+  // `includes` treats -0 as 0, so without care -0 would be stored as -0.
+  it("parses a negative zero threshold to zero", () => {
+    expect(
+      parseStyleProfile({ occasions: [], styles: [], dropThreshold: -0 }),
+    ).toStrictEqual({ occasions: [], styles: [], dropThreshold: 0 });
+  });
+
   // Typed explicitly: `toString` and `constructor` as keys clash with
   // Object.prototype, so TypeScript cannot infer one element type for the table.
   it.each<Record<string, unknown>>([

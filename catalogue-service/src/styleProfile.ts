@@ -161,12 +161,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 // The brief parsers return undefined for an invalid answer, which leaves null
-// free to mean "clear this answer".
+// free to mean "clear this answer". Returning the vocabulary's own member means
+// the stored value is never the caller's (so -0 becomes 0).
 function parseOne<Value extends string | number>(
   value: unknown,
   vocabulary: readonly Value[],
 ): Value | undefined {
-  return vocabulary.includes(value as Value) ? (value as Value) : undefined;
+  return vocabulary.find((candidate) => candidate === value);
 }
 
 // A set: unique known ids, at most `cap`, returned in vocabulary order.
