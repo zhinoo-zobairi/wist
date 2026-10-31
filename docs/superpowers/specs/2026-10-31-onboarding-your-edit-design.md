@@ -1,7 +1,7 @@
 # Onboarding "N° 02 · Your edit" — Design
 
 **Date:** 2026-10-31
-**Status:** Draft for owner review. The fourteen questions were approved by the owner on 2026-10-31 ("these fourteen questions are the right set"). Every decision in the Decisions table is still open.
+**Status:** Approved by the owner on 2026-10-31. The fourteen questions were approved first ("these fourteen questions are the right set"), then the recommended answer to every decision in the Decisions table ("approve the spec with the recommended answer to every decision").
 **Builds on:** [Style profile & occasion onboarding](2026-08-21-style-profile-onboarding-design.md) (slice A), which this extends rather than replaces.
 **Storyboard:** private Claude Design canvas "WIST onboarding storyboard" (https://claude.ai/artifact/1cmQZUKhvYuaMnFguRDsg1), 26 screens: the womenswear path in four chapters and a finale, with menswear variants of the photo screens.
 
@@ -121,7 +121,9 @@ Not changed in this slice: the daily weather pick, Home and Discover ordering (D
 - **A covet that fails at screen 12:** the heart reverts, the existing "Could not update Coveted" message shows, and the reader can continue with fewer than three.
 - **Notification permission denied:** the flow continues, and the style brief's third promise says alerts will show in Alerts but not as banners.
 
-## Decisions for the owner
+## Decisions
+
+All fourteen approved on 2026-10-31 as recommended; the Recommendation column is the decision.
 
 | # | Question | Options | Recommendation |
 |---|---|---|---|
