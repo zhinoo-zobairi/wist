@@ -78,7 +78,14 @@ export function PhotoChoice<Id extends string>({
               />
             ) : null}
             <View style={inputStyles.copy}>
-              <Text style={[inputStyles.label, isSelected && inputStyles.labelSelected]}>{option.label}</Text>
+              <Text
+                adjustsFontSizeToFit={layout === "grid"}
+                minimumFontScale={0.7}
+                numberOfLines={layout === "grid" ? 1 : undefined}
+                style={[inputStyles.label, isSelected && inputStyles.labelSelected]}
+              >
+                {option.label}
+              </Text>
               {option.detail ? <Text style={inputStyles.detail}>{option.detail}</Text> : null}
             </View>
           </Pressable>
