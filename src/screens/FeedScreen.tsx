@@ -19,10 +19,12 @@ type Props = {
   onToggleCovet: (item: Item) => void;
   brands: Brand[];
   catalogueStatus: CatalogueStatus;
+  /** Unread drops the Alerts screen can show; the bell's dot follows it. */
+  hasUnreadAlerts: boolean;
   items: Item[];
 };
 
-export function FeedScreen({ brands, catalogueStatus, items, onBrowseBrand, onOpenAlerts, onOpenBrowse, onOpenItem, onReload, onToggleCovet }: Props) {
+export function FeedScreen({ brands, catalogueStatus, hasUnreadAlerts, items, onBrowseBrand, onOpenAlerts, onOpenBrowse, onOpenItem, onReload, onToggleCovet }: Props) {
   const followedBrandIds = useWistStore((state) => state.followedBrandIds);
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const alerts = useWistStore((state) => state.alerts);
@@ -55,7 +57,7 @@ export function FeedScreen({ brands, catalogueStatus, items, onBrowseBrand, onOp
           >
             <View>
               <Icon color={colors.ink} name="bell" size={22} />
-              {alerts.some((alert) => !alert.read) ? <View style={styles.badge} /> : null}
+              {hasUnreadAlerts ? <View style={styles.badge} /> : null}
             </View>
           </Pressable>
         </View>

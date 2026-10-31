@@ -4,6 +4,7 @@ import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { IndexStatus } from "../components/IndexStatus";
 import { ScreenHeader } from "../components/ScreenHeader";
+import { describableAlerts } from "../describableAlerts";
 import { pageStyle, useLayout } from "../layout";
 import { useWistStore } from "../store/useWistStore";
 import { formatPrice } from "../money";
@@ -30,16 +31,16 @@ export function AlertsScreen({ brands, catalogueStatus, items, onReload, onViewI
   const alerts = useWistStore((state) => state.alerts);
   const covetedIds = useWistStore((state) => state.starredItemIds);
   const markRead = useWistStore((state) => state.markAlertRead);
-  const brandsById = Object.fromEntries(brands.map((brand) => [brand.id, brand]));
-  const itemsById = Object.fromEntries(items.map((item) => [item.id, item]));
-  const hero = alerts[0];
-  const heroItem = hero ? itemsById[hero.itemId] : undefined;
-  const heroBrand = heroItem ? brandsById[heroItem.brandId] : undefined;
+  // Hero and history read the same list as the unread dot in App.tsx.
+  const [heroEntry, ...earlier] = describableAlerts(alerts, items, brands);
+  const hero = heroEntry?.alert;
+  const heroItem = heroEntry?.item;
+  const heroBrand = heroEntry?.brand;
 
   return (
     <ScrollView contentContainerStyle={pageStyle(layout)} showsVerticalScrollIndicator={false} style={styles.screen}>
       <ScreenHeader kicker="SIGNALS FOR YOU" subtitle="Meaningful changes in the pieces you covet." title="Alerts" />
-      {hero && catalogueStatus !== "ready" && (!heroItem || !heroBrand) ? (
+      {!heroEntry && alerts.length > 0 && catalogueStatus !== "ready" ? (
         <View style={[styles.empty, wide && styles.emptyWide]}>
           <IndexStatus
             detail={`${covetedIds.length} ${covetedIds.length === 1 ? "piece" : "pieces"} coveted. Reconnect to see their signals.`}
@@ -81,13 +82,10 @@ export function AlertsScreen({ brands, catalogueStatus, items, onReload, onViewI
               </View>
             </View>
           </View>
-          {alerts.length > 1 ? (
+          {earlier.length > 0 ? (
             <View style={[styles.history, wide && styles.historyWide]}>
               <Text style={styles.historyTitle}>Earlier signals</Text>
-              {alerts.slice(1).map((alert) => {
-                const item = itemsById[alert.itemId];
-                const brand = item ? brandsById[item.brandId] : undefined;
-                if (!item || !brand) return null;
+              {earlier.map(({ alert, brand, item }) => {
                 return (
                   <Pressable
                     key={alert.id}

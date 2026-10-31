@@ -38,6 +38,7 @@ import {
   useLastNotificationResponse,
 } from "./src/services/notifications";
 import { priceDropTapFromData, type PriceDropTap } from "./src/priceDropTap";
+import { describableAlerts } from "./src/describableAlerts";
 import { AlertsScreen } from "./src/screens/AlertsScreen";
 import { BrowseScreen } from "./src/screens/BrowseScreen";
 import { FeedScreen } from "./src/screens/FeedScreen";
@@ -227,18 +228,12 @@ export default function App() {
 
     const announcePriceDrops = async (remoteAlerts: PriceDropAlert[]) => {
       const { brands, items } = catalogueRef.current;
-      const brandsById = new Map(brands.map((brand) => [brand.id, brand]));
-      const itemsById = new Map(items.map((item) => [item.id, item]));
 
       // Which drops can this build of the catalogue actually describe? The poll
       // fires before loadCatalogue resolves, so on the first round that is often
       // none. The selector keeps those eligible instead of burning them, so the
       // full window is still what gets passed in for bookkeeping.
-      const describable = remoteAlerts.flatMap((alert) => {
-        const item = itemsById.get(alert.itemId);
-        const brand = item ? brandsById.get(item.brandId) : undefined;
-        return item && brand ? [{ alert, brand, item }] : [];
-      });
+      const describable = describableAlerts(remoteAlerts, items, brands);
 
       const { alertBaselineEstablished, notifiedAlertIds } =
         useWistStore.getState();
@@ -333,6 +328,8 @@ export default function App() {
   const items = liveCatalogue.items;
   const brandsById = Object.fromEntries(brands.map((brand) => [brand.id, brand]));
   const itemsById = Object.fromEntries(items.map((item) => [item.id, item]));
+  // Over the same list the Alerts screen shows, so no dot points at a quiet room.
+  const hasUnreadAlerts = describableAlerts(alerts, items, brands).some((entry) => !entry.alert.read);
 
   const profileGate = resolveProfileGate({
     fontsLoaded,
@@ -569,6 +566,7 @@ export default function App() {
           <FeedScreen
             brands={brands}
             catalogueStatus={catalogueStatus}
+            hasUnreadAlerts={hasUnreadAlerts}
             items={items}
             onBrowseBrand={browseBrand}
             onOpenAlerts={() => setActiveTab("alerts")}
@@ -586,7 +584,6 @@ export default function App() {
     setProfileView({ screen: "profile" });
     setActiveTab(tab);
   };
-  const hasUnreadAlerts = alerts.some((alert) => !alert.read);
 
   return (
     <SafeAreaProvider style={[styles.root, layout.wide && styles.rootWide]}>
