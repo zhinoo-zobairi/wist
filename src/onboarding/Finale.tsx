@@ -29,7 +29,7 @@ export function Interlude({ copy, onBack, onContinue, photoKey, shopsFor, swatch
       <View style={finaleStyles.interludeCopy}>
         <ActionLink label="Back" onPress={onBack} />
         <Text style={finaleStyles.kicker}>{copy.kicker.toUpperCase()}</Text>
-        <Text style={finaleStyles.title}>{copy.title}</Text>
+        <Text accessibilityRole="header" style={finaleStyles.title}>{copy.title}</Text>
         {swatches.length > 0 ? (
           <View style={finaleStyles.swatches}>
             {swatches.map((hex) => <View key={hex} style={[finaleStyles.swatch, { backgroundColor: hex }]} />)}
@@ -64,11 +64,11 @@ export function Composing({ lines, onDone, settled }: { lines: string[]; onDone:
   }, [allShown, settled]);
 
   return (
-    <Pressable accessibilityHint="Opens your style brief" accessibilityRole="button" onPress={finish} style={finaleStyles.composing}>
+    <Pressable accessibilityHint="Opens your style brief" accessibilityRole="button" accessibilityState={{ disabled: !settled }} onPress={finish} style={finaleStyles.composing}>
       <Wordmark />
       <View style={finaleStyles.composingCopy}>
         <Text style={finaleStyles.kicker}>A MOMENT</Text>
-        <Text style={finaleStyles.title}>Composing your edit…</Text>
+        <Text accessibilityRole="header" style={finaleStyles.title}>Composing your edit…</Text>
         {lines.slice(0, shown).map((line) => <Text key={line} style={finaleStyles.line}>{line}</Text>)}
       </View>
       <Text style={finaleStyles.hint}>{settled ? "Opens by itself · tap to skip" : "Saving your answers…"}</Text>
@@ -89,7 +89,7 @@ export function BriefScreen({ answers, coveted, onChangeAnswer, onShowEdit }: {
         <ActionLink color={colors.muted} label="Change an answer" onPress={onChangeAnswer} />
       </View>
       <Text style={finaleStyles.kicker}>N° 02 · YOUR STYLE BRIEF</Text>
-      <Text style={finaleStyles.title}>{briefHeadline(answers)}</Text>
+      <Text accessibilityRole="header" style={finaleStyles.title}>{briefHeadline(answers)}</Text>
       <View style={finaleStyles.rows}>
         {briefRows(answers).map((row) => (
           <View key={row.label} style={finaleStyles.row}>
@@ -116,7 +116,7 @@ export function Reveal({ answers, onOpen, pieces }: { answers: OnboardingAnswers
     <ScrollView contentContainerStyle={finaleStyles.content} style={finaleStyles.screen}>
       <PhotoFrame fallback="" photoKey="reveal" shopsFor={answers.details.shopsFor} style={finaleStyles.revealPhoto} />
       <Text style={finaleStyles.kicker}>N° 02 · YOUR EDIT</Text>
-      <Text style={finaleStyles.title}>Your edit is ready.</Text>
+      <Text accessibilityRole="header" style={finaleStyles.title}>Your edit is ready.</Text>
       <Text style={finaleStyles.body}>{revealSummary(answers)}</Text>
       {pieces.length > 0 ? (
         <>

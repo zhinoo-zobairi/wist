@@ -88,7 +88,7 @@ export function CovetStep({ brands, catalogueStatus, coveted, houseIds, items, o
           const price = formatPrice(item.currentPrice, item.currency);
           return (
             <Pressable
-              accessibilityLabel={`${item.name}, ${price}`}
+              accessibilityLabel={`${item.name}, ${price}${sizes.length > 0 ? `, size ${sizes.join(", ")}` : ""}`}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: isCoveted, disabled }}
               disabled={disabled}
@@ -128,7 +128,7 @@ export function NotifyStep({ brands, onAnswered, sample }: {
   const house = (sample && brands.find((brand) => brand.id === sample.brandId)?.name) ?? "WIST";
   return (
     <View style={storeStyles.stack}>
-      <View accessibilityLabel="An example notification" accessible style={storeStyles.banner}>
+      <View accessible style={storeStyles.banner}>
         <Text style={storeStyles.bannerTitle}>{house}: a drop in your size</Text>
         <Text style={storeStyles.bannerBody}>
           {sample
