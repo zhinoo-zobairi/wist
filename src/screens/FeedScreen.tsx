@@ -5,6 +5,7 @@ import { Icon } from "../components/Icon";
 import { IndexStatus } from "../components/IndexStatus";
 import { ProductPhoto } from "../components/ProductPhoto";
 import { Wordmark } from "../components/Wordmark";
+import { describableAlerts } from "../describableAlerts";
 import { pageStyle, useLayout } from "../layout";
 import { useWistStore } from "../store/useWistStore";
 import { formatPrice } from "../money";
@@ -35,10 +36,9 @@ export function FeedScreen({ brands, catalogueStatus, hasUnreadAlerts, items, on
 
   const followedBrands = brands.filter((brand) => followedBrandIds.includes(brand.id));
   const brandsById = Object.fromEntries(brands.map((brand) => [brand.id, brand]));
-  const allItems = items;
-  const latestAlert = alerts[0];
-  const alertItem = latestAlert ? allItems.find((item) => item.id === latestAlert.itemId) : undefined;
-  const edit = allItems.filter((item) => followedBrandIds.includes(item.brandId)).slice(0, 4);
+  // The same list as the Alerts hero and the unread dot, so Home never names another drop.
+  const drop = describableAlerts(alerts, items, brands)[0];
+  const edit = items.filter((item) => followedBrandIds.includes(item.brandId)).slice(0, 8);
 
   return (
     <ScrollView
@@ -69,33 +69,35 @@ export function FeedScreen({ brands, catalogueStatus, hasUnreadAlerts, items, on
           <Text style={styles.kicker}>YOUR PERSONAL EDIT · TODAY</Text>
           <Text style={styles.title}>Pieces worth{`\n`}your attention.</Text>
           <Text style={styles.dek}>Selected from the houses you follow, with signals that matter.</Text>
+          {/* Compact folds the quiet block into one line; wide keeps it as the right column. */}
+          {!drop && !wide ? <Text style={styles.quietLine}>WIST IS WATCHING · NO CHANGES YET</Text> : null}
         </View>
 
-        {latestAlert && alertItem ? (
+        {drop ? (
           <Pressable
             accessibilityRole="button"
             onPress={onOpenAlerts}
             style={({ pressed }) => [styles.signal, wide && styles.signalWide, pressed && styles.pressed]}
           >
-            <ProductPhoto style={styles.signalImage} uri={alertItem.imageUrl} />
+            <ProductPhoto style={styles.signalImage} uri={drop.item.imageUrl} />
             <View style={styles.signalBody}>
               <Text style={styles.signalKicker}>A COVETED PIECE JUST DROPPED</Text>
-              <Text style={styles.signalName}>{alertItem.name}</Text>
+              <Text style={styles.signalName}>{drop.item.name}</Text>
               <View style={styles.priceRow}>
-                <Text style={styles.signalPrice}>{formatPrice(latestAlert.newPrice, alertItem.currency)}</Text>
-                <Text style={styles.oldPrice}>{formatPrice(latestAlert.oldPrice, alertItem.currency)}</Text>
-                <Text style={styles.percent}>−{latestAlert.pctOff}%</Text>
+                <Text style={styles.signalPrice}>{formatPrice(drop.alert.newPrice, drop.item.currency)}</Text>
+                <Text style={styles.oldPrice}>{formatPrice(drop.alert.oldPrice, drop.item.currency)}</Text>
+                <Text style={styles.percent}>−{drop.alert.pctOff}%</Text>
               </View>
               <Text style={styles.signalLink}>VIEW THE SIGNAL  →</Text>
             </View>
           </Pressable>
-        ) : (
-          <View style={[styles.quietSignal, wide && styles.quietSignalWide]}>
+        ) : wide ? (
+          <View style={[styles.quietSignal, styles.quietSignalWide]}>
             <Text style={styles.quietKicker}>WIST IS WATCHING</Text>
             <Text style={styles.quietTitle}>No meaningful changes yet.</Text>
             <Text style={styles.quietBody}>When a coveted piece drops in price, it will interrupt the quiet here.</Text>
           </View>
-        )}
+        ) : null}
       </View>
 
       <View style={styles.sectionHead}>
@@ -117,7 +119,6 @@ export function FeedScreen({ brands, catalogueStatus, hasUnreadAlerts, items, on
 
       <View style={styles.sectionHead}>
         <Text style={styles.sectionTitle}>The edit</Text>
-        <Text style={styles.sectionNote}>FOR YOU</Text>
       </View>
       <View style={[styles.editGrid, wide && styles.editGridWide]}>
         {edit.length === 0 ? (
@@ -173,11 +174,12 @@ const styles = StyleSheet.create({
   badge: { backgroundColor: colors.wine, borderColor: colors.paper, borderRadius: 5, borderWidth: 2, height: 9, position: "absolute", right: -3, top: -3, width: 9 },
   // Wide: intro left (7), signal or quiet block right (5), aligned to the top.
   heroWide: { alignItems: "flex-start", flexDirection: "row", gap: spacing.gutterWide, paddingBottom: 38, paddingHorizontal: spacing.gutter, paddingTop: 35 },
-  intro: { paddingBottom: 28, paddingHorizontal: spacing.gutter, paddingTop: 35 },
+  intro: { paddingBottom: 28, paddingHorizontal: spacing.gutter, paddingTop: 20 },
   introWide: { flex: 7, paddingBottom: 0, paddingHorizontal: 0, paddingTop: 0 },
   kicker: typography.kicker,
   title: { ...typography.titleXL, marginTop: 10 },
   dek: { ...typography.body, marginTop: 13, maxWidth: 300 },
+  quietLine: { ...typography.kicker, color: colors.moss, marginTop: 16 },
   signal: { backgroundColor: colors.wine, borderRadius: radii.card, flexDirection: "row", marginBottom: 38, marginHorizontal: spacing.gutter, minHeight: 190, overflow: "hidden" },
   signalWide: { flex: 5, marginBottom: 0, marginHorizontal: 0 },
   signalImage: { width: "40%" },
@@ -196,8 +198,7 @@ const styles = StyleSheet.create({
   quietBody: { ...typography.body, marginTop: 4, maxWidth: 300 },
   sectionHead: { alignItems: "baseline", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.gutter },
   sectionTitle: typography.titleL,
-  sectionNote: typography.kicker,
-  houses: { gap: 10, paddingBottom: 40, paddingHorizontal: spacing.gutter, paddingTop: 14 },
+  houses: { gap: 10, paddingBottom: 24, paddingHorizontal: spacing.gutter, paddingTop: 14 },
   house: { borderColor: colors.line, borderTopWidth: 1, height: 94, justifyContent: "space-between", paddingTop: 9, width: 112 },
   houseIndex: typography.caption,
   houseName: typography.titleS,
