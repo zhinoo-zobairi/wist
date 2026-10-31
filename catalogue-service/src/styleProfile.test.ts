@@ -84,10 +84,29 @@ describe("style profile validation", () => {
         palettes: null,
         fit: null,
       }),
-    ).toEqual({ occasions: [], styles: [], shopsFor: null, palettes: [], fit: {} });
+    ).toStrictEqual({
+      occasions: [],
+      styles: [],
+      shopsFor: null,
+      palettes: [],
+      fit: {},
+    });
   });
 
-  it.each([
+  it("accepts the boundary values", () => {
+    const boundary = {
+      occasions: [],
+      styles: [],
+      defaultSizes: { tops: "123456789012" },
+      dropThreshold: 0,
+      helpWith: [],
+    };
+    expect(parseStyleProfile(boundary)).toStrictEqual(boundary);
+  });
+
+  // Typed explicitly: `toString` and `constructor` as keys clash with
+  // Object.prototype, so TypeScript cannot infer one element type for the table.
+  it.each<Record<string, unknown>>([
     { shopsFor: "kids" },
     { helpWith: ["weather", "weather"] },
     { helpWith: ["weather", "fewer_better", "use_what_i_own"] },
@@ -108,6 +127,12 @@ describe("style profile validation", () => {
     { gaps: ["umbrella"] },
     { dropThreshold: 15 },
     { dropThreshold: "20" },
+    { tasteAxes: { toString: "both" } },
+    { fit: { constructor: "slim" } },
+    { palettes: "earth" },
+    { signature: [1] },
+    { defaultSizes: ["M"] },
+    { fit: ["slim"] },
   ])("rejects an invalid brief answer: %j", (answer) => {
     expect(
       parseStyleProfile({ occasions: [], styles: [], ...answer }),
