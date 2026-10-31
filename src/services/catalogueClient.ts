@@ -18,13 +18,11 @@ import {
   STYLE_OPTIONS,
   TASTE_AXIS_OPTIONS,
   WORK_DRESS_CODE_OPTIONS,
-  type FitRow,
   type Occasion,
   type SizeKind,
   type Style,
   type StyleDetails,
   type StyleProfile,
-  type TasteAxis,
   GARMENT_CATEGORY_OPTIONS,
   FORMALITY_OPTIONS,
   WARMTH_OPTIONS,
@@ -193,12 +191,12 @@ function toAlert(value: unknown): Alert {
   };
 }
 
-const TASTE_ANSWERS = Object.fromEntries(
+const TASTE_ANSWERS = new Map<string, readonly string[]>(
   TASTE_AXIS_OPTIONS.map((axis) => [axis.id, [...axis.poles.map((pole) => pole.id), "both", "neither"]]),
-) as unknown as Record<TasteAxis, readonly string[]>;
-const FIT_ANSWERS = Object.fromEntries(
+);
+const FIT_ANSWERS = new Map<string, readonly string[]>(
   FIT_ROW_OPTIONS.map((row) => [row.id, row.options.map((option) => option.id)]),
-) as unknown as Record<FitRow, readonly string[]>;
+);
 const SIZE_KINDS: readonly SizeKind[] = ["tops", "bottoms", "shoes"];
 
 // The brief's answers. A catalogue that predates a field leaves it out, which
@@ -233,12 +231,12 @@ function toStyleDetails(value: Record<string, unknown>): StyleDetails {
     helpWith: many("helpWith", HELP_WITH_OPTIONS),
     workDressCode: one("workDressCode", WORK_DRESS_CODE_OPTIONS),
     tasteAxes: rows("tasteAxes", (axis, id) =>
-      (TASTE_ANSWERS[axis as TasteAxis] ?? []).includes(id as string)) as StyleDetails["tasteAxes"],
+      TASTE_ANSWERS.get(axis)?.includes(id as string) === true) as StyleDetails["tasteAxes"],
     palettes: many("palettes", PALETTE_OPTIONS),
     neverColours: many("neverColours", NEVER_COLOUR_OPTIONS),
     prints: one("prints", PRINT_OPTIONS),
     fit: rows("fit", (row, id) =>
-      (FIT_ANSWERS[row as FitRow] ?? []).includes(id as string)) as StyleDetails["fit"],
+      FIT_ANSWERS.get(row)?.includes(id as string) === true) as StyleDetails["fit"],
     defaultSizes: rows("defaultSizes", (kind, label) =>
       SIZE_KINDS.includes(kind as SizeKind) && typeof label === "string"),
     signature: many("signature", SIGNATURE_OPTIONS),

@@ -444,6 +444,35 @@ describe("catalogue client", () => {
     ).rejects.toThrow("invalid palettes");
   });
 
+  it.each([
+    [{ tasteAxes: { toString: "fluid" } }, "invalid tasteAxes"],
+    [{ fit: { constructor: "slim" } }, "invalid fit"],
+    [{ fit: { tops: "wide" } }, "invalid fit"],
+    [{ dropThreshold: 15 }, "invalid dropThreshold"],
+  ])("rejects a malformed brief answer %j", async (field, message) => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        profile: { occasions: [], styles: [], updatedAt: "2026-10-31T12:00:00.000Z", ...field },
+      })),
+    );
+
+    await expect(
+      loadStyleProfile(fetchImpl, "http://catalogue.test", "owner-token"),
+    ).rejects.toThrow(message);
+  });
+
+  it("keeps a drop threshold of 0 instead of clearing it", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        profile: { occasions: [], styles: [], updatedAt: "2026-10-31T12:00:00.000Z", dropThreshold: 0 },
+      })),
+    );
+
+    const profile = await loadStyleProfile(fetchImpl, "http://catalogue.test", "owner-token");
+
+    expect(profile?.details.dropThreshold).toBe(0);
+  });
+
   it("distinguishes an unanswered profile and rejects invalid selections", async () => {
     const fetchImpl = vi
       .fn()
