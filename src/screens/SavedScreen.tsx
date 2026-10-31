@@ -87,6 +87,8 @@ export function SavedScreen({
   return (
     <ScrollView
       contentContainerStyle={pageStyle(layout)}
+      // The first tap on ADD TO COVETED adds, rather than only closing the keyboard.
+      keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl onRefresh={onReload} refreshing={catalogueStatus === "loading" && allItems.length > 0} tintColor={colors.wine} />}
       showsVerticalScrollIndicator={false}
       style={styles.screen}
@@ -105,15 +107,18 @@ export function SavedScreen({
             Sandro Germany, and Claudie Pierlot Germany product pages.
           </Text>
           <TextInput
+            accessibilityLabel="Shop link"
             autoCapitalize="none"
             autoCorrect={false}
+            clearButtonMode="while-editing"
             keyboardType="url"
             onChangeText={setProductUrl}
             onSubmitEditing={() => void submitProduct()}
             placeholder="https://…"
             placeholderTextColor={colors.muted}
-            returnKeyType="done"
+            returnKeyType="go"
             style={styles.urlInput}
+            textContentType="URL"
             value={productUrl}
           />
           {importError ? <Text style={styles.importError}>{importError}</Text>
