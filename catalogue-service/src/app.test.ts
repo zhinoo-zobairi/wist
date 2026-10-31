@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { handleRequest } from "./app.js";
 import { SeedCatalogueRepository } from "./seedRepository.js";
-import type {
-  StyleProfile,
-  StyleProfileSelection,
+import {
+  emptyStyleDetails,
+  type StyleProfile,
+  type StyleProfileSelection,
 } from "./styleProfile.js";
 import type { StyleProfileRepository } from "./styleProfileRepository.js";
 
@@ -37,6 +38,8 @@ class MemoryStyleProfileRepository implements StyleProfileRepository {
 
   async replaceProfile(selection: StyleProfileSelection) {
     this.profile = {
+      ...emptyStyleDetails(),
+      ...this.profile,
       ...selection,
       updatedAt: "2026-08-21T12:00:00.000Z",
     };

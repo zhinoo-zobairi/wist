@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ClaudeOutfitSuggester } from "./claudeOutfitSuggester.js";
+import { emptyStyleDetails } from "./styleProfile.js";
 import type { SuggestionInput } from "./outfitSuggester.js";
 import type { Garment } from "./wardrobe.js";
 
@@ -9,7 +10,7 @@ const garment: Garment = { id: "b", name: "Navy shirt", category: "top", colors:
   photoUrl: "/private-photo", source: "photo", catalogueItemId: null, tagStatus: "tagged", createdAt: "stamp", updatedAt: "stamp" };
 const input: SuggestionInput = {
   garments: [garment, { ...garment, id: "a", category: "bottom", name: "Cream trousers", colors: ["cream"] }],
-  profile: { occasions: ["work"], styles: ["minimal"], updatedAt: "private-timestamp" },
+  profile: { ...emptyStyleDetails(), occasions: ["work"], styles: ["minimal"], updatedAt: "private-timestamp" },
   occasions: ["work", "travel"], focusGarmentIds: ["a"],
 };
 const outfits = [{ occasion: "work", garmentIds: ["b", "a"], reason: "Polished tones for work." }];

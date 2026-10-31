@@ -148,7 +148,10 @@ export type StyleProfileSelection = {
   styles: Style[];
 } & Partial<StyleDetails>;
 
-export type StyleProfile = StyleProfileSelection & {
+export type StyleProfile = {
+  occasions: Occasion[];
+  styles: Style[];
+} & StyleDetails & {
   updatedAt: string;
 };
 
