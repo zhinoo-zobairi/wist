@@ -96,6 +96,17 @@ const dropSizes = (
 
 const MAX_LOCAL_ALERTS = 100;
 
+// zustand persist writes on every change. After a failed read the session runs
+// on defaults, so writing would replace the stored preferences with them: keep
+// the stored blob as it was until a later read succeeds.
+let preferencesUnreadable = false;
+const preferencesStorage = {
+  getItem: (name: string) => AsyncStorage.getItem(name),
+  setItem: (name: string, value: string) =>
+    preferencesUnreadable ? Promise.resolve() : AsyncStorage.setItem(name, value),
+  removeItem: (name: string) => AsyncStorage.removeItem(name),
+};
+
 /** The follows a fresh install starts with; the catalogue seeds on top only while they are untouched. */
 export const seedFollowedBrandIds = seedBrands.map((brand) => brand.id);
 
@@ -384,7 +395,7 @@ export const useWistStore = create<WistState>()(
     }),
     {
       name: "wist-preferences",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => preferencesStorage),
       partialize: ({
         alertBaselineEstablished,
         alerts,
@@ -419,9 +430,11 @@ export const useWistStore = create<WistState>()(
           console.warn(
             `Stored preferences could not be read: ${error instanceof Error ? error.message : "Unknown error"}`,
           );
+          preferencesUnreadable = true;
           before.markHydrationFailed();
           return;
         }
+        preferencesUnreadable = false;
         state?.restoreSeedPrices();
       },
     },

@@ -347,6 +347,11 @@ describe("Wist store hydration", () => {
     expect(useWistStore.getState().hydrationFailed).toBe(true);
     expect(warn).toHaveBeenCalledExactlyOnceWith("Stored preferences could not be read: disk unreadable");
     expect(AsyncStorage.removeItem).not.toHaveBeenCalled();
+    // The session runs on defaults without writing them over the stored blob.
+    // (beforeEach's own setState wrote before the failed read; only later writes count.)
+    vi.mocked(AsyncStorage.setItem).mockClear();
+    useWistStore.getState().setIntroSeen(true);
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
     warn.mockRestore();
   });
 
