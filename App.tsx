@@ -401,14 +401,29 @@ export default function App() {
     }
   };
 
-  const importLiveProduct = async (productUrl: string) => {
+  // Two phases: a failed POST rejects (nothing was added); once it succeeds the
+  // watch exists on the server, so a failed refresh afterwards only resolves
+  // false and the screen reports it softly instead of as an error.
+  const importLiveProduct = async (productUrl: string): Promise<boolean> => {
     await importCatalogueWatch(productUrl);
     const previousBrandIds = brands.map((brand) => brand.id);
-    const [catalogue] = await Promise.all([reloadCatalogue(), refreshWatches()]);
-    if (!catalogue) throw new Error("Could not refresh the index");
+    const [catalogue, watchesRefreshed] = await Promise.all([
+      reloadCatalogue(),
+      refreshWatches().then(
+        () => true,
+        (error: unknown) => {
+          console.warn(
+            `Watch synchronization unavailable: ${error instanceof Error ? error.message : "Unknown error"}`,
+          );
+          return false;
+        },
+      ),
+    ]);
+    if (!catalogue) return false;
     // Only a house the import brought in is new; the reader's other choices stand.
     const newBrandIds = brandsToFollowAfterImport(previousBrandIds, catalogue.brands.map((brand) => brand.id));
     if (newBrandIds.length > 0) addFollowedBrands(newBrandIds);
+    return watchesRefreshed;
   };
 
   const renderScreen = () => {

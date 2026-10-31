@@ -25,7 +25,8 @@ type Props = {
   brands: Brand[];
   catalogueStatus: CatalogueStatus;
   items: Item[];
-  onImportProduct: (productUrl: string) => Promise<void>;
+  /** Rejects when the piece was not added; otherwise resolves whether the list could be refreshed. */
+  onImportProduct: (productUrl: string) => Promise<boolean>;
   onOpenItem: (itemId: string) => void;
   onReload: () => void;
   onToggleCovet: (item: Item) => void;
@@ -48,6 +49,7 @@ export function SavedScreen({
   const [productUrl, setProductUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
+  const [importNotice, setImportNotice] = useState("");
   const ids = useWistStore((state) => state.starredItemIds);
   const watchedSizesByItemId = useWistStore(
     (state) => state.watchedSizesByItemId,
@@ -64,10 +66,13 @@ export function SavedScreen({
     const url = productUrl.trim();
     if (!url || importing) return;
     setImportError("");
+    setImportNotice("");
     setImporting(true);
     try {
-      await onImportProduct(url);
+      // Resolving means the server holds the watch: the import is done.
+      const refreshed = await onImportProduct(url);
       setProductUrl("");
+      if (!refreshed) setImportNotice("Added. WIST could not refresh the list yet.");
     } catch (error) {
       setImportError(
         error instanceof Error ? error.message : "Could not add this product",
@@ -109,7 +114,8 @@ export function SavedScreen({
             style={styles.urlInput}
             value={productUrl}
           />
-          {importError ? <Text style={styles.importError}>{importError}</Text> : null}
+          {importError ? <Text style={styles.importError}>{importError}</Text>
+            : importNotice ? <Text style={styles.importNotice}>{importNotice}</Text> : null}
           <View style={styles.importButton}>
             <Button
               busy={importing}
@@ -183,6 +189,7 @@ const styles = StyleSheet.create({
   importBody: { ...typography.caption, marginTop: 3 },
   urlInput: { ...typography.body, color: colors.ink, borderBottomColor: colors.ink, borderBottomWidth: 1, marginTop: 18, paddingHorizontal: 0, paddingVertical: 10 },
   importError: { ...typography.caption, color: colors.wine, marginTop: 8 },
+  importNotice: { ...typography.caption, marginTop: 8 },
   importButton: { marginTop: 14 },
   columns: { alignItems: "flex-start", flexDirection: "row", gap: 48, paddingHorizontal: spacing.gutter },
   importCardWide: { flex: 5, marginBottom: 0, marginHorizontal: 0 },
