@@ -2,12 +2,12 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, fonts, radii } from "../theme";
 
-type PickerOption<Value extends string> = {
+type PickerOption<Value extends string | number> = {
   id: Value;
   label: string;
 };
 
-type OccasionStylePickerProps<Value extends string> = {
+type OccasionStylePickerProps<Value extends string | number> = {
   maxSelections?: number;
   onChange: (selected: Value[]) => void;
   options: readonly PickerOption<Value>[];
@@ -17,7 +17,7 @@ type OccasionStylePickerProps<Value extends string> = {
   disabled?: boolean;
 };
 
-export function OccasionStylePicker<Value extends string>({
+export function OccasionStylePicker<Value extends string | number>({
   maxSelections,
   onChange,
   options,
