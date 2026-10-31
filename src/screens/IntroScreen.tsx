@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
   headline: { color: colors.ink, fontFamily: fonts.display, fontSize: 42, lineHeight: 44, marginTop: 10 },
   body: { ...typography.body, color: colors.ink, marginTop: 12 },
   heartRow: { alignItems: "center", flexDirection: "row", gap: 10 },
-  credit: { ...typography.label, color: colors.muted, fontSize: 9, letterSpacing: 1.2, marginTop: 14 },
+  credit: { ...typography.label, color: colors.muted, marginTop: 14 },
   creditLight: { color: colors.onWineMuted },
   folio: { ...typography.label, bottom: 18, color: colors.muted, position: "absolute", right: spacing.gutter },
   priceCard: {
