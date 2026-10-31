@@ -24,7 +24,7 @@ import {
   loadCatalogue,
   loadPriceDropAlerts,
   loadStyleProfile,
-  saveStyleProfile,
+  saveStyleBrief,
   saveWatchSizes,
   setCatalogueWatch,
   type Catalogue,
@@ -195,17 +195,22 @@ export default function App() {
     if (!storeSettled) return;
     let cancelled = false;
     void synchronizeStyleProfile({
-      apply: (occasions, styles) => {
-        if (!cancelled) replaceStyleProfile(occasions, styles);
+      apply: (occasions, styles, details, unsynced) => {
+        if (!cancelled) replaceStyleProfile(occasions, styles, details, unsynced);
       },
       getLocal: () => {
         const state = useWistStore.getState();
         return state.profileStatus === "answered"
-          ? { occasions: state.occasions, styles: state.styles }
+          ? {
+              occasions: state.occasions,
+              styles: state.styles,
+              details: state.styleDetails,
+              unsynced: state.profileUnsynced,
+            }
           : null;
       },
       load: loadStyleProfile,
-      save: saveStyleProfile,
+      save: (occasions, styles, details) => saveStyleBrief(occasions, styles, details ?? {}),
     })
       .catch((error: unknown) => {
         console.warn(

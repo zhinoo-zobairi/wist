@@ -66,6 +66,8 @@ describe("commitStyleProfile", () => {
       getLocal: () => ({
         occasions: ["travel", "work"],
         styles: ["bold", "minimal"],
+        details: emptyStyleDetails(),
+        unsynced: false,
       }),
       load: async () => null,
       save,
@@ -74,10 +76,13 @@ describe("commitStyleProfile", () => {
     expect(save).toHaveBeenCalledWith(
       ["travel", "work"],
       ["bold", "minimal"],
+      emptyStyleDetails(),
     );
     expect(apply).toHaveBeenCalledWith(
       ["work", "travel"],
       ["minimal", "bold"],
+      emptyStyleDetails(),
+      false,
     );
   });
 
@@ -92,5 +97,47 @@ describe("commitStyleProfile", () => {
     });
 
     expect(save).not.toHaveBeenCalled();
+  });
+
+  it("marks a committed brief unsynced until the catalogue accepts it", async () => {
+    const apply = vi.fn();
+    const details = { ...emptyStyleDetails(), palettes: ["earth" as const] };
+
+    await expect(
+      commitStyleProfile({
+        occasions: ["work"],
+        styles: [],
+        details,
+        apply,
+        save: () => Promise.reject(new Error("offline")),
+      }),
+    ).rejects.toThrow("offline");
+
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(apply).toHaveBeenCalledWith(["work"], [], details, true);
+  });
+
+  // Loading first would replace answers the catalogue never saw with its older copy.
+  it("re-sends answers the catalogue never accepted instead of loading over them", async () => {
+    const details = { ...emptyStyleDetails(), palettes: ["earth" as const] };
+    const load = vi.fn();
+    const apply = vi.fn();
+    const save = vi.fn(async (): Promise<StyleProfile> => ({
+      occasions: ["work"],
+      styles: [],
+      details,
+      updatedAt: "2026-10-31T00:00:00.000Z",
+    }));
+
+    await synchronizeStyleProfile({
+      apply,
+      getLocal: () => ({ occasions: ["work"], styles: [], details, unsynced: true }),
+      load,
+      save,
+    });
+
+    expect(load).not.toHaveBeenCalled();
+    expect(save).toHaveBeenCalledWith(["work"], [], details);
+    expect(apply).toHaveBeenCalledWith(["work"], [], details, false);
   });
 });

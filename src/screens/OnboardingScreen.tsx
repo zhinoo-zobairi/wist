@@ -43,7 +43,7 @@ export function OnboardingScreen() {
         occasions,
         styles,
         apply: replaceStyleProfile,
-        save: saveStyleProfile,
+        save: (occasions, styles) => saveStyleProfile(occasions, styles),
       });
     } catch {
       Alert.alert(
