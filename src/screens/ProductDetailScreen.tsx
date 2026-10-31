@@ -260,11 +260,13 @@ export function ProductDetailScreen({
               <View style={styles.variantGrid}>
                 {item.variants.map((variant) => {
                   const selected = selectedSizes.includes(variant.label);
+                  const disabled = !coveted || buyBusy || watchBusy;
                   return (
                     <Pressable
                       accessibilityLabel={`Size ${variant.label}, ${variant.available ? "available" : "unavailable"}`}
-                      accessibilityState={{ selected }}
-                      disabled={!coveted || buyBusy || watchBusy}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled, selected }}
+                      disabled={disabled}
                       key={variant.id}
                       onPress={() => onToggleSize(variant.label)}
                       style={({ pressed }) => [
@@ -290,7 +292,7 @@ export function ProductDetailScreen({
               <Text style={styles.variantNote}>
                 {coveted
                   ? "Tap the sizes you want. WIST only alerts you when a drop lands in a chosen size — pick sold-out ones too."
-                  : "Faded sizes were unavailable at the last check."}
+                  : "Covet this piece to pick the sizes WIST should alert you on. Faded sizes were unavailable at the last check."}
               </Text>
             </View>
           ) : null}
