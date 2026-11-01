@@ -18,7 +18,7 @@ export const QUESTION_COUNT = 14;
 // The storyboard's order and copy ("WIST onboarding storyboard", 26 screens).
 export const ONBOARDING_STEPS: readonly Step[] = [
   { id: "shopsFor", kind: "question", chapter: "N° 02 · Your edit", title: "What do you shop for?", subtitle: "Every photograph after this is chosen from your answer." },
-  { id: "helpWith", kind: "question", chapter: "Chapter I · Your world", title: "What would make getting dressed easier?", subtitle: "Pick up to two. Dress me starts here." },
+  { id: "helpWith", kind: "question", chapter: "Chapter I · Your world", title: "What would make getting dressed easier?", subtitle: "Pick up to two. Dress me keeps them in mind when it explains an outfit." },
   { id: "occasions", kind: "question", chapter: "Chapter I · Your world", title: "Where does your wardrobe take you?", subtitle: "Each place you pick brings its own look onto this page." },
   { id: "workDressCode", kind: "question", chapter: "Chapter I · Your world", title: "What does work ask of you?", subtitle: "So a Monday suggestion is never too much, or too little." },
   { id: "interludeWork", kind: "interlude" },

@@ -178,12 +178,12 @@ export function briefPromises(answers: OnboardingAnswers, coveted: number): stri
   // sizes the alert fires in any size.
   const inPalette = details.palettes.length > 0;
   const sized = sizeLabels(details).length > 0;
-  // The second promise says "keep on your list", never "look for": there is no
+  // The second promise says "remember that you are missing", never "look for": there is no
   // product discovery yet (Decision 7, issue #18).
   return [
     `Dress you for ${forWork ? "work" : "your week"} from what you own${nouns.length > 0 ? `, starting with your ${listJoin(nouns)}` : ""}.`,
     gaps.length > 0
-      ? `Keep ${listJoin(gaps)} on your list${inPalette && sized ? ", in your palette and size" : inPalette ? ", in your palette" : sized ? ", in your size" : ""}.`
+      ? `Remember that you are missing ${listJoin(gaps)}, so no outfit counts on ${gaps.length === 1 ? "it" : "them"}.`
       : inPalette
         ? `Build every outfit inside your palette${sized ? ", in your size" : ""}.`
         : "Build every outfit around what you already wear.",

@@ -136,7 +136,7 @@ const FEATURES = [
   { title: "Price drops, in your size", body: "Covet a piece, pick the sizes you wear, and Wist checks the shop for you." },
   { title: "Alerts that speak once", body: "A drop is announced when it is a new low, and never twice." },
   { title: "Your wardrobe, by photo", body: "Photograph what you own and it is read, named and tagged for you." },
-  { title: "Dressed for today", body: "Outfits composed from your own pieces, for the occasion and the weather." },
+  { title: "Dressed for today", body: "Outfits composed from your own pieces, for the occasion and, with your location, the weather." },
 ];
 
 export function IntroScreen({ onBegin, onSkip }: Props) {

@@ -188,7 +188,7 @@ export function StepBody({ answers, onChange, pieces = [], step }: {
           <Group label="Every week, I reach for" note="Outfits are built around these first.">
             <OccasionStylePicker onChange={(signature) => setDetails({ signature })} options={signatureFor(shopsFor)} selected={details.signature} />
           </Group>
-          <Group label="My wardrobe is missing" note="Kept on your list, so outfits and your edit plan around what is missing.">
+          <Group label="My wardrobe is missing" note="Kept in your style brief, so no outfit counts on a piece you do not own.">
             <PhotoChoice
               layout="rows" onChange={(gaps) => setDetails({ gaps })} options={GAP_OPTIONS}
               photoPrefix="gap" selected={details.gaps} shopsFor={shopsFor}

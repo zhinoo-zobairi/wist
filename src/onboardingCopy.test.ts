@@ -73,7 +73,7 @@ describe("onboarding copy", () => {
   it("promises what WIST will do with the answers", () => {
     expect(briefPromises(reader, 3)).toEqual([
       "Dress you for work from what you own, starting with your blazer, fine knits and loafers.",
-      "Keep a long coat and evening shoes on your list, in your palette and size.",
+      "Remember that you are missing a long coat and evening shoes, so no outfit counts on them.",
       "Tell you when your three pieces fall 20% or more, in your size.",
     ]);
     expect(briefPromises({ ...blank, notificationsAllowed: false }, 0)[2]).toBe(
@@ -87,7 +87,14 @@ describe("onboarding copy", () => {
     expect(briefPromises(noGaps, 1)[2]).toBe("Tell you when your piece falls 20% or more, in your size.");
     expect(briefPromises(blank, 0)[1]).toBe("Build every outfit around what you already wear.");
     const noSizes = { ...reader, details: { ...reader.details, defaultSizes: {} } };
-    expect(briefPromises(noSizes, 3)[1]).toBe("Keep a long coat and evening shoes on your list, in your palette.");
+    expect(briefPromises(noSizes, 3)[1]).toBe(
+      "Remember that you are missing a long coat and evening shoes, so no outfit counts on them.",
+    );
+  });
+
+  it("names a single gap and counts on it, not on them", () => {
+    const oneGap = { ...reader, details: { ...reader.details, gaps: ["bag" as const] } };
+    expect(briefPromises(oneGap, 3)[1]).toBe("Remember that you are missing a good bag, so no outfit counts on it.");
   });
 
   it("composes from the houses, sizes and pieces", () => {
