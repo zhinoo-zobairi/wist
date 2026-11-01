@@ -43,7 +43,7 @@ function writeGuard(condition: WriteCondition): { sql: string; params: string[] 
 function tagsDiffer(stored: GarmentInput, next: GarmentInput): boolean {
   return stored.name !== next.name || stored.category !== next.category ||
     stored.formality !== next.formality || stored.warmth !== next.warmth ||
-    stored.colors.join("\n") !== next.colors.join("\n") ||
+    JSON.stringify(stored.colors) !== JSON.stringify(next.colors) ||
     [...stored.occasions].sort().join() !== [...next.occasions].sort().join();
 }
 
@@ -282,7 +282,8 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
     this.recordChange(new Date().toISOString());
   }
 
-  // Called inside the caller's transaction so the change and its record commit together.
+  // Garment writes call this inside their own transaction so the change and its record commit
+  // together; recordBriefChange calls it alone, which is safe as a single statement.
   private recordChange(changedAt: string): void {
     this.database.prepare(`
       INSERT INTO wardrobe_change_log (id, last_changed_at) VALUES (1, ?)

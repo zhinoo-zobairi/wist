@@ -347,6 +347,7 @@ describe("SQLite wardrobe repository", () => {
       ["category", { category: "outerwear" }],
       ["colours", { colors: ["red"] }],
       ["colour order", { colors: ["cream", "navy"] }],
+      ["colours that read the same once joined with a line break", { colors: ["navy\ncream"] }],
       ["formality", { formality: "formal" }],
       ["warmth", { warmth: "heavy" }],
       ["occasions", { occasions: ["evening"] }],
