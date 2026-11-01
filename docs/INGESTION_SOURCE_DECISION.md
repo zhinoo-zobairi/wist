@@ -191,9 +191,9 @@ supported as before.
 
 Update (2026-11-01): Goelia 1995 and Gaala are supported through the generic
 Shopify adapter with no new adapter or stored data; recorded product fixtures
-cover both. Gaala rate-limits requests to roughly one a minute, so an import or
-watch check that lands too soon after another Gaala request fails with HTTP 429
-and is tried again at the next watch cycle. Sézane still answers with a
+cover both. Gaala rate-limits requests to roughly one a minute, so the owner
+approved spacing Gaala requests at least 60 s apart (every other shop stays at
+10 s), with no retries. Sézane still answers with a
 DataDome challenge, so it keeps waiting for an Awin publisher account. Jonak
 Paris redirects WIST's identified client to Google and is not supported.
 
