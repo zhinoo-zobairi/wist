@@ -471,6 +471,18 @@ describe("saving the style brief", () => {
     await expect(wardrobe.lastChangedAt()).resolves.toBe("2026-11-01T09:00:00.000Z");
   });
 
+  it.each<[string, Record<string, unknown>]>([
+    ["drop threshold", { dropThreshold: 20 }],
+    ["default sizes", { defaultSizes: { tops: "S", shoes: "38" } }],
+    ["shops-for answer", { shopsFor: "womenswear" }],
+  ])("records nothing for a save that changes only the %s, which the outfit engine never reads", async (_, change) => {
+    const { wardrobe, put } = setup();
+    await put(brief);
+    at("09:05:00");
+    await expect(put({ ...brief, ...change })).resolves.toMatchObject({ status: 200 });
+    await expect(wardrobe.lastChangedAt()).resolves.toBe("2026-11-01T09:00:00.000Z");
+  });
+
   it("records nothing for a rejected brief", async () => {
     const { wardrobe, put } = setup();
     await expect(put({ occasions: ["nowhere"], styles: [] })).resolves.toMatchObject({ status: 400 });

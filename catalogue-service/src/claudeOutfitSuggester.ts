@@ -31,11 +31,14 @@ If the available garments cannot form a suitable outfit for an occasion, return 
 
 // The brief's answers that shape an outfit. Sizes, the drop threshold and what
 // the owner shops for steer alerts and photographs instead, and the timestamp
-// is private, so none of them is sent.
-function outfitProfile({
-  occasions, styles, workDressCode, tasteAxes, palettes, neverColours, prints, fit, signature, helpWith, gaps,
-}: StyleProfile) {
-  return { occasions, styles, workDressCode, tasteAxes, palettes, neverColours, prints, fit, signature, helpWith, gaps };
+// is private, so none of them is sent. Saving a brief refreshes ideas only when
+// one of these differs (app.ts).
+export const OUTFIT_PROFILE_FIELDS = [
+  "occasions", "styles", "workDressCode", "tasteAxes", "palettes", "neverColours", "prints", "fit", "signature", "helpWith", "gaps",
+] as const satisfies readonly (keyof StyleProfile)[];
+
+function outfitProfile(profile: StyleProfile) {
+  return Object.fromEntries(OUTFIT_PROFILE_FIELDS.map((field) => [field, profile[field]]));
 }
 
 export class ClaudeOutfitSuggester implements OutfitSuggester {

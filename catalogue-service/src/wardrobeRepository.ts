@@ -28,6 +28,6 @@ export interface WardrobeRepository {
   countGarments(): Promise<number>;
   /** When the tagged garments or the style brief last changed, or null if they never have. */
   lastChangedAt(): Promise<string | null>;
-  /** Records that the style brief changed: outfit ideas are built from it, so it counts like a garment change. */
+  /** Records that what outfit ideas read from the style brief changed, which counts like a garment change. */
   recordBriefChange(): Promise<void>;
 }

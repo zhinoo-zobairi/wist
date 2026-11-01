@@ -256,7 +256,8 @@ checks every **60 seconds** and runs one Claude call when one of these is due:
 - **10 minutes after the last change** to the tagged wardrobe (a garment added,
   successfully tagged, deleted after it was tagged, or edited so that its name,
   category, colours, formality, warmth or occasions differ) or the style brief
-  (`PUT /v1/profile`) saved with a different answer; every further change
+  (`PUT /v1/profile`) saved with a different answer the outfit engine reads
+  (not sizes, the drop threshold or what you shop for); every further change
   restarts the wait. A notes-only edit, a save that changes nothing, photo
   uploads still being tagged and failed tagging are not changes;
 - at **03:00** server-local time, only if outfits are still out of date (a

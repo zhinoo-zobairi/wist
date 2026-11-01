@@ -305,7 +305,7 @@ stored ideas, saved outfits, a run log and an in-process scheduler.
 
 | Rule | Approved value |
 |---|---|
-| Change trigger | One run 10 minutes after the last change to the tagged wardrobe; each change restarts the wait. Photo uploads awaiting tags and failed tagging are not changes. A change is an edit where name, category, colours, formality, warmth or occasions differ; a notes-only edit or a no-op save, and deleting an untagged or failed garment, are not changes. Saving the style brief with any different answer is a change, so a run follows after the same wait and counts toward the cap; saving it unchanged is not (approved 2026-11-01) |
+| Change trigger | One run 10 minutes after the last change to the tagged wardrobe; each change restarts the wait. Photo uploads awaiting tags and failed tagging are not changes. A change is an edit where name, category, colours, formality, warmth or occasions differ; a notes-only edit or a no-op save, and deleting an untagged or failed garment, are not changes. Saving the style brief with a different answer the outfit engine reads (occasions, styles, work dress code, taste, palettes, never colours, prints, fit, signature pieces, help with, gaps) is a change, so a run follows after the same wait and counts toward the cap; saving it unchanged, or changing only sizes, the drop threshold or what the owner shops for, is not (approved 2026-11-01) |
 | Catch-up | At 03:00 local only if outfits are out of date; checked once per day |
 | More ideas | One tap queues one run; counts toward the cap; `503` without a key, checked before the wardrobe size |
 | One run | One Claude call, up to 2 new outfits per profile occasion (all five without a profile); change-triggered runs favour pieces changed since the last success |

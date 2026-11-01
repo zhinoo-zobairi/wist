@@ -5,7 +5,8 @@ import { ownerAuthError } from "./ownerAuth.js";
 import type { GarmentPhotoStore } from "./garmentPhotoStore.js";
 import type { GarmentTagger } from "./garmentTagger.js";
 import type { CatalogueRepository } from "./repository.js";
-import { parseStyleProfile } from "./styleProfile.js";
+import { OUTFIT_PROFILE_FIELDS } from "./claudeOutfitSuggester.js";
+import { parseStyleProfile, type StyleProfile } from "./styleProfile.js";
 import type { StyleProfileRepository } from "./styleProfileRepository.js";
 import { parseWatchSizes } from "./watchedSizes.js";
 import type { WardrobeRepository } from "./wardrobeRepository.js";
@@ -95,9 +96,11 @@ export async function handleRequest(
     }
     const before = await options.profiles.getProfile();
     const profile = await options.profiles.replaceProfile(selection);
-    // Outfit ideas are built from the brief, so a different brief is a change like a wardrobe edit.
-    // Every save moves updatedAt, so the comparison leaves it out.
-    if (!isDeepStrictEqual(before && { ...before, updatedAt: "" }, { ...profile, updatedAt: "" })) {
+    // Outfit ideas are built from the brief, so a brief that differs in what the engine reads is a
+    // change like a wardrobe edit. Sizes, drop threshold, shops-for and the save time are not read.
+    const engineReads = (stored: StyleProfile | null) =>
+      stored && OUTFIT_PROFILE_FIELDS.map((field) => stored[field]);
+    if (!isDeepStrictEqual(engineReads(before), engineReads(profile))) {
       await options.wardrobe?.recordBriefChange();
     }
     return { status: 200, body: { profile } };
