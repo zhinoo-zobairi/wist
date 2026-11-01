@@ -6,6 +6,10 @@ phone reaches them through Tailscale, a private network, from home or away. The
 web app's bundle contains the owner token, so nothing is exposed to the internet
 (never `tailscale funnel`) and pairing (#20) can stay deferred.
 
+The public page in `site/` is a separate service with its own way in, a
+Cloudflare Tunnel to a static file server. It never exposes this catalogue;
+see [HOSTING_PUBLIC_SITE.md](HOSTING_PUBLIC_SITE.md).
+
 ```text
 iPhone Safari ──https (Tailscale, 443)──▶ AtomMan (Windows) ─▶ WSL Ubuntu
                                             └─ tailscaled "serve" ─▶ 127.0.0.1:4000 systemd: wist-catalogue
