@@ -337,7 +337,7 @@ export type WeatherSummary = {
   maxWindKph: number;
   condition: "clear" | "cloudy" | "fog" | "drizzle" | "rain" | "snow" | "thunderstorm";
 };
-/** The 06:00 ranking of every stored outfit; `reasons` covers the top 3. */
+/** The 06:00 ranking of every stored outfit; `reasons` covers the best-ranked outfit of each occasion, up to 5. */
 export type DailyPick = { day: string; weather: WeatherSummary; order: string[]; reasons: Record<string, string> };
 export type OutfitBoard = { suggestions: OutfitIdea[]; saved: SavedOutfit[]; status: OutfitStatus; today: DailyPick | null };
 
