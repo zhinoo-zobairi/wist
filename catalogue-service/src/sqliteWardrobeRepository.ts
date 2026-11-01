@@ -39,6 +39,14 @@ function writeGuard(condition: WriteCondition): { sql: string; params: string[] 
   return { sql: "updated_at = ?", params: [condition] };
 }
 
+/** The fields outfits are built from. Notes and photos are not among them. */
+function tagsDiffer(stored: GarmentInput, next: GarmentInput): boolean {
+  return stored.name !== next.name || stored.category !== next.category ||
+    stored.formality !== next.formality || stored.warmth !== next.warmth ||
+    stored.colors.join("\n") !== next.colors.join("\n") ||
+    [...stored.occasions].sort().join() !== [...next.occasions].sort().join();
+}
+
 export class SqliteWardrobeRepository implements WardrobeRepository {
   private readonly database: DatabaseSync;
 
@@ -144,6 +152,11 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
   }
 
   async getGarment(id: string): Promise<Garment | null> {
+    return this.findGarment(id);
+  }
+
+  // Synchronous, so a transaction can read a garment without awaiting.
+  private findGarment(id: string): Garment | null {
     const row = this.database.prepare("SELECT * FROM garments WHERE id = ?")
       .get(id) as unknown as GarmentRow | undefined;
     return row ? this.readGarment(row) : null;
@@ -244,13 +257,18 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
     const now = new Date().toISOString();
     this.database.exec("BEGIN IMMEDIATE");
     try {
+      const stored = this.findGarment(id);
       const result = this.database.prepare(`
         UPDATE garments SET name = ?, category = ?, formality = ?, warmth = ?, notes = ?, updated_at = ?, tag_status = 'tagged'
         WHERE id = ? AND ${guard.sql}
       `).run(input.name, input.category, input.formality, input.warmth, input.notes, now, id, ...guard.params);
       if (result.changes > 0) {
         this.writeChildSets(id, input);
-        this.recordChange(now);
+        // A save that leaves the tags as they were (a note, a no-op) must not trigger a paid run.
+        // A garment that was not tagged yet gains its tags now, so that counts.
+        if (stored === null || stored.tagStatus !== "tagged" || tagsDiffer(stored, input)) {
+          this.recordChange(now);
+        }
       }
       this.database.exec("COMMIT");
       return result.changes > 0 ? this.getGarment(id) : null;
@@ -284,8 +302,10 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
   async deleteGarment(id: string): Promise<boolean> {
     this.database.exec("BEGIN IMMEDIATE");
     try {
+      // A garment still awaiting tags, or whose tagging failed, never reached an outfit.
+      const wasTagged = this.findGarment(id)?.tagStatus === "tagged";
       const deleted = this.database.prepare("DELETE FROM garments WHERE id = ?").run(id).changes > 0;
-      if (deleted) this.recordChange(new Date().toISOString());
+      if (deleted && wasTagged) this.recordChange(new Date().toISOString());
       this.database.exec("COMMIT");
       return deleted;
     } catch (error) {

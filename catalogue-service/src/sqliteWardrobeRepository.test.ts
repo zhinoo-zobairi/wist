@@ -317,6 +317,84 @@ describe("SQLite wardrobe repository", () => {
     }
   });
 
+  describe("what counts as a change", () => {
+    async function withClock<T>(run: (repository: SqliteWardrobeRepository) => Promise<T>) {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        vi.setSystemTime(new Date("2026-10-10T09:00:00.000Z"));
+        return await run(createRepository());
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+    const at = (time: string) => vi.setSystemTime(new Date(`2026-10-10T${time}.000Z`));
+
+    it("ignores a notes-only save and a save that changes nothing", async () => {
+      await withClock(async (repository) => {
+        const garment = await repository.createGarment(input, "manual");
+        at("09:01:00");
+        await repository.replaceGarment(garment.id, { ...input, notes: "Hem taken up" });
+        await repository.replaceGarment(garment.id, { ...input, notes: "Hem taken up" });
+        await expect(repository.lastChangedAt()).resolves.toBe("2026-10-10T09:00:00.000Z");
+        await expect(repository.getGarment(garment.id)).resolves.toMatchObject({
+          notes: "Hem taken up", updatedAt: "2026-10-10T09:01:00.000Z",
+        });
+      });
+    });
+
+    it.each<[string, Partial<GarmentInput>]>([
+      ["name", { name: "Cream shirt" }],
+      ["category", { category: "outerwear" }],
+      ["colours", { colors: ["red"] }],
+      ["colour order", { colors: ["cream", "navy"] }],
+      ["formality", { formality: "formal" }],
+      ["warmth", { warmth: "heavy" }],
+      ["occasions", { occasions: ["evening"] }],
+    ])("records a change for different %s", async (_, change) => {
+      await withClock(async (repository) => {
+        const garment = await repository.createGarment(input, "manual");
+        at("09:01:00");
+        await repository.replaceGarment(garment.id, { ...input, ...change });
+        await expect(repository.lastChangedAt()).resolves.toBe("2026-10-10T09:01:00.000Z");
+      });
+    });
+
+    it("ignores a forced retag that returns the stored tags", async () => {
+      await withClock(async (repository) => {
+        const garment = await repository.createGarment(input, "manual");
+        at("09:01:00");
+        await repository.applyTags(garment.id, input, garment.updatedAt);
+        await expect(repository.lastChangedAt()).resolves.toBe("2026-10-10T09:00:00.000Z");
+      });
+    });
+
+    it("records a change when a failed garment is tagged by a human edit", async () => {
+      await withClock(async (repository) => {
+        const photo = await repository.createPhotoGarment("image/jpeg");
+        await repository.markTagFailed(photo.id);
+        at("09:01:00");
+        await repository.replaceGarment(photo.id, input);
+        await expect(repository.lastChangedAt()).resolves.toBe("2026-10-10T09:01:00.000Z");
+      });
+    });
+
+    it("does not record deleting a garment that was untagged or failed", async () => {
+      await withClock(async (repository) => {
+        const untagged = await repository.createPhotoGarment("image/jpeg");
+        const failed = await repository.createPhotoGarment("image/png");
+        await repository.markTagFailed(failed.id);
+        const tagged = await repository.createGarment(input, "manual");
+        at("09:01:00");
+        await expect(repository.deleteGarment(untagged.id)).resolves.toBe(true);
+        await expect(repository.deleteGarment(failed.id)).resolves.toBe(true);
+        await expect(repository.lastChangedAt()).resolves.toBe("2026-10-10T09:00:00.000Z");
+        at("09:02:00");
+        await expect(repository.deleteGarment(tagged.id)).resolves.toBe(true);
+        await expect(repository.lastChangedAt()).resolves.toBe("2026-10-10T09:02:00.000Z");
+      });
+    });
+  });
+
   it("marks an existing wardrobe as changed when the change log is first created", async () => {
     const directory = mkdtempSync(join(tmpdir(), "wist-change-log-"));
     directories.push(directory);
