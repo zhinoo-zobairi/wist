@@ -112,6 +112,8 @@ const maxRobotsBytes = 128 * 1024;
 export type PoliteFetchOptions = {
   userAgent: string;
   minHostSpacingMs: number;
+  /** Per-host overrides of minHostSpacingMs, keyed by exact hostname. */
+  hostSpacingMs?: Record<string, number>;
   robotsTtlMs: number;
   /** Per-request timeout; defaults to the approved 15 seconds. */
   requestTimeoutMs?: number;
@@ -165,7 +167,7 @@ export function createPoliteFetch(options: PoliteFetchOptions): typeof fetch {
       try {
         return await send();
       } finally {
-        nextAllowedAt.set(host, now() + options.minHostSpacingMs);
+        nextAllowedAt.set(host, now() + (options.hostSpacingMs?.[host] ?? options.minHostSpacingMs));
       }
     });
     tails.set(host, run.catch(() => undefined));
@@ -243,6 +245,8 @@ export function createDefaultPoliteFetch(): typeof fetch {
   return createPoliteFetch({
     userAgent: resolveUserAgent(process.env.CATALOGUE_USER_AGENT),
     minHostSpacingMs: 10_000,
+    // Gaala answers 429 with `retry-after: 60` when asked more than about once a minute.
+    hostSpacingMs: { "gaala.com": 60_000 },
     robotsTtlMs: 24 * 60 * 60 * 1000,
   });
 }

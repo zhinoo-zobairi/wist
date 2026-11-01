@@ -86,6 +86,7 @@ function setup(
   product: (init?: RequestInit) => Response | Promise<Response> = () =>
     new Response("product", { status: 200 }),
   requestTimeoutMs?: number,
+  hostSpacingMs?: Record<string, number>,
 ) {
   let clock = 1_000_000;
   const sleeps: number[] = [];
@@ -103,6 +104,7 @@ function setup(
   const politeFetch = createPoliteFetch({
     userAgent: USER_AGENT,
     minHostSpacingMs: 10_000,
+    hostSpacingMs,
     robotsTtlMs: 86_400_000,
     requestTimeoutMs,
     fetchImpl,
@@ -149,6 +151,17 @@ describe("createPoliteFetch", () => {
     sleeps.length = 0;
     await politeFetch("https://two.test/p/1");
     expect(sleeps).toEqual([10_000]); // only its own robots.txt then product, no wait on one.test
+  });
+
+  it("spaces a host with its own override and keeps the default for others", async () => {
+    const { politeFetch, sleeps } = setup({}, undefined, undefined, { "slow.test": 60_000 });
+    await politeFetch("https://slow.test/p/1");
+    await politeFetch("https://slow.test/p/2");
+    // robots.txt, p/1, p/2 on the slow host: two waits of its own 60 s.
+    expect(sleeps).toEqual([60_000, 60_000]);
+    sleeps.length = 0;
+    await politeFetch("https://shop.test/p/1");
+    expect(sleeps).toEqual([10_000]);
   });
 
   it("queues concurrent calls to one host in order", async () => {
