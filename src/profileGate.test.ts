@@ -114,4 +114,31 @@ describe("style profile startup gate", () => {
       }),
     ).toBe("onboarding");
   });
+
+  it("plays the intro on a device that has not seen it, even with a cached answered profile", () => {
+    expect(
+      resolveProfileGate({
+        fontsLoaded: true,
+        fontError: null,
+        introSeen: false,
+        profileLookupComplete: false,
+        profileStatus: "answered",
+        storeHydrated: true,
+      }),
+    ).toBe("intro");
+  });
+
+  it("plays the intro before an open N° 02 draft", () => {
+    expect(
+      resolveProfileGate({
+        fontsLoaded: true,
+        fontError: null,
+        introSeen: false,
+        onboardingInProgress: true,
+        profileLookupComplete: true,
+        profileStatus: "answered",
+        storeHydrated: true,
+      }),
+    ).toBe("intro");
+  });
 });
