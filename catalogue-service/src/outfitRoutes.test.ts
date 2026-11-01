@@ -100,6 +100,16 @@ describe("outfits API", () => {
       .resolves.toEqual({ status: 404, body: { error: "saved_outfit_not_found" } });
   });
 
+  it("rejects a malformed saved-outfit id with 400, not a server error", async () => {
+    const { request } = setup();
+    for (const id of ["%", "%E0%A4%A", "ab%zz"]) {
+      await expect(request("DELETE", `/v1/outfits/saved/${id}`))
+        .resolves.toEqual({ status: 400, body: { error: "invalid_outfit_id" } });
+    }
+    await expect(request("DELETE", "/v1/outfits/saved/caf%C3%A9"))
+      .resolves.toEqual({ status: 404, body: { error: "saved_outfit_not_found" } });
+  });
+
   it("queues More ideas within the cap and refuses it otherwise", async () => {
     const { outfits, request, populate } = setup();
     await expect(request("POST", "/v1/outfits/more")).resolves.toEqual({ status: 422, body: { error: "wardrobe_too_small" } });

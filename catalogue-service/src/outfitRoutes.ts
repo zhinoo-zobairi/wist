@@ -77,7 +77,12 @@ export async function handleOutfitRequest(
   const savedMatch = pathname.match(/^\/v1\/outfits\/saved\/([^/]+)$/);
   if (savedMatch?.[1]) {
     if (method !== "DELETE") return { status: 405, body: { error: "method_not_allowed" } };
-    const id = decodeURIComponent(savedMatch[1]);
+    let id: string;
+    try {
+      id = decodeURIComponent(savedMatch[1]);
+    } catch {
+      return { status: 400, body: { error: "invalid_outfit_id" } };
+    }
     return await outfits.deleteSaved(id)
       ? { status: 200, body: { id, deleted: true } }
       : { status: 404, body: { error: "saved_outfit_not_found" } };

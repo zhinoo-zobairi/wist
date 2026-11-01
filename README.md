@@ -289,7 +289,7 @@ are kept and list `missingGarmentIds`.
 | Route | Result |
 |---|---|
 | `POST /v1/outfits/saved` | `201 { saved }`, `404 suggestion_not_found` |
-| `DELETE /v1/outfits/saved/:id` | `200 { id, deleted: true }`, `404 saved_outfit_not_found` |
+| `DELETE /v1/outfits/saved/:id` | `200 { id, deleted: true }`, `400 invalid_outfit_id`, `404 saved_outfit_not_found` |
 | `POST /v1/outfits/more` | `202 { queued: true }`, `503 outfits_not_configured`, `422 wardrobe_too_small`, `429 daily_limit_reached` |
 
 Inference uses **`claude-opus-5-5`**, **medium effort**, **16,000 output tokens**
