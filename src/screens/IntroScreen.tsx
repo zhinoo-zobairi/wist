@@ -95,7 +95,7 @@ function Plate({
           accessibilityLabel={image.alt}
           onError={onError}
           resizeMode="cover"
-          source={{ uri: image.url }}
+          source={image.source}
           style={{ height, width }}
         />
       )}
@@ -119,7 +119,7 @@ function Credit({ image, light = false }: { image: EditorialImage; light?: boole
   const host = image.sourceUrl.replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "");
   return (
     <Text style={[styles.credit, light && styles.creditLight]}>
-      PHOTOGRAPHY · {image.brand.toUpperCase()} · {host.toUpperCase()}
+      PHOTOGRAPHY · {image.credit.toUpperCase()} · {host.toUpperCase()}
     </Text>
   );
 }
@@ -145,7 +145,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
   const [reduceMotion, setReduceMotion] = useState(false);
   // The plates are hotlinked from brand CDNs. One that fails keeps its wash rectangle and loses its credit line.
   const [failed, setFailed] = useState<Record<string, boolean>>({});
-  const markFailed = (image: EditorialImage) => setFailed((prev) => ({ ...prev, [image.url]: true }));
+  const markFailed = (image: EditorialImage) => setFailed((prev) => ({ ...prev, [image.sourceUrl]: true }));
   const scrollY = useRef(new Animated.Value(0)).current;
   const hint = useRef(new Animated.Value(0)).current;
 
@@ -215,7 +215,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
             <View style={[styles.page, page, wide && styles.pageWide]}>
               <View style={platesStyle}>
                 <Plate
-                  failed={failed[editorial.cover.url]}
+                  failed={failed[editorial.cover.sourceUrl]}
                   fillHeight={Math.round(height * 1.24)}
                   image={editorial.cover}
                   motion={motionFor(0)}
@@ -225,7 +225,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   width={plateArea}
                 />
                 <Plate
-                  failed={failed[editorial.coverInset.url]}
+                  failed={failed[editorial.coverInset.sourceUrl]}
                   image={editorial.coverInset}
                   motion={motionFor(0)}
                   onError={() => markFailed(editorial.coverInset)}
@@ -239,7 +239,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   <Text style={styles.kicker}>N° 01 · THE QUIET WAY TO WANT</Text>
                   <Text accessibilityRole="header" style={styles.masthead}>Wist.</Text>
                   <Text style={styles.body}>From Kurdish: to want something deeply, and to wait for it.</Text>
-                  {failed[editorial.cover.url] ? null : <Credit image={editorial.cover} />}
+                  {failed[editorial.cover.sourceUrl] ? null : <Credit image={editorial.cover} />}
                 </Copy>
                 <Folio index={0} />
               </View>
@@ -249,7 +249,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
             <View style={[styles.page, page, wide && styles.pageWide]}>
               <View style={platesStyle}>
                 <Plate
-                  failed={failed[editorial.covet.url]}
+                  failed={failed[editorial.covet.sourceUrl]}
                   image={editorial.covet}
                   motion={motionFor(1)}
                   onError={() => markFailed(editorial.covet)}
@@ -258,7 +258,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   width={Math.round(plateArea * 0.7)}
                 />
                 <Plate
-                  failed={failed[editorial.covetInset.url]}
+                  failed={failed[editorial.covetInset.sourceUrl]}
                   image={editorial.covetInset}
                   motion={motionFor(1)}
                   onError={() => markFailed(editorial.covetInset)}
@@ -275,7 +275,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   </View>
                   <Text accessibilityRole="header" style={styles.headline}>You covet a piece.</Text>
                   <Text style={styles.body}>Only the things you truly want, in the sizes you actually wear.</Text>
-                  {failed[editorial.covet.url] ? null : <Credit image={editorial.covet} />}
+                  {failed[editorial.covet.sourceUrl] ? null : <Credit image={editorial.covet} />}
                 </Copy>
                 <Folio index={1} />
               </View>
@@ -285,7 +285,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
             <View style={[styles.page, page, wide && styles.pageWide]}>
               <View style={platesStyle}>
                 <Plate
-                  failed={failed[editorial.watch.url]}
+                  failed={failed[editorial.watch.sourceUrl]}
                   image={editorial.watch}
                   motion={motionFor(2)}
                   onError={() => markFailed(editorial.watch)}
@@ -307,7 +307,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   <Text style={styles.kicker}>EVERY DAY, WITHOUT NOISE</Text>
                   <Text accessibilityRole="header" style={styles.headline}>Wist watches its price, quietly.</Text>
                   <Text style={styles.body}>No feed to scroll, nothing to check. It only speaks when something changes.</Text>
-                  {failed[editorial.watch.url] ? null : <Credit image={editorial.watch} />}
+                  {failed[editorial.watch.sourceUrl] ? null : <Credit image={editorial.watch} />}
                 </Copy>
                 <Folio index={2} />
               </View>
@@ -317,7 +317,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
             <View style={[styles.page, styles.pageWine, page, wide && styles.pageWide]}>
               <View style={[platesStyle, wide && styles.leftPageWine]}>
                 <Plate
-                  failed={failed[editorial.hero.url]}
+                  failed={failed[editorial.hero.sourceUrl]}
                   image={editorial.hero}
                   motion={motionFor(3)}
                   onError={() => markFailed(editorial.hero)}
@@ -344,7 +344,7 @@ export function IntroScreen({ onBegin, onSkip }: Props) {
                   <View style={styles.begin}>
                     <Button color={colors.card} label="Begin" labelColor={colors.wine} onPress={onBegin} />
                   </View>
-                  {failed[editorial.hero.url] ? null : <Credit image={editorial.hero} light />}
+                  {failed[editorial.hero.sourceUrl] ? null : <Credit image={editorial.hero} light />}
                 </Copy>
                 <Folio index={3} light />
               </View>
