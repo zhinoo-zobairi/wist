@@ -1,5 +1,6 @@
+import type { Occasion } from "./styleProfile.js";
+
 export const DAILY_PICK_HOUR = 6;
-export const MAX_PICK_REASONS = 3;
 const MAX_REASON_LENGTH = 200;
 
 export type Ranking = { order: string[]; reasons: Record<string, string> };
@@ -16,17 +17,30 @@ export function isDailyPickDue(attemptedDay: string | null, now: Date): boolean 
   return now.getHours() >= DAILY_PICK_HOUR && attemptedDay !== localDay(now);
 }
 
-/** Drops unknown and duplicate ids; keeps reasons only for the top 3 valid ids (decisions 5 and 7). */
+/**
+ * Drops unknown and duplicate ids; keeps a reason only for the best-ranked valid outfit of each
+ * occasion (so at most one per occasion, five in all), trimmed to 200 characters.
+ */
 export function keepValidRanking(
-  order: readonly string[], top: readonly { id: string; reason: string }[], knownIds: ReadonlySet<string>,
+  order: readonly string[], bestPerOccasion: readonly { id: string; reason: string }[],
+  occasionById: ReadonlyMap<string, Occasion>,
 ): Ranking {
   const kept: string[] = [];
-  for (const id of order) if (knownIds.has(id) && !kept.includes(id)) kept.push(id);
-  const topIds = new Set(kept.slice(0, MAX_PICK_REASONS));
+  const bestIds = new Set<string>();
+  const occasionsSeen = new Set<Occasion>();
+  for (const id of order) {
+    const occasion = occasionById.get(id);
+    if (occasion === undefined || kept.includes(id)) continue;
+    kept.push(id);
+    if (!occasionsSeen.has(occasion)) {
+      occasionsSeen.add(occasion);
+      bestIds.add(id);
+    }
+  }
   const reasons = new Map<string, string>();
-  for (const { id, reason } of top) {
+  for (const { id, reason } of bestPerOccasion) {
     const text = reason.trim().slice(0, MAX_REASON_LENGTH);
-    if (topIds.has(id) && text && !reasons.has(id)) reasons.set(id, text);
+    if (bestIds.has(id) && text && !reasons.has(id)) reasons.set(id, text);
   }
   return { order: kept, reasons: Object.fromEntries(reasons) };
 }

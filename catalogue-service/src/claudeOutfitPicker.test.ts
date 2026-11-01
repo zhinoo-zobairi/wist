@@ -15,7 +15,9 @@ const input: PickInput = {
     { id: "o2", occasion: "weekend", garmentIds: ["b", "gone"], saved: true },
   ],
 };
-const ranking = { order: ["o1", "o2"], top: [{ id: "o1", reason: "The coat keeps the rain off." }] };
+const ranking = { order: ["o1", "o2"], bestPerOccasion: [
+  { id: "o1", reason: "The coat keeps the rain off." }, { id: "o2", reason: "Light layers for a dry weekend." },
+] };
 function stub(response: unknown) {
   const parse = vi.fn().mockResolvedValue(response);
   return { picker: new ClaudeOutfitPicker({ beta: { messages: { parse } } } as unknown as Anthropic), parse };
@@ -56,12 +58,23 @@ describe("Claude outfit picker", () => {
     expect(outfits.text).toContain('{"id":"o2","occasion":"weekend","garmentIds":["b","gone"],"saved":true}');
   });
 
+  it("asks for one reason per occasion present, not for the overall top 3", async () => {
+    const { picker, parse } = stub({ stop_reason: "end_turn", parsed_output: ranking });
+    await picker.pick(input);
+    const { system, output_config } = parse.mock.calls[0]![0];
+    expect(system).toContain('"bestPerOccasion"');
+    expect(system).toContain("best-ranked outfit of each occasion");
+    expect(system).not.toContain("first 3");
+    expect(Object.keys(output_config.format.schema.properties)).toEqual(["order", "bestPerOccasion"]);
+  });
+
   it("checks refusal before reading parsed output", async () => {
     const response = { stop_reason: "refusal", get parsed_output() { throw new Error("Must not read"); } };
     await expect(stub(response).picker.pick(input)).resolves.toEqual({ ok: false, reason: "refused" });
   });
 
-  it.each([null, {}, { order: null, top: [] }, { order: ["o1"], top: [{ id: 1, reason: "x" }] }, { order: [1], top: [] }])(
+  it.each([null, {}, { order: null, bestPerOccasion: [] }, { order: ["o1"], bestPerOccasion: [{ id: 1, reason: "x" }] },
+    { order: [1], bestPerOccasion: [] }, { order: ["o1"], top: [{ id: "o1", reason: "The old field name." }] }])(
     "classifies malformed output %j", async (parsed_output) => {
       await expect(stub({ stop_reason: "end_turn", parsed_output }).picker.pick(input))
         .resolves.toEqual({ ok: false, reason: "invalid_output" });

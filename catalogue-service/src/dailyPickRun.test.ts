@@ -45,8 +45,9 @@ describe("runDueDailyPick", () => {
     const [saved] = await outfits.listSaved();
     pick.mockImplementation(async () => {
       expect(await outfits.dailyPickAttemptedDay()).toBe("2026-10-11");
-      return { ok: true, order: ["invented", saved!.id, idea!.id, saved!.id], top: [
-        { id: saved!.id, reason: ` ${"w".repeat(250)} ` }, { id: "invented", reason: "No." },
+      return { ok: true, order: ["invented", saved!.id, idea!.id, saved!.id], bestPerOccasion: [
+        { id: saved!.id, reason: ` ${"w".repeat(250)} ` }, { id: idea!.id, reason: "Dry office day." },
+        { id: "invented", reason: "No." },
       ] };
     });
     await expect(runDueDailyPick(deps, at(11, 6))).resolves.toBe("succeeded");
@@ -60,7 +61,29 @@ describe("runDueDailyPick", () => {
       { id: saved!.id, occasion: "weekend", garmentIds: [ids[0], ids[2]], saved: true },
     ]);
     await expect(outfits.getDailyPick()).resolves.toEqual({
-      day: "2026-10-11", weather, order: [saved!.id, idea!.id], reasons: { [saved!.id]: "w".repeat(200) },
+      day: "2026-10-11", weather, order: [saved!.id, idea!.id],
+      reasons: { [saved!.id]: "w".repeat(200), [idea!.id]: "Dry office day." },
+    });
+  });
+
+  it("stores a reason for the best-ranked outfit of each occasion, and none for the others", async () => {
+    const { deps, outfits, pick, ids } = await setup();
+    await outfits.storeSuggestions([
+      { occasion: "work", garmentIds: [ids[1]!, ids[2]!], reason: "Second work idea." },
+      { occasion: "travel", garmentIds: [ids[0]!, ids[1]!, ids[2]!], reason: "Travel idea." },
+    ]);
+    const stored = [...await outfits.listSuggestions(), ...await outfits.listSaved()];
+    const byReason = (reason: string) => stored.find((outfit) => outfit.reason === reason)!.id;
+    const [firstWork, secondWork, weekend, travel] =
+      ["Idea.", "Second work idea.", "Keep.", "Travel idea."].map(byReason);
+    pick.mockResolvedValue({ ok: true, order: [secondWork!, travel!, firstWork!, weekend!], bestPerOccasion: [
+      { id: secondWork!, reason: "Best for work." }, { id: firstWork!, reason: "Not the best for work." },
+      { id: travel!, reason: "Best for travel." }, { id: weekend!, reason: "Best for the weekend." },
+    ] });
+    await expect(runDueDailyPick(deps, at(11, 6))).resolves.toBe("succeeded");
+    await expect(outfits.getDailyPick()).resolves.toEqual({
+      day: "2026-10-11", weather, order: [secondWork, travel, firstWork, weekend],
+      reasons: { [secondWork!]: "Best for work.", [travel!]: "Best for travel.", [weekend!]: "Best for the weekend." },
     });
   });
 
@@ -68,7 +91,7 @@ describe("runDueDailyPick", () => {
     const { deps, outfits, pick, ids } = await setup();
     const [idea] = await outfits.listSuggestions();
     await deps.wardrobe.deleteGarment(ids[1]!); // used only by the stored idea
-    pick.mockResolvedValue({ ok: true, order: [], top: [] });
+    pick.mockResolvedValue({ ok: true, order: [], bestPerOccasion: [] });
     await runDueDailyPick(deps, at(11, 6));
     const sent = pick.mock.calls[0]![0];
     expect(sent.outfits.map((outfit) => outfit.id)).not.toContain(idea!.id);
@@ -110,7 +133,7 @@ describe("runDueDailyPick", () => {
 
   it("fails without storing when no ranked id is valid", async () => {
     const { deps, outfits, pick } = await setup();
-    pick.mockResolvedValue({ ok: true, order: ["invented"], top: [] });
+    pick.mockResolvedValue({ ok: true, order: ["invented"], bestPerOccasion: [] });
     await expect(runDueDailyPick(deps, at(11, 6))).resolves.toBe("failed");
     await expect(outfits.getDailyPick()).resolves.toBeNull();
   });

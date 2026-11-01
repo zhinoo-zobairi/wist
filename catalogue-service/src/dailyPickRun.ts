@@ -37,7 +37,9 @@ export async function runDueDailyPick(deps: DailyPickDeps, now: Date): Promise<D
     const result = await deps.picker.pick({ garments, weather, outfits });
     if (!result.ok) return "failed";
 
-    const ranking = keepValidRanking(result.order, result.top, new Set(outfits.map((outfit) => outfit.id)));
+    const ranking = keepValidRanking(
+      result.order, result.bestPerOccasion, new Map(outfits.map((outfit) => [outfit.id, outfit.occasion])),
+    );
     if (ranking.order.length === 0) return "failed";
     await deps.outfits.storeDailyPick({ day, weather, ...ranking });
     return "succeeded";

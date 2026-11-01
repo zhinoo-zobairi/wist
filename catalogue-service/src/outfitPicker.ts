@@ -8,7 +8,7 @@ export type PickOutfit = { id: string; occasion: Occasion; garmentIds: string[];
 export type PickInput = { garments: Garment[]; weather: WeatherSummary; outfits: PickOutfit[] };
 
 export type PickResult =
-  | { ok: true; order: string[]; top: { id: string; reason: string }[] }
+  | { ok: true; order: string[]; bestPerOccasion: { id: string; reason: string }[] }
   | { ok: false; reason: "refused" | "truncated" | "invalid_output" | "api_error" };
 
 export interface OutfitPicker {

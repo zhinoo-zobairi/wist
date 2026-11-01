@@ -6,7 +6,7 @@ import { wardrobePromptText } from "./wardrobePromptText.js";
 
 const PickSchema = z.object({
   order: z.array(z.string()),
-  top: z.array(z.object({ id: z.string(), reason: z.string() })),
+  bestPerOccasion: z.array(z.object({ id: z.string(), reason: z.string() })),
 });
 const outputFormat = zodOutputFormat(PickSchema);
 const safeOutputFormat = {
@@ -18,7 +18,7 @@ const safeOutputFormat = {
 
 const PICK_SYSTEM_PROMPT = `Rank every listed outfit for today's weather, best first.
 Return each listed outfit ID exactly once in "order". Never invent, repeat, or drop outfit IDs.
-In "top", give the first 3 outfits of your order a short plain reason of at most 200 characters saying why each suits today's weather.
+In "bestPerOccasion", give the best-ranked outfit of each occasion present among the listed outfits (the first outfit of that occasion in your order) a short plain reason of at most 200 characters saying why it suits today's weather. Give exactly one entry per occasion present, and no entry for any other outfit.
 Judge warmth, layering, rain, wind, and the condition from the garments' names, categories, colours, formality, and warmth.
 A saved outfit may list garment IDs that are no longer in the wardrobe; judge it by the garments that remain.
 Weather covers 07:00–22:00 at the owner's location: temperatures in °C, precipitation chance in percent, wind in km/h.
@@ -58,7 +58,7 @@ export class ClaudeOutfitPicker implements OutfitPicker {
         console.error("Invalid daily pick output", { stopReason: response.stop_reason });
         return { ok: false, reason: "invalid_output" };
       }
-      return { ok: true, order: parsed.data.order, top: parsed.data.top };
+      return { ok: true, order: parsed.data.order, bestPerOccasion: parsed.data.bestPerOccasion };
     } catch (error) {
       console.error("Daily pick API failed", {
         errorClass: error instanceof Error ? error.name : "UnknownError",

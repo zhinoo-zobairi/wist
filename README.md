@@ -279,8 +279,9 @@ happens at a time, and a run interrupted by a restart is marked failed at
 startup. The scheduler runs only while the catalogue service runs.
 
 `GET /v1/outfits` returns `{ suggestions, saved, status, today }`. `today` is
-the daily pick (`{ day, weather, order, reasons }`) or `null` when today's pick
-isn't ready. `status` has
+the daily pick (`{ day, weather, order, reasons }`, where `reasons` maps an
+outfit id to its "For today" reason) or `null` when today's pick isn't ready.
+`status` has
 `pending`, `running`, `lastRunAt`, `lastRunStatus`, `runsLeftToday` and
 `generationEnabled`. Ideas that use a deleted garment are removed; saved outfits
 are kept and list `missingGarmentIds`.
@@ -461,7 +462,7 @@ already prepared and saved outfits still show. Nothing is stored on the phone.
 Wardrobe “Dress me” → OutfitSuggestionsScreen
                         ├→ loadOutfits → GET /v1/outfits (every 15 s while pending/running)
                         ├→ currentCoarseLocation → saveLocation → PUT /v1/location (once per visit, fire-and-forget)
-                        ├→ orderForToday(today.order) → ordered ideas + saved outfits, top 3 "For today"
+                        ├→ orderForToday(today.order) → ordered ideas + saved outfits, best of each occasion "For today"
                         ├→ ♡ Save → saveOutfitIdea → POST /v1/outfits/saved
                         ├→ Remove → removeSavedOutfit → DELETE /v1/outfits/saved/:id
                         └→ More ideas → requestMoreIdeas → POST /v1/outfits/more
@@ -495,18 +496,20 @@ The attempt fetches today's weather for the stored location from the
 location's local time; **5-second timeout**, **zero retries**, **256 KB** cap),
 then makes **one Claude call** that ranks **every stored outfit** (ideas and
 saved) for that weather and gives a reason of at most **200 characters** for
-the **top 3**. A weather failure counts as that day's failed attempt, with no
+the **best-ranked outfit of each occasion** (at most five). A weather failure counts as that day's failed attempt, with no
 Claude call. Inference uses **`claude-sonnet-5-5`**, **medium effort**, **8,000
 output tokens**, a **90,000 ms timeout per attempt**, **two SDK retries**, and
 the server-side refusal fallback. The ID-sorted wardrobe text is cached with a
 **5-minute TTL**, followed by the weather and the outfit list. Unknown and
-duplicate outfit ids are dropped; only the **latest pick** is stored.
+duplicate outfit ids are dropped, and a reason is kept only for the best-ranked
+outfit of its occasion; only the **latest pick** is stored.
 
 Dress me orders ideas and saved outfits by the pick. Outfits missing from it,
 such as ideas generated after 06:00, follow, newest first. Saving a ranked idea
 keeps its place and reason: the saved copy takes over its spot in the pick.
-The top 3 in the current occasion filter show
-**For today** with their reason. The weather line shows the forecast the pick
+The best-ranked outfit of
+each occasion shows **For today** with its reason, so the chosen occasion's
+filter always shows its own. The weather line shows the forecast the pick
 used (“This morning's forecast: 6–11 °C · rain likely · Open-Meteo”). Without
 today's pick (before 06:00, or after a failed attempt) the board keeps the
 server order and says **Today's pick isn't ready**; the next attempt is

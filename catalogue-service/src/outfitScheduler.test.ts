@@ -141,7 +141,7 @@ describe("runDueOutfitGeneration", () => {
     vi.spyOn(outfits, "runSummary").mockRejectedValueOnce(new Error("disk"));
     const today = vi.fn<WeatherSource["today"]>().mockResolvedValue(
       { minC: 6, maxC: 11, precipitationChancePct: 70, maxWindKph: 20, condition: "rain" });
-    const pick = vi.fn<OutfitPicker["pick"]>().mockResolvedValue({ ok: true, order: [idea!.id], top: [] });
+    const pick = vi.fn<OutfitPicker["pick"]>().mockResolvedValue({ ok: true, order: [idea!.id], bestPerOccasion: [] });
 
     const stop = startOutfitScheduler({ ...deps, weatherSource: { today }, picker: { pick } }, 60_000);
     try {

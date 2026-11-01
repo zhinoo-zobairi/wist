@@ -566,12 +566,12 @@ call.
 | Weather | Existing Open-Meteo source (5,000 ms, zero retries, 256 KB); failure counts as the day's failed attempt, no Claude call |
 | Model | `claude-sonnet-5-5`, effort `medium`, `max_tokens` 8000, 90,000 ms timeout, 2 SDK retries, server-side refusal fallback (`server-side-fallback-2026-07-01`, `fallbacks: "default"`) |
 | Input | ID-sorted wardrobe text (cached, 5-minute TTL), then the weather, then each outfit as id, occasion, garment ids and whether it is saved; all of it is data, never instructions |
-| Output | A full ranking of every stored outfit id (ideas and saved) plus a reason of at most 200 characters for the top 3 |
-| Validation | Unknown and duplicate ids dropped; reasons kept only for the top 3 valid ids, trimmed to 200; no valid id → failed, nothing stored |
+| Output | A full ranking of every stored outfit id (ideas and saved) plus a reason of at most 200 characters for the best-ranked outfit of each occasion present (at most five; the former top 3 reasons are replaced; approved 2026-11-01) |
+| Validation | Unknown and duplicate ids dropped; reasons kept only for the best-ranked valid outfit of each occasion, trimmed to 200; no valid id → failed, nothing stored |
 | Failure | No retry. That day Dress me shows the server order (newest first) and "Today's pick isn't ready"; the next attempt is tomorrow at 06:00 |
 | Storage | Only the latest pick (replaced each day); served by `GET /v1/outfits` only on its own server-local date |
 | Saving a ranked idea | Keeps its place: in the same transaction as the save, the stored pick replaces the suggestion id with the new saved-outfit id in `order` and moves its `reasons` entry; unranked ideas and saves with no stored pick leave the pick unchanged (approved 2026-10-11) |
-| Display | Weather line from the pick's forecast; ranked outfits first, unranked ones (missing, or created after the pick) newest first; the top 3 in the current occasion filter marked "For today" with their reason |
+| Display | Weather line from the pick's forecast; ranked outfits first, unranked ones (missing, or created after the pick) newest first; the best-ranked outfit of each occasion marked "For today" with its reason; `reasons` in `GET /v1/outfits` `today` keeps its shape (outfit id to reason), now one entry per occasion |
 | Removed | `src/outfitRanking.ts`, `GET /v1/weather`, the phone's `loadWeather` |
 
 Accepted trade-offs: ideas generated after 06:00 are ranked the next day; on
