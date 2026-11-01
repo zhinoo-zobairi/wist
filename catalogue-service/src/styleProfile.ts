@@ -155,6 +155,14 @@ export type StyleProfile = {
   updatedAt: string;
 };
 
+// The brief's answers that shape an outfit. Sizes, the drop threshold and what
+// the owner shops for steer alerts and photographs instead, and the timestamp
+// is private, so none of them is sent to the outfit engine. Saving a brief
+// refreshes ideas only when one of these differs.
+export const OUTFIT_PROFILE_FIELDS = [
+  "occasions", "styles", "workDressCode", "tasteAxes", "palettes", "neverColours", "prints", "fit", "signature", "helpWith", "gaps",
+] as const satisfies readonly (keyof StyleProfile)[];
+
 function isUnique(values: readonly unknown[]): boolean {
   return new Set(values).size === values.length;
 }
