@@ -318,6 +318,22 @@ describe("catalogue API", () => {
     });
   });
 
+  it("rejects a malformed percent escape in an id with 400 on every id route", async () => {
+    const bad = "%E0%A4%A";
+    await expect(handleRequest("GET", `/v1/brands/${bad}/items`, repository))
+      .resolves.toEqual({ status: 400, body: { error: "invalid_brand_id" } });
+    await expect(handleRequest("GET", `/v1/items/${bad}`, repository))
+      .resolves.toEqual({ status: 400, body: { error: "invalid_item_id" } });
+    for (const method of ["PUT", "DELETE"]) {
+      await expect(handleRequest(method, `/v1/watches/${bad}`, repository, auth))
+        .resolves.toEqual({ status: 400, body: { error: "invalid_item_id" } });
+    }
+    await expect(handleRequest("PUT", `/v1/watches/${bad}`, repository, { ...auth, authorization: "Bearer wrong" }))
+      .resolves.toMatchObject({ status: 401 });
+    await expect(handleRequest("GET", "/v1/items/caf%C3%A9", repository))
+      .resolves.toEqual({ status: 404, body: { error: "item_not_found" } });
+  });
+
   it("reads and replaces the owner style profile", async () => {
     const profiles = new MemoryStyleProfileRepository();
     await expect(

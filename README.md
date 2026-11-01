@@ -150,6 +150,9 @@ it. Available endpoints are:
 - `POST /v1/outfits/saved` with `{ "suggestionId": "…" }` (owner token) — saves an idea; `DELETE /v1/outfits/saved/:id` removes it
 - `POST /v1/outfits/more` (owner token) — queues one background run (`202`), or `429 daily_limit_reached` / `422 wardrobe_too_small` / `503 outfits_not_configured`
 
+A malformed `%` escape in a brand, item or watch id returns `400 invalid_brand_id`
+or `400 invalid_item_id`.
+
 Wardrobe records belong to the same single owner as the style profile and are
 stored in their own SQLite tables. Garment input is `{ name, category, colors,
 formality, warmth, occasions, notes? }`. Categories are `top`, `bottom`, `dress`,

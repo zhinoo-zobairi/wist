@@ -41,6 +41,15 @@ export type RequestOptions = {
   contentType?: string;
 };
 
+/** A path segment decoded, or null when it holds a malformed % escape. */
+function decodeSegment(segment: string): string | null {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+}
+
 export async function handleRequest(
   method: string,
   rawUrl: string,
@@ -193,7 +202,8 @@ export async function handleRequest(
     const authError = ownerAuthError(auth, "watch_api_not_configured");
     if (authError) return authError;
 
-    const itemId = decodeURIComponent(watchMatch[1]);
+    const itemId = decodeSegment(watchMatch[1]);
+    if (itemId === null) return { status: 400, body: { error: "invalid_item_id" } };
     const item = await repository.getItem(itemId);
     if (!item) {
       return { status: 404, body: { error: "item_not_found" } };
@@ -255,7 +265,8 @@ export async function handleRequest(
 
   const brandMatch = pathname.match(/^\/v1\/brands\/([^/]+)\/items$/);
   if (brandMatch?.[1]) {
-    const brandId = decodeURIComponent(brandMatch[1]);
+    const brandId = decodeSegment(brandMatch[1]);
+    if (brandId === null) return { status: 400, body: { error: "invalid_brand_id" } };
     const brands = await repository.listBrands();
     if (!brands.some((brand) => brand.id === brandId)) {
       return { status: 404, body: { error: "brand_not_found" } };
@@ -268,7 +279,9 @@ export async function handleRequest(
 
   const itemMatch = pathname.match(/^\/v1\/items\/([^/]+)$/);
   if (itemMatch?.[1]) {
-    const item = await repository.getItem(decodeURIComponent(itemMatch[1]));
+    const itemId = decodeSegment(itemMatch[1]);
+    if (itemId === null) return { status: 400, body: { error: "invalid_item_id" } };
+    const item = await repository.getItem(itemId);
     return item
       ? { status: 200, body: { item } }
       : { status: 404, body: { error: "item_not_found" } };
