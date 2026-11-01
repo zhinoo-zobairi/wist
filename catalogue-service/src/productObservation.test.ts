@@ -61,31 +61,61 @@ describe("product observation", () => {
     });
   });
 
-  it("routes a Shopify product URL through the reusable storefront adapter", async () => {
+  it("routes a Goelia 1995 product URL through the Shopify adapter", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(
-        JSON.stringify({
-          id: 8108275171504,
-          title: "100% Merino Wool Women H-Line Blazer",
-          vendor: "GOELIA",
-          price: 29900,
-          available: true,
-          featured_image: "//cdn.shopify.com/goelia/blazer.jpg",
-          variants: [],
-        }),
+        readFileSync(new URL("./fixtures/goelia-product.json", import.meta.url), "utf8"),
         { headers: { "set-cookie": "cart_currency=EUR; path=/" } },
       ),
     );
 
     await expect(
       fetchProductObservation(
-        "https://www.goelia1995.com/en-eu/products/merino-blazer",
+        "https://www.goelia1995.com/en-eu/products/100-merino-wool-women-h-line-blazer-1fnl6r1c0",
         fetchImpl,
-        "2026-08-30T12:00:00.000Z",
+        "2026-11-01T12:00:00.000Z",
       ),
     ).resolves.toMatchObject({
-      brand: { name: "GOELIA" },
-      item: { source: "shopify", currentPrice: 299 },
+      brand: { id: "shopify-www-goelia1995-com", name: "GOELIA" },
+      item: {
+        id: "shopify-www-goelia1995-com-8108275171504",
+        source: "shopify",
+        currentPrice: 299,
+        currency: "EUR",
+        available: true,
+      },
+    });
+  });
+
+  it("routes a Gaala product URL through the Shopify adapter", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        readFileSync(new URL("./fixtures/gaala-product.json", import.meta.url), "utf8"),
+        { headers: { "set-cookie": "cart_currency=EUR; path=/" } },
+      ),
+    );
+
+    const observation = await fetchProductObservation(
+      "https://gaala.com/products/wool-coat-paola",
+      fetchImpl,
+      "2026-11-01T12:00:00.000Z",
+    );
+
+    expect(observation).toMatchObject({
+      brand: { id: "shopify-gaala-com", name: "Gaâla" },
+      item: {
+        id: "shopify-gaala-com-7002436206782",
+        source: "shopify",
+        name: "Paola Wool Coat",
+        currentPrice: 385,
+        currency: "EUR",
+        available: true,
+      },
+    });
+    expect(observation.item.variants).toContainEqual({
+      id: "49931264622925",
+      label: "Grey / XXS / In stock",
+      available: true,
     });
   });
 });

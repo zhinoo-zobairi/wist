@@ -1,0 +1,148 @@
+{
+  "id": 7002436206782,
+  "title": "Paola Wool Coat",
+  "handle": "wool-coat-paola",
+  "vendor": "Gaâla",
+  "type": "Coats",
+  "price": 38500,
+  "compare_at_price": 56000,
+  "available": true,
+  "featured_image": "//cdn.shopify.com/s/files/1/0275/7761/4381/products/belted-longsleeve-trenchcoat-with-buttons-for-women_jpg.jpg?v=1750079592",
+  "images": [
+    "//cdn.shopify.com/s/files/1/0275/7761/4381/products/belted-longsleeve-trenchcoat-with-buttons-for-women_jpg.jpg?v=1750079592",
+    "//cdn.shopify.com/s/files/1/0275/7761/4381/files/black-autumn-winter-treanchcoat-long-sleeve-for-ladies_jpg.jpg?v=1750079592",
+    "//cdn.shopify.com/s/files/1/0275/7761/4381/files/belted-longsleeve-trenchcoat-for-women_jpg.jpg?v=1750079592",
+    "//cdn.shopify.com/s/files/1/0275/7761/4381/products/belted-longsleeve-trenchcoat-with-buttons_jpg.jpg?v=1750079592",
+    "//cdn.shopify.com/s/files/1/0275/7761/4381/products/belted-longsleeve-trenchcoat_jpg.jpg?v=1750079592",
+    "//cdn.shopify.com/s/files/1/0275/7761/4381/files/black-autumn-winter-treanchcoat-long-sleeve-for-women-outfits_jpg.jpg?v=1750079592",
+    "//cdn.shopify.com/s/files/1/0275/7761/4381/files/black-autumn-winter-treanchcoat-long-sleeve-for-women-outfit_jpg.jpg?v=1750079592",
+    "//cdn.shopify.com/s/files/1/0275/7761/4381/files/black-elegant-autumn-winter-treanchcoat-long-sleeve-for-women-outfits_jpg.jpg?v=1750079592",
+    "//cdn.shopify.com/s/files/1/0275/7761/4381/files/black-elegant-autumn-winter-treanchcoat-long-sleeve-for-women_jpg.jpg?v=1750079592",
+    "//cdn.shopify.com/s/files/1/0275/7761/4381/files/black-autumn-winter-treanchcoat-long-sleeve-for-ladies-outfit_jpg.jpg?v=1750079592",
+    "//cdn.shopify.com/s/files/1/0275/7761/4381/files/autumn-winter-outfit-with-scarf-accessories_jpg.jpg?v=1750079592",
+    "//cdn.shopify.com/s/files/1/0275/7761/4381/files/black-elegant-autumn-winter-treanchcoat-long-sleeve-for-women-outfit_jpg.jpg?v=1750079592",
+    "//cdn.shopify.com/s/files/1/0275/7761/4381/files/black-autumn-winter-treanchcoat-long-sleeve-for-women_jpg.jpg?v=1750079592"
+  ],
+  "variants": [
+    {
+      "id": 47167381504333,
+      "title": "Beige / XXS / In stock",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 50155006591309,
+      "title": "Beige / XXS / Made-to-order",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 47167381537101,
+      "title": "Beige / XS / In stock",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 50155006624077,
+      "title": "Beige / XS / Made-to-order",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 47167381569869,
+      "title": "Beige / S / In stock",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 50155006656845,
+      "title": "Beige / S / Made-to-order",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 47167381602637,
+      "title": "Beige / M / In stock",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 50155006689613,
+      "title": "Beige / M / Made-to-order",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 47167381635405,
+      "title": "Beige / L / In stock",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 50155006722381,
+      "title": "Beige / L / Made-to-order",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 49931264622925,
+      "title": "Grey / XXS / In stock",
+      "available": true,
+      "price": 38500
+    },
+    {
+      "id": 50155006427469,
+      "title": "Grey / XXS / Made-to-order",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 49931264688461,
+      "title": "Grey / XS / In stock",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 50155006460237,
+      "title": "Grey / XS / Made-to-order",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 49931264753997,
+      "title": "Grey / S / In stock",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 50155006493005,
+      "title": "Grey / S / Made-to-order",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 49931264819533,
+      "title": "Grey / M / In stock",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 50155006525773,
+      "title": "Grey / M / Made-to-order",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 49931264885069,
+      "title": "Grey / L / In stock",
+      "available": false,
+      "price": 38500
+    },
+    {
+      "id": 50155006558541,
+      "title": "Grey / L / Made-to-order",
+      "available": false,
+      "price": 38500
+    }
+  ]
+}

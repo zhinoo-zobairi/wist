@@ -1,0 +1,46 @@
+{
+  "id": 8108275171504,
+  "title": "100% Merino Wool Women H-Line Blazer",
+  "handle": "100-merino-wool-women-h-line-blazer-1fnl6r1c0",
+  "vendor": "GOELIA",
+  "type": "Blazer",
+  "price": 29900,
+  "compare_at_price": 29900,
+  "available": true,
+  "featured_image": "//cdn.shopify.com/s/files/1/0617/0099/7296/files/84051e9ffe9848824b94a194b742832c.jpg?v=1787724459",
+  "images": [
+    "//cdn.shopify.com/s/files/1/0617/0099/7296/files/84051e9ffe9848824b94a194b742832c.jpg?v=1787724459",
+    "//cdn.shopify.com/s/files/1/0617/0099/7296/files/33c96343ba192af8248904dc6ef54591.jpg?v=1787724491",
+    "//cdn.shopify.com/s/files/1/0617/0099/7296/files/c109e2db0f67c8e62a27df476fcfa96e.jpg?v=1787724471",
+    "//cdn.shopify.com/s/files/1/0617/0099/7296/files/439cf3ad8ba864c38e0664cea84244de.jpg?v=1787724481",
+    "//cdn.shopify.com/s/files/1/0617/0099/7296/files/6b79b51ed45dce527235f236d51336c4.jpg?v=1787724465",
+    "//cdn.shopify.com/s/files/1/0617/0099/7296/files/b0d546a08e26d5a7d14ff0f4fbc8ce29.jpg?v=1787724476",
+    "//cdn.shopify.com/s/files/1/0617/0099/7296/files/6e8710bed828657634a686e2184a5493.jpg?v=1787724486"
+  ],
+  "variants": [
+    {
+      "id": 45537105936560,
+      "title": "Smoke Grey / XS",
+      "available": true,
+      "price": 29900
+    },
+    {
+      "id": 45537105969328,
+      "title": "Smoke Grey / S",
+      "available": true,
+      "price": 29900
+    },
+    {
+      "id": 45537106002096,
+      "title": "Smoke Grey / M",
+      "available": true,
+      "price": 29900
+    },
+    {
+      "id": 45537106034864,
+      "title": "Smoke Grey / L",
+      "available": true,
+      "price": 29900
+    }
+  ]
+}
