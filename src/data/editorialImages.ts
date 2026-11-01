@@ -29,9 +29,9 @@ export type EditorialRole =
 export const editorial: Record<EditorialRole, EditorialImage> = {
   cover: {
     source: require("../../assets/editorial/cover.jpg"),
-    credit: "Mina Rad",
-    sourceUrl: "https://unsplash.com/photos/2O2cXJemDmo",
-    alt: "A woman in a long belted beige coat standing on pale stairs",
+    credit: "Ali Karimiboroujeni",
+    sourceUrl: "https://unsplash.com/photos/SdKYFvF4JjU",
+    alt: "A woman in a black turtleneck holding a camel coat over her shoulder, in warm low light",
     aspect: 1200 / 1350,
   },
   coverInset: {
