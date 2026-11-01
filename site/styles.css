@@ -1011,3 +1011,30 @@ code {
   font-size: 17px;
   letter-spacing: 0;
 }
+
+/* Impressum and privacy pages: one calm column of text. */
+.legal {
+  max-width: 44rem;
+  padding-top: 72px;
+  padding-bottom: 112px;
+}
+
+.legal h2 {
+  margin-top: 48px;
+  font-size: 26px;
+}
+
+.legal p {
+  line-height: 1.65;
+}
+
+.legal p + p {
+  margin-top: 16px;
+}
+
+.legal-date {
+  margin-top: 48px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+}
