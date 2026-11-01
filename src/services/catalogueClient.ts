@@ -837,7 +837,8 @@ function toDailyPick(value: unknown): DailyPick | null {
 export async function loadOutfits(
   fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
 ): Promise<OutfitBoard> {
-  const body = await wardrobeJson(await fetchImpl(outfitsUrl(baseUrl), { headers: authorizationHeaders(ownerToken) }));
+  const fetchWithTimeout = withTimeout(fetchImpl, CATALOGUE_TIMEOUT_MS);
+  const body = await wardrobeJson(await fetchWithTimeout(outfitsUrl(baseUrl), { headers: authorizationHeaders(ownerToken) }));
   if (!Array.isArray(body.suggestions) || !Array.isArray(body.saved)) throw new Error("Catalogue returned an invalid outfit board");
   return {
     suggestions: body.suggestions.map(toOutfitIdea), saved: body.saved.map(toSavedOutfit),

@@ -21,7 +21,7 @@ describe("outfit client", () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(json({ suggestions: [idea], saved: [saved], status }));
     await expect(loadOutfits(fetchImpl, baseUrl, "owner")).resolves.toEqual({ suggestions: [idea], saved: [saved], status, today: null });
     expect(fetchImpl).toHaveBeenCalledWith("http://catalogue.test/v1/outfits", {
-      headers: expect.objectContaining({ authorization: "Bearer owner" }),
+      headers: expect.objectContaining({ authorization: "Bearer owner" }), signal: expect.any(AbortSignal),
     });
   });
 
@@ -75,6 +75,25 @@ describe("outfit client", () => {
   it("loadOutfits throws on a network error", async () => {
     await expect(loadOutfits(vi.fn<typeof fetch>().mockRejectedValueOnce(new TypeError("offline")), baseUrl, "owner"))
       .rejects.toThrow("offline");
+  });
+
+  it("aborts a pending outfit list at 10 seconds without retrying", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn<typeof fetch>((_url, init) => new Promise((_resolve, reject) => {
+        init!.signal!.addEventListener("abort", () => reject(new DOMException("Timed out", "AbortError")), { once: true });
+      }));
+      const pending = loadOutfits(fetchImpl, baseUrl, "owner");
+      const settled = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      await vi.advanceTimersByTimeAsync(9999);
+      expect(fetchImpl.mock.calls[0]![1]!.signal!.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await settled;
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("saveOutfitIdea throws on a 404", async () => {
