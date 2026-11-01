@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { handleRequest } from "./app.js";
 import { SeedCatalogueRepository } from "./seedRepository.js";
+import { SqliteWardrobeRepository } from "./sqliteWardrobeRepository.js";
 import {
   emptyStyleDetails,
   type StyleProfile,
@@ -413,5 +414,66 @@ describe("catalogue API", () => {
       status: 413,
       body: { error: "payload_too_large" },
     });
+  });
+});
+
+describe("saving the style brief", () => {
+  const auth = {
+    authorization: "Bearer owner-test-token",
+    ownerToken: "owner-test-token",
+  };
+  const brief = { occasions: ["work"], styles: ["minimal"], palettes: ["earth"] };
+  const closers: { close: () => void }[] = [];
+  const at = (time: string) => vi.setSystemTime(new Date(`2026-11-01T${time}.000Z`));
+
+  function setup() {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    at("09:00:00");
+    const wardrobe = new SqliteWardrobeRepository(":memory:");
+    closers.push(wardrobe);
+    const profiles = new MemoryStyleProfileRepository();
+    const put = (body: unknown) =>
+      handleRequest("PUT", "/v1/profile", repository, auth, {
+        profiles, wardrobe, body: JSON.stringify(body),
+      });
+    return { wardrobe, put };
+  }
+
+  afterEach(() => {
+    closers.splice(0).forEach((closer) => closer.close());
+    vi.useRealTimers();
+  });
+
+  it("records a change when the first brief is saved", async () => {
+    const { wardrobe, put } = setup();
+    await expect(wardrobe.lastChangedAt()).resolves.toBeNull();
+    await expect(put(brief)).resolves.toMatchObject({ status: 200 });
+    await expect(wardrobe.lastChangedAt()).resolves.toBe("2026-11-01T09:00:00.000Z");
+  });
+
+  it("records a change when a saved answer differs", async () => {
+    const { wardrobe, put } = setup();
+    await put(brief);
+    at("09:05:00");
+    await put({ ...brief, palettes: ["ink_grey"] });
+    await expect(wardrobe.lastChangedAt()).resolves.toBe("2026-11-01T09:05:00.000Z");
+    at("09:06:00");
+    await put({ ...brief, palettes: null });
+    await expect(wardrobe.lastChangedAt()).resolves.toBe("2026-11-01T09:06:00.000Z");
+  });
+
+  it("records nothing when the saved brief is identical, even if answers are left out", async () => {
+    const { wardrobe, put } = setup();
+    await put(brief);
+    at("09:05:00");
+    await put(brief);
+    await put({ occasions: ["work"], styles: ["minimal"] }); // palettes are kept
+    await expect(wardrobe.lastChangedAt()).resolves.toBe("2026-11-01T09:00:00.000Z");
+  });
+
+  it("records nothing for a rejected brief", async () => {
+    const { wardrobe, put } = setup();
+    await expect(put({ occasions: ["nowhere"], styles: [] })).resolves.toMatchObject({ status: 400 });
+    await expect(wardrobe.lastChangedAt()).resolves.toBeNull();
   });
 });

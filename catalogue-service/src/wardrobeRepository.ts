@@ -26,6 +26,8 @@ export interface WardrobeRepository {
   replaceGarment(id: string, input: GarmentInput): Promise<Garment | null>;
   deleteGarment(id: string): Promise<boolean>;
   countGarments(): Promise<number>;
-  /** When the set of tagged garments last changed, or null if it never has. */
+  /** When the tagged garments or the style brief last changed, or null if they never have. */
   lastChangedAt(): Promise<string | null>;
+  /** Records that the style brief changed: outfit ideas are built from it, so it counts like a garment change. */
+  recordBriefChange(): Promise<void>;
 }

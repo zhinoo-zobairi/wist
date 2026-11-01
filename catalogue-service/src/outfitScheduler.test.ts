@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { handleRequest } from "./app.js";
 import type { GenerationDeps } from "./outfitGeneration.js";
 import type { OutfitPicker } from "./outfitPicker.js";
 import { runDueOutfitGeneration, startOutfitScheduler } from "./outfitScheduler.js";
 import type { OutfitSuggester } from "./outfitSuggester.js";
-import { capDay } from "./outfitSchedule.js";
+import { capDay, capDayStart } from "./outfitSchedule.js";
+import { SeedCatalogueRepository } from "./seedRepository.js";
 import { SqliteOutfitRepository } from "./sqliteOutfitRepository.js";
 import { SqliteStyleProfileRepository } from "./sqliteStyleProfileRepository.js";
 import { SqliteWardrobeRepository } from "./sqliteWardrobeRepository.js";
@@ -41,6 +43,26 @@ describe("runDueOutfitGeneration", () => {
     await expect(runDueOutfitGeneration(deps, at(9, 10))).resolves.toBe("debounced");
     await expect(runDueOutfitGeneration(deps, at(9, 30))).resolves.toBeNull();
     expect(suggest).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs after the debounce when the style brief changes, counts toward the cap, and ignores a repeat save", async () => {
+    const { deps, suggest, outfits } = await setup();
+    await runDueOutfitGeneration(deps, at(9, 10));
+    const auth = { authorization: "Bearer owner-test-token", ownerToken: "owner-test-token" };
+    const saveBrief = (styles: string[]) => handleRequest("PUT", "/v1/profile", new SeedCatalogueRepository(), auth, {
+      profiles: deps.profiles, wardrobe: deps.wardrobe, body: JSON.stringify({ occasions: ["work"], styles }),
+    });
+
+    vi.setSystemTime(at(10));
+    await saveBrief(["minimal"]);
+    await expect(runDueOutfitGeneration(deps, at(10, 9))).resolves.toBeNull();
+    await expect(runDueOutfitGeneration(deps, at(10, 10))).resolves.toBe("debounced");
+    expect((await outfits.runSummary(capDayStart(at(10, 10)))).runsThisCapDay).toBe(2);
+
+    vi.setSystemTime(at(11));
+    await saveBrief(["minimal"]);
+    await expect(runDueOutfitGeneration(deps, at(11, 30))).resolves.toBeNull();
+    expect(suggest).toHaveBeenCalledTimes(2);
   });
 
   it("does not retry a failed run on the next tick", async () => {

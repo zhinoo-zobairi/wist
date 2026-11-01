@@ -278,6 +278,10 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
     }
   }
 
+  async recordBriefChange(): Promise<void> {
+    this.recordChange(new Date().toISOString());
+  }
+
   // Called inside the caller's transaction so the change and its record commit together.
   private recordChange(changedAt: string): void {
     this.database.prepare(`

@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+
 import type { CatalogueItem } from "./model.js";
 import { ownerAuthError } from "./ownerAuth.js";
 import type { GarmentPhotoStore } from "./garmentPhotoStore.js";
@@ -91,10 +93,14 @@ export async function handleRequest(
     if (!selection) {
       return { status: 400, body: { error: "invalid_profile" } };
     }
-    return {
-      status: 200,
-      body: { profile: await options.profiles.replaceProfile(selection) },
-    };
+    const before = await options.profiles.getProfile();
+    const profile = await options.profiles.replaceProfile(selection);
+    // Outfit ideas are built from the brief, so a different brief is a change like a wardrobe edit.
+    // Every save moves updatedAt, so the comparison leaves it out.
+    if (!isDeepStrictEqual(before && { ...before, updatedAt: "" }, { ...profile, updatedAt: "" })) {
+      await options.wardrobe?.recordBriefChange();
+    }
+    return { status: 200, body: { profile } };
   }
 
   if (pathname === "/v1/watches") {
