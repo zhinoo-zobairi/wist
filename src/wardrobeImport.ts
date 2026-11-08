@@ -29,6 +29,10 @@ export async function importGarmentPhotos<T>(
       added += 1;
     } catch (error) {
       failed += 1;
+      // The screen shows counts only; the reason stays in the log.
+      console.warn("Garment import failed", {
+        index, errorClass: error instanceof Error ? error.name : "UnknownError", message: error instanceof Error ? error.message : String(error),
+      });
       if (options.stopWhen?.(error)) return { added, failed, stoppedBy: error };
     }
   }

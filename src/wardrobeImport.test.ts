@@ -19,11 +19,14 @@ describe("importGarmentPhotos", () => {
     expect(progress).toEqual([{ done: 0, total: 3 }, { done: 1, total: 3 }, { done: 2, total: 3 }]);
   });
 
-  it("counts a failed photo and carries on", async () => {
+  it("counts a failed photo, logs why, and carries on", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const upload = vi.fn<(item: number) => Promise<void>>()
-      .mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("bad")).mockResolvedValueOnce(undefined);
+      .mockResolvedValueOnce(undefined).mockRejectedValueOnce(new TypeError("bad")).mockResolvedValueOnce(undefined);
     await expect(importGarmentPhotos([1, 2, 3], upload)).resolves.toEqual({ added: 2, failed: 1, stoppedBy: undefined });
     expect(upload).toHaveBeenCalledTimes(3);
+    expect(warn).toHaveBeenCalledWith("Garment import failed", { index: 1, errorClass: "TypeError", message: "bad" });
+    warn.mockRestore();
   });
 
   it("stops at the first error the caller calls final and reports it", async () => {
