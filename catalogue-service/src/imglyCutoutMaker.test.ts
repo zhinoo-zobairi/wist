@@ -47,13 +47,13 @@ describe("img.ly cutout maker", () => {
 
   it("reports an empty result when the model keeps nothing", async () => {
     const empty = await sharp({ create: { width: 10, height: 10, channels: 4, background: transparent } }).png().toBuffer();
-    const maker = new ImglyCutoutMaker({ removeBackground: async () => new Blob([empty], { type: "image/png" }) });
+    const maker = new ImglyCutoutMaker({ removeBackground: async () => new Blob([new Uint8Array(empty)], { type: "image/png" }) });
     await expect(maker.cut(Buffer.from([1, 2, 3]), "image/jpeg")).resolves.toEqual({ ok: false, reason: "empty" });
   });
 
   it("hands the model a blob of the photo's media type and normalises what comes back", async () => {
     const seen: Blob[] = [];
-    const maker = new ImglyCutoutMaker({ removeBackground: async (image) => { seen.push(image as Blob); return new Blob([await subjectWithMargins()], { type: "image/png" }); } });
+    const maker = new ImglyCutoutMaker({ removeBackground: async (image) => { seen.push(image as Blob); return new Blob([new Uint8Array(await subjectWithMargins())], { type: "image/png" }); } });
     const result = await maker.cut(Buffer.from([1, 2, 3]), "image/webp");
     expect(result.ok).toBe(true);
     expect(seen[0]?.type).toBe("image/webp");
