@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CatalogueNotice, UncertainWardrobeRequestError, WardrobeApiError, importCatalogueWatch } from "./services/catalogueClient";
-import { WardrobeNotice, captureErrorMessage, garmentEditErrorMessage, importErrorMessage, purchaseRefreshErrorMessage, purchaseErrorMessage, purchaseRecoveryAfterError, catalogueWatchErrorMessage } from "./wardrobeMessages";
+import { WardrobeNotice, captureErrorMessage, garmentEditErrorMessage, importErrorMessage, purchaseRefreshErrorMessage, purchaseErrorMessage, purchaseRecoveryAfterError, catalogueWatchErrorMessage, importSummaryMessage } from "./wardrobeMessages";
 
 describe("captureErrorMessage", () => {
   it("explains a full wardrobe and an oversized photo", () => {
@@ -138,5 +138,15 @@ describe("importErrorMessage", () => {
     "not an error",
   ])("maps %s to the link sentence", (caught) => {
     expect(importErrorMessage(caught)).toBe(LINK_FAILED);
+  });
+});
+
+describe("importSummaryMessage", () => {
+  it("counts what was added and what was not", () => {
+    expect(importSummaryMessage(1, 1)).toBe("Added 1 photo.");
+    expect(importSummaryMessage(12, 12)).toBe("Added 12 photos.");
+    expect(importSummaryMessage(11, 12)).toBe("Added 11 of 12. 1 photo could not be added.");
+    expect(importSummaryMessage(9, 12)).toBe("Added 9 of 12. 3 photos could not be added.");
+    expect(importSummaryMessage(0, 3)).toBe("None of the 3 photos could be added. Please try again.");
   });
 });

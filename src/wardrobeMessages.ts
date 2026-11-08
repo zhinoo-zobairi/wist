@@ -20,6 +20,14 @@ export function captureErrorMessage(caught: unknown): string {
   return "Could not add this photo. Please try again.";
 }
 
+/** What a round of "Add several from library" did; the per-photo reasons stay in the logs. */
+export function importSummaryMessage(added: number, total: number): string {
+  const photos = (count: number) => `${count} ${count === 1 ? "photo" : "photos"}`;
+  if (added === 0) return `None of the ${photos(total)} could be added. Please try again.`;
+  if (added === total) return `Added ${photos(total)}.`;
+  return `Added ${added} of ${total}. ${photos(total - added)} could not be added.`;
+}
+
 export function purchaseErrorMessage(caught: unknown): string {
   if (caught instanceof UncertainWardrobeRequestError) {
     return "The response did not arrive. This piece may already be in your wardrobe. Refresh your wardrobe and Coveted before adding it again.";

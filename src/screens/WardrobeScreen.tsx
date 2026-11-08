@@ -7,12 +7,13 @@ import { Button } from "../components/Button";
 import { GarmentPhoto } from "../components/GarmentPhoto";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { pageStyle, useLayout } from "../layout";
-import { UncertainWardrobeRequestError } from "../services/catalogueClient";
+import { UncertainWardrobeRequestError, WardrobeApiError } from "../services/catalogueClient";
 import { prepareGarmentPhoto } from "../services/garmentPhoto";
 import { useWistStore } from "../store/useWistStore";
 import { colors, radii, spacing, typography } from "../theme";
 import type { Garment } from "../types";
-import { WardrobeNotice, captureErrorMessage } from "../wardrobeMessages";
+import { importGarmentPhotos, importSelectionLimit } from "../wardrobeImport";
+import { WardrobeNotice, captureErrorMessage, importSummaryMessage } from "../wardrobeMessages";
 
 export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
   onBack: () => void;
@@ -76,6 +77,44 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
     }
   };
 
+  // A whole closet in one round: the library's multi-select, then one upload after another.
+  const importMany = async () => {
+    if (pending.current) return;
+    setChooser(false);
+    setError(null);
+    const limit = importSelectionLimit(wardrobe.length);
+    if (limit === 0) {
+      setError("Your wardrobe is full (300 garments). Remove one before adding another.");
+      return;
+    }
+    pending.current = true;
+    setBusy("Choosing photos…");
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"], allowsMultipleSelection: true, selectionLimit: limit, orderedSelection: true, quality: 1,
+      });
+      if (result.canceled || result.assets.length === 0 || !alive.current) return;
+      // Some pickers ignore the limit; the wardrobe cap still holds on the backend.
+      const assets = result.assets.slice(0, limit);
+      const outcome = await importGarmentPhotos(assets, async (asset) => {
+        await addPhoto(await prepareGarmentPhoto(asset));
+      }, {
+        onProgress: ({ done, total }) => { if (alive.current) setBusy(`Adding ${done + 1} of ${total}…`); },
+        stopWhen: (caught) => caught instanceof WardrobeApiError && caught.code === "wardrobe_full",
+      });
+      if (!alive.current) return;
+      const summary = importSummaryMessage(outcome.added, assets.length);
+      setError(outcome.stoppedBy ? `${summary} ${captureErrorMessage(outcome.stoppedBy)}` : summary);
+      // A photo whose answer never arrived may still have become a garment.
+      if (outcome.failed > 0) void refresh().catch(() => undefined);
+    } catch (caught) {
+      if (alive.current) setError(captureErrorMessage(caught));
+    } finally {
+      pending.current = false;
+      if (alive.current) setBusy(null);
+    }
+  };
+
   const retryTag = async (garment: Garment) => {
     if (pending.current) return;
     pending.current = true;
@@ -106,6 +145,7 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
         {chooser && <View style={styles.chooser}>
           <ActionLink color={colors.ink} label="Take a photo" onPress={() => void capture("camera")} />
           <ActionLink color={colors.ink} label="Choose from library" onPress={() => void capture("library")} />
+          <ActionLink color={colors.ink} label="Add several from library" onPress={() => void importMany()} />
           <ActionLink color={colors.ink} label="Cancel" onPress={() => setChooser(false)} />
         </View>}
         {busy && <View style={styles.notice}><ActivityIndicator color={colors.moss} /><Text style={styles.subtitle}>{busy}</Text></View>}
