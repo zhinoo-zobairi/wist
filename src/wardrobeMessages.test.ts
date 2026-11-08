@@ -141,6 +141,15 @@ describe("importErrorMessage", () => {
   });
 });
 
+describe("garmentEditErrorMessage · cutouts", () => {
+  it("explains a failed or switched-off background removal", () => {
+    expect(garmentEditErrorMessage(new WardrobeApiError("cutout_failed", 502)))
+      .toBe("Could not remove the background this time. The original photo is shown.");
+    expect(garmentEditErrorMessage(new WardrobeApiError("cutouts_not_configured", 503)))
+      .toBe("Background removal is switched off on the backend.");
+  });
+});
+
 describe("importSummaryMessage", () => {
   it("counts what was added and what was not", () => {
     expect(importSummaryMessage(1, 1)).toBe("Added 1 photo.");

@@ -243,6 +243,13 @@ describe("wardrobe client", () => {
     expect(() => garmentPhotoSource(garment, base, "")).toThrow("OWNER_TOKEN");
   });
 
+  it("changes the photo address once a cutout is ready, so a cached original is not shown", () => {
+    expect(garmentPhotoSource({ ...garment, cutoutStatus: "ready" }, base, "owner")).toEqual({
+      uri: `http://localhost:4000${garment.photoUrl}?cutout=ready`, headers: { authorization: "Bearer owner" },
+    });
+    expect(garmentPhotoSource({ ...garment, cutoutStatus: "failed" }, base, "owner")?.uri).toBe(`http://localhost:4000${garment.photoUrl}`);
+  });
+
   it("uses a public https purchase image without owner credentials", () => {
     const photoUrl = "https://cdn.example.com/shirt.jpg";
     const source = garmentPhotoSource({ ...purchase, photoUrl }, base, "");

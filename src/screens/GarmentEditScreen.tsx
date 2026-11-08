@@ -34,6 +34,7 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE", not
   const update = useWistStore((state) => state.updateGarment);
   const remove = useWistStore((state) => state.removeGarment);
   const tag = useWistStore((state) => state.tagGarment);
+  const cutout = useWistStore((state) => state.cutoutGarment);
   const refresh = useWistStore((state) => state.refreshWardrobe);
   const layout = useLayout();
   const { wide } = layout;
@@ -79,6 +80,9 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE", not
     }
   });
 
+  // Local work on the backend: no charge, so no confirmation. The store's record carries the new photo.
+  const removeBackground = () => void run("Removing the background…", async () => { await cutout(garment.id); });
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
       <View style={[styles.topline, pageStyle(layout, true), wide && styles.gutterWide]}>
@@ -90,6 +94,7 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE", not
         <View style={styles.photo}><GarmentPhoto garment={garment} /></View>
         {notice && <Text accessibilityRole="alert" style={styles.help}>{notice}</Text>}
         {garment.tagStatus !== "tagged" && <Text style={styles.help}>{garment.tagStatus === "failed" ? `Couldn't tag this ${imageLabel}. Edit the details below or re-read it.` : `Not tagged. Edit the details below or re-read the ${imageLabel}.`}</Text>}
+        {!productImage && garment.cutoutStatus === "failed" && <Text style={styles.help}>Couldn't remove the background. The original photo is shown.</Text>}
         {busy && <View style={styles.notice}><ActivityIndicator color={colors.moss} /><Text style={styles.help}>{busy}</Text></View>}
         {error && <Text accessibilityRole="alert" style={styles.help}>{error}</Text>}
         {uncertain && <ActionLink color={colors.moss} disabled={!!busy} label="Refresh garment" onPress={() => void run("Refreshing…", async () => {
@@ -129,6 +134,8 @@ export function GarmentEditScreen({ garment, onBack, backLabel = "WARDROBE", not
             <ActionLink color={colors.moss} disabled={!!busy} label="Cancel" onPress={() => setConfirmRetag(false)} />
           </View>}
         </>}
+        {!productImage && garment.photoUrl && <ActionLink color={colors.moss} disabled={!!busy || uncertain}
+          label={garment.cutoutStatus === "ready" ? "Redo background removal" : "Remove background"} onPress={removeBackground} />}
         <ActionLink color={colors.moss} disabled={!!busy} label="Delete garment" onPress={() => setConfirmDelete(!confirmDelete)} />
         {confirmDelete && <View style={styles.confirm}>
           <Text style={styles.help}>{productImage ? "Delete this garment permanently? This cannot be undone." : "Delete this garment and its photo permanently? This cannot be undone."}</Text>

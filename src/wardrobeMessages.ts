@@ -83,6 +83,10 @@ export function garmentEditErrorMessage(caught: unknown, productImage = false): 
       return `Could not read the ${image} this time. Your saved details were kept.`;
     case "garment_not_found":
       return "This garment no longer exists. It may have been deleted already.";
+    case "cutout_failed":
+      return "Could not remove the background this time. The original photo is shown.";
+    case "cutouts_not_configured":
+      return "Background removal is switched off on the backend.";
     default:
       return "Could not update this garment. Please try again.";
   }

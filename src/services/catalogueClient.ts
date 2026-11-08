@@ -529,7 +529,9 @@ export function garmentPhotoSource(
   if (garment.photoUrl !== `/v1/wardrobe/${encodeURIComponent(garment.id)}/photo`) {
     throw new Error("Invalid garment photo URL");
   }
-  return { uri: `${baseUrl.replace(/\/$/, "")}${garment.photoUrl}`, headers: {
+  // The route serves the cutout once it is ready; a different address keeps a cached original from showing.
+  const version = garment.cutoutStatus === "ready" ? "?cutout=ready" : "";
+  return { uri: `${baseUrl.replace(/\/$/, "")}${garment.photoUrl}${version}`, headers: {
     authorization: authorizationHeaders(ownerToken).authorization,
   } };
 }
