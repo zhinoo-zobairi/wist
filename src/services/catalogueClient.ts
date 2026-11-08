@@ -438,11 +438,13 @@ export async function uploadGarmentPhoto(
   try {
     const local = await fetchImpl(uri, { signal: controller.signal });
     if (!local.ok) throw new Error("Could not read the selected photo");
-    const blob = await local.blob();
+    // Bytes, not a Blob: Expo's fetch replaces the content type with a Blob's own type,
+    // and a file read leaves that empty, so the backend would answer 415.
+    const bytes = new Uint8Array(await local.arrayBuffer());
     if (controller.signal.aborted) throw new Error("Photo preparation timed out");
     uploading = true;
     const body = await wardrobeJson(await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/wardrobe/photos`, {
-      method: "POST", headers, body: blob, signal: controller.signal,
+      method: "POST", headers, body: bytes, signal: controller.signal,
     }));
     return toGarment(body.garment);
   } catch (error) {

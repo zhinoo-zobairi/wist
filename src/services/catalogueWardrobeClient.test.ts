@@ -133,7 +133,9 @@ describe("wardrobe client", () => {
     expect(options).toMatchObject({ method: "POST", headers: {
       authorization: "Bearer owner", "content-type": "image/jpeg",
     } });
-    expect([...new Uint8Array(await (options?.body as Blob).arrayBuffer())]).toEqual([1, 2, 3]);
+    // Bytes, not a Blob: the phone's fetch replaces the content type with a Blob's own, which a file read leaves empty.
+    expect(options?.body).toBeInstanceOf(Uint8Array);
+    expect([...(options?.body as Uint8Array)]).toEqual([1, 2, 3]);
   });
 
   it("preserves error codes and does not retry rejected uploads", async () => {
