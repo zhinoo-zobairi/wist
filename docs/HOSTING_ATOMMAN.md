@@ -142,6 +142,11 @@ cd ~/wist && git pull && npm install && npm run catalogue:build && npm run web:b
 sudo systemctl restart wist-catalogue
 ```
 
+Since 2026-11-08 `npm install` also brings in the background-removal model
+(`@imgly/background-removal-node`, about 130 MB on disk, nothing downloaded at run
+time). The service loads it into memory on the first photo upload after a start and
+keeps it there. `CATALOGUE_CUTOUTS=off` in `.env.local` switches cutouts off.
+
 `web:build` clears Metro's cache first, so a changed `EXPO_PUBLIC_CATALOGUE_URL`
 always lands in the bundle. The iPhone picks up the new bundle on the next open
 (pull down to reload if the old one is still showing).
@@ -151,12 +156,14 @@ release for zlib or Brotli applies to this box even though the code never calls 
 
 ## Backups
 
-Everything lives in `~/wist/catalogue-service/data/`: the database `wist.sqlite`
-and the `wardrobe-photos/` folder (`CATALOGUE_DB_PATH` moves both).
+Everything lives in `~/wist/catalogue-service/data/`: the database `wist.sqlite`,
+the `wardrobe-photos/` folder and the `wardrobe-cutouts/` folder (`CATALOGUE_DB_PATH`
+moves all three).
 
 Every night at 04:30 (this machine's local time) a backup goes to a folder on the
 Windows disk, `/mnt/c/WistBackups` (override with `CATALOGUE_BACKUP_DIR`). Each backup
-is a folder named `YYYY-MM-DD-HHmm` holding `wist.sqlite` and `wardrobe-photos/`. The
+is a folder named `YYYY-MM-DD-HHmm` holding `wist.sqlite`, `wardrobe-photos/` and, once
+one exists, `wardrobe-cutouts/`. The
 database copy is made with SQLite `VACUUM INTO`, which gives a consistent snapshot
 while the service keeps running, so nothing needs stopping. The folder is built under a
 `.tmp-` name and renamed when complete, so a half-written backup is never counted.
@@ -210,7 +217,8 @@ sudo systemctl start wist-catalogue
 ```
 
 Restore replaces `wist.sqlite` and the whole `wardrobe-photos/` folder with the
-backup's copies. It refuses to run while a `wist.sqlite-wal` file with content exists
+backup's copies, and `wardrobe-cutouts/` too (cleared when the backup has none, so
+no cutout outlives its garment). It refuses to run while a `wist.sqlite-wal` file with content exists
 (the service is still running or was killed uncleanly): stop the service first.
 
 ### Restore drill (prove a backup works, without touching live data)

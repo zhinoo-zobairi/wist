@@ -63,13 +63,26 @@ Wist is closed.
 ### Build your wardrobe
 
 Open **Profile → Wardrobe → Add**, then take a photo or choose one from your
-library. Wist converts it to JPEG at quality 0.8, limiting the longest edge to
-1,568 pixels without enlarging smaller images. After “Reading your garment…”,
+library. To bring in a closet that already exists, choose **Add several from
+library**: up to 20 photos per round (never past the 300-garment cap), uploaded
+one after another with "Adding 3 of 12…" while they run and "Added 11 of 12.
+1 photo could not be added." at the end; the grid fills as they arrive and the
+editor stays closed. Wist converts each photo to JPEG at quality 0.8, limiting
+the longest edge to 1,568 pixels without enlarging smaller images. After “Reading your garment…”,
 the editor opens so you can check the name, category, colors, formality,
 warmth, occasions, and notes. Save sends the changes to the backend. Tap a
 garment later to edit it, re-read its photo, or permanently delete it after
 confirmation. Re-reading replaces saved details and notes and may incur
 another model charge.
+
+The backend also cuts the garment out of its photo: img.ly's background-removal
+model runs on the server's own CPU (bundled with the service, no key, no charge),
+and the result is trimmed and centred on a transparent 4:5 canvas of 1,024 ×
+1,280 pixels, so every piece sits in the frame alike. The photo route serves
+that cutout once it is ready and the original photo otherwise; the original is
+kept and is what tagging reads. In the editor, **Remove background** (or **Redo
+background removal**) runs it again. Set `CATALOGUE_CUTOUTS=off` on the backend
+to keep photos as shot. Design: `docs/superpowers/specs/2026-11-08-closet-import-cutouts-design.md`.
 
 For a coveted piece you bought on the brand's site, open its product screen
 and tap **I bought this**. Confirm **Add to your wardrobe? You'll stop getting
@@ -143,8 +156,9 @@ it. Available endpoints are:
 - `PUT /v1/wardrobe/:id` (owner token) — replaces all editable attributes
 - `DELETE /v1/wardrobe/:id` (owner token) — permanently deletes the garment
 - `POST /v1/wardrobe/photos` (owner token) — uploads raw JPEG, PNG, or WebP bytes
-- `GET /v1/wardrobe/:id/photo` (owner token) — returns the stored image bytes
+- `GET /v1/wardrobe/:id/photo` (owner token) — returns the cutout PNG when one is ready, otherwise the stored photo bytes
 - `POST /v1/wardrobe/:id/tag` (owner token) — retries photo or purchased-product tagging; optional `{ "force": true }` overwrites existing tags
+- `POST /v1/wardrobe/:id/cutout` (owner token) — cuts a photo garment out again, whatever its `cutoutStatus`; `404 photo_not_found` for manual and purchased garments, `502 cutout_failed`, `503 cutouts_not_configured`
 - `GET /v1/outfits` (owner token) — stored outfit ideas, saved outfits and background status; never calls Claude
 - `PUT /v1/location` with `{ "latitude": …, "longitude": … }` (owner token) — stores the owner's latest location, rounded to two decimals; `204`, or `400 invalid_location`
 - `POST /v1/outfits/saved` with `{ "suggestionId": "…" }` (owner token) — saves an idea; `DELETE /v1/outfits/saved/:id` removes it
@@ -187,7 +201,10 @@ Only successfully applied tags record a change for background outfit generation.
 
 
 Photos live at `<database directory>/wardrobe-photos/<garment UUID>.<ext>` and
-are kept until the garment is deleted. Back up that directory together with
+are kept until the garment is deleted; their cutouts live next to them in
+`wardrobe-cutouts/<garment UUID>.png` and go with the garment. A garment's
+`cutoutStatus` (`none`, `ready`, `failed`) says whether that file exists; a
+missing file behind `ready` falls back to the original with a warning. Back up that directory together with
 SQLite; Wist adds no separate backup mechanism. A failed photo write removes
 the new garment and returns `500 photo_store_failed`. Deletion removes the
 database record first; if file removal fails, the error is logged and deletion
@@ -241,9 +258,11 @@ The backend wiring is:
 
 ```text
 catalogue:start → server.ts → Anthropic client → ClaudeGarmentTagger
-                  └→ handleRequest → handleWardrobeRequest → photo/tag routes
+                  └→ handleRequest → handleWardrobeRequest → photo/tag/cutout routes
                                                              ├→ photoStore.write/read
-                                                             └→ tagger.tag → wardrobe.applyTags/markTagFailed
+                                                             ├→ tagger.tag → wardrobe.applyTags/markTagFailed
+                                                             └→ cutoutMaker.cut → cutoutStore.write → wardrobe.setCutoutStatus
+                                                                (ImglyCutoutMaker, in parallel with tagging at upload)
 ```
 
 Tests use fake taggers and a stubbed SDK transport; they do not call Anthropic.

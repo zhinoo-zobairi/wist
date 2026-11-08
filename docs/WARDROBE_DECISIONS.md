@@ -598,3 +598,28 @@ Prompt caching: gives no saving for this once-a-day call: its 5-minute cache exp
 Remaining limitations: the pick runs only while the catalogue service runs; a
 service started after 06:00 makes the day's attempt on its first tick. A
 location saved after 06:00 is used the next morning.
+
+## Closet import and cutouts (2026-11-08)
+
+Decided by the owner on 2026-11-08; the full record is
+`docs/superpowers/specs/2026-11-08-closet-import-cutouts-design.md` (D1–D12).
+
+| Rule | Approved value |
+|---|---|
+| Where | Backend, in process: `@imgly/background-removal-node` 1.4.5 ("medium" model, CPU, weights bundled) behind `CutoutMaker`; `sharp` ^0.35.5 forced on it with an npm override |
+| When | In the upload request, in parallel with tagging; no background job, no automatic retry |
+| Output | PNG with alpha, subject trimmed and fitted in 896 × 1,120, centred on a transparent 1,024 × 1,280 canvas |
+| Storage | `wardrobe-cutouts/<uuid>.png` beside `wardrobe-photos/`; the original is kept and is what tagging reads; backup and restore carry the folder |
+| Record | `garments.cutout_status` `none` / `ready` / `failed`, exposed as `cutoutStatus`; never touches `updated_at` or the change log |
+| Serving | `GET /v1/wardrobe/:id/photo` returns the cutout when ready and present, else the original; the phone appends `?cutout=ready` so a cached original is not shown |
+| Redo | `POST /v1/wardrobe/:id/cutout`; editor link "Remove background" / "Redo background removal"; `502 cutout_failed`, `503 cutouts_not_configured` |
+| Bulk import | "Add several from library": multi-select, at most 20 per round and never past 300, uploads one after another, summary line, editor stays closed; camera unchanged |
+| Switch | `CATALOGUE_CUTOUTS=off` |
+| Licence | AGPL-3.0: fine for the owner's own use; before serving others, buy img.ly's licence or swap the maker for an Apache-2.0 model |
+
+Measured on an M-series Mac: 4.4–4.7 s per photo for the model step on a cold
+process, about 2 s end to end once the model is resident, 0.2 s for
+normalisation. Accepted edges: a redo while a cutout is already ready keeps the
+same photo address, so a cached image may show until the app reloads it; a
+cutout that keeps the wrong object (a hanger, a hand) can only be redone, not
+drawn by hand.
