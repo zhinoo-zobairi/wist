@@ -22,6 +22,8 @@ export type GarmentInput = {
 };
 
 export type TagStatus = "untagged" | "tagged" | "failed";
+export const CUTOUT_STATUSES = ["none", "ready", "failed"] as const;
+export type CutoutStatus = (typeof CUTOUT_STATUSES)[number];
 
 export type Garment = GarmentInput & {
   id: string;
@@ -30,6 +32,8 @@ export type Garment = GarmentInput & {
   /** Purchase: absolute public URL. Photo: relative, owner-protected API path. */
   photoUrl: string | null;
   tagStatus: TagStatus;
+  /** Photo garments only: whether a background-free copy of the photo exists. */
+  cutoutStatus: CutoutStatus;
   createdAt: string;
   updatedAt: string;
 };

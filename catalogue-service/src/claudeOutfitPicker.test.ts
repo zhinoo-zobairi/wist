@@ -6,7 +6,7 @@ import type { Garment } from "./wardrobe.js";
 
 const garment: Garment = { id: "b", name: "Navy shirt", category: "top", colors: ["navy"],
   formality: "smart_casual", warmth: "light", occasions: ["work"], notes: "private notes",
-  photoUrl: "/private-photo", source: "photo", catalogueItemId: null, tagStatus: "tagged", createdAt: "stamp", updatedAt: "stamp" };
+  photoUrl: "/private-photo", source: "photo", catalogueItemId: null, tagStatus: "tagged", cutoutStatus: "none", createdAt: "stamp", updatedAt: "stamp" };
 const input: PickInput = {
   garments: [garment, { ...garment, id: "a", category: "outerwear", name: "Wool coat", warmth: "heavy" }],
   weather: { minC: 6, maxC: 11, precipitationChancePct: 70, maxWindKph: 20, condition: "rain" },

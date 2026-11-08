@@ -4,16 +4,17 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import { OCCASIONS, type Occasion } from "./styleProfile.js";
-import { MAX_GARMENTS, type Garment, type GarmentInput, type TagStatus } from "./wardrobe.js";
+import { MAX_GARMENTS, type CutoutStatus, type Garment, type GarmentInput, type TagStatus } from "./wardrobe.js";
 import { WardrobeFullError, type WardrobeRepository } from "./wardrobeRepository.js";
 
-type GarmentRow = Omit<Garment, "colors" | "occasions" | "createdAt" | "updatedAt" | "photoUrl" | "tagStatus" | "catalogueItemId"> & {
+type GarmentRow = Omit<Garment, "colors" | "occasions" | "createdAt" | "updatedAt" | "photoUrl" | "tagStatus" | "catalogueItemId" | "cutoutStatus"> & {
   created_at: string;
   updated_at: string;
   photo_media_type: string | null;
   tag_status: TagStatus;
   catalogue_item_id: string | null;
   photo_url: string | null;
+  cutout_status: CutoutStatus;
 };
 
 const GARMENT_COLUMNS = `
@@ -27,7 +28,8 @@ const GARMENT_COLUMNS = `
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   photo_media_type TEXT,
-  tag_status TEXT NOT NULL DEFAULT 'tagged' CHECK (tag_status IN ('untagged','tagged','failed'))
+  tag_status TEXT NOT NULL DEFAULT 'tagged' CHECK (tag_status IN ('untagged','tagged','failed')),
+  cutout_status TEXT NOT NULL DEFAULT 'none' CHECK (cutout_status IN ('none','ready','failed'))
 `;
 
 /** "any": human edit; "untagged": ordinary tagging; a timestamp: forced retag of an unchanged garment. */
@@ -77,6 +79,7 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
     try {
       this.migratePhotoColumns();
       this.migratePurchaseColumns();
+      this.migrateCutoutColumn();
       // Wardrobes that existed before the change log count as changed.
       this.database.prepare(`
         INSERT OR IGNORE INTO wardrobe_change_log (id, last_changed_at)
@@ -144,6 +147,14 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
     }
   }
 
+  private migrateCutoutColumn(): void {
+    const columns = this.database.prepare("PRAGMA table_info(garments)")
+      .all() as unknown as Array<{ name: string }>;
+    if (columns.some((column) => column.name === "cutout_status")) return;
+    this.database.exec(`ALTER TABLE garments ADD COLUMN cutout_status TEXT NOT NULL
+      DEFAULT 'none' CHECK (cutout_status IN ('none','ready','failed'))`);
+  }
+
   async listGarments(): Promise<Garment[]> {
     const rows = this.database.prepare(
       "SELECT * FROM garments ORDER BY created_at DESC, rowid DESC",
@@ -179,6 +190,7 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
       catalogueItemId: row.catalogue_item_id,
       photoUrl: row.source === "purchase" ? row.photo_url : row.photo_media_type ? `/v1/wardrobe/${row.id}/photo` : null,
       tagStatus: row.tag_status,
+      cutoutStatus: row.cutout_status,
     };
   }
 
@@ -223,7 +235,7 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
       throw error;
     }
     return {
-      ...input, id, source, createdAt: now, updatedAt: now, tagStatus,
+      ...input, id, source, createdAt: now, updatedAt: now, tagStatus, cutoutStatus: "none",
       catalogueItemId,
       photoUrl: source === "purchase" ? imageUrl : photoMediaType ? `/v1/wardrobe/${id}/photo` : null,
     };
@@ -249,6 +261,12 @@ export class SqliteWardrobeRepository implements WardrobeRepository {
       UPDATE garments SET tag_status = 'failed', updated_at = ?
       WHERE id = ? AND ${guard.sql}
     `).run(new Date().toISOString(), id, ...guard.params);
+    return result.changes > 0 ? this.getGarment(id) : null;
+  }
+
+  async setCutoutStatus(id: string, status: CutoutStatus): Promise<Garment | null> {
+    // Not a tag: updated_at and the change log stay as they are, so no outfit run is triggered.
+    const result = this.database.prepare("UPDATE garments SET cutout_status = ? WHERE id = ?").run(status, id);
     return result.changes > 0 ? this.getGarment(id) : null;
   }
 

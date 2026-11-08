@@ -159,7 +159,7 @@ describe("SQLite wardrobe repository", () => {
     const expected = {
       id: "legacy", name: "Navy shirt", category: "top", formality: "casual", warmth: "light",
       notes: "Keep", source: "photo", colors: ["navy"], occasions: ["work"], tagStatus: "tagged",
-      catalogueItemId: null, photoUrl: "/v1/wardrobe/legacy/photo", createdAt: "2026-10-01", updatedAt: "2026-10-02",
+      catalogueItemId: null, photoUrl: "/v1/wardrobe/legacy/photo", cutoutStatus: "none", createdAt: "2026-10-01", updatedAt: "2026-10-02",
     };
     await expect(repository.getGarment("legacy")).resolves.toEqual(expected);
     const purchase = await repository.createPurchaseGarment("catalogue-1", "https://brand.example/shirt.jpg", null);
@@ -260,7 +260,7 @@ describe("SQLite wardrobe repository", () => {
     const expected = {
       id: "legacy", name: "Navy shirt", category: "top", colors: ["navy", "cream"],
       formality: "smart_casual", warmth: "light", occasions: ["work", "travel"],
-      notes: "Keep me", source: "manual", catalogueItemId: null, tagStatus: "tagged", photoUrl: null,
+      notes: "Keep me", source: "manual", catalogueItemId: null, tagStatus: "tagged", photoUrl: null, cutoutStatus: "none",
       createdAt: "2026-10-01", updatedAt: "2026-10-02",
     };
     await expect(repository.getGarment("legacy")).resolves.toEqual(expected);
@@ -410,5 +410,72 @@ describe("SQLite wardrobe repository", () => {
     const reopened = new SqliteWardrobeRepository(path);
     await expect(reopened.lastChangedAt()).resolves.toEqual(expect.any(String));
     reopened.close();
+  });
+});
+
+describe("SQLite wardrobe repository · cutouts", () => {
+  const repositories: SqliteWardrobeRepository[] = [];
+  afterEach(() => repositories.splice(0).forEach((repository) => repository.close()));
+
+  it("starts every garment without a cutout and records one without counting it as a change", async () => {
+    const repository = new SqliteWardrobeRepository(":memory:");
+    repositories.push(repository);
+    const manual = await repository.createGarment(input, "manual");
+    const photo = await repository.createPhotoGarment("image/jpeg");
+    const purchase = await repository.createPurchaseGarment("catalogue-1", "https://brand.example/shirt.jpg", null);
+    expect([manual.cutoutStatus, photo.cutoutStatus, purchase.cutoutStatus]).toEqual(["none", "none", "none"]);
+    const before = await repository.lastChangedAt();
+    await expect(repository.setCutoutStatus(photo.id, "ready")).resolves.toMatchObject({
+      cutoutStatus: "ready", updatedAt: photo.updatedAt, tagStatus: "untagged",
+    });
+    await expect(repository.getGarment(photo.id)).resolves.toMatchObject({ cutoutStatus: "ready" });
+    await expect(repository.setCutoutStatus(photo.id, "failed")).resolves.toMatchObject({ cutoutStatus: "failed" });
+    await expect(repository.lastChangedAt()).resolves.toBe(before);
+    await expect(repository.setCutoutStatus("missing", "ready")).resolves.toBeNull();
+  });
+
+  it("adds the cutout column to a C1.4 database without losing records and reopens safely", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "wist-cutout-upgrade-"));
+    const path = join(directory, "wardrobe.sqlite");
+    const database = new DatabaseSync(path);
+    database.exec(`
+      CREATE TABLE garments (
+        id TEXT PRIMARY KEY, source TEXT NOT NULL CHECK (source IN ('manual','photo','purchase')),
+        name TEXT NOT NULL, category TEXT NOT NULL, formality TEXT NOT NULL, warmth TEXT NOT NULL,
+        notes TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, photo_media_type TEXT,
+        tag_status TEXT NOT NULL DEFAULT 'tagged' CHECK (tag_status IN ('untagged','tagged','failed')),
+        catalogue_item_id TEXT, photo_url TEXT
+      );
+      CREATE TABLE garment_colors (
+        garment_id TEXT NOT NULL REFERENCES garments(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL, color TEXT NOT NULL, PRIMARY KEY (garment_id, position)
+      );
+      CREATE TABLE garment_occasions (
+        garment_id TEXT NOT NULL REFERENCES garments(id) ON DELETE CASCADE,
+        occasion TEXT NOT NULL, PRIMARY KEY (garment_id, occasion)
+      );
+      INSERT INTO garments VALUES ('legacy', 'photo', 'Navy shirt', 'top', 'casual', 'light', 'Keep', '2026-10-01', '2026-10-02', 'image/jpeg', 'tagged', NULL, NULL);
+      INSERT INTO garment_colors VALUES ('legacy', 0, 'navy');
+    `);
+    database.close();
+    try {
+      const repository = new SqliteWardrobeRepository(path);
+      repositories.push(repository);
+      await expect(repository.getGarment("legacy")).resolves.toMatchObject({
+        name: "Navy shirt", colors: ["navy"], tagStatus: "tagged", cutoutStatus: "none", updatedAt: "2026-10-02",
+      });
+      await expect(repository.setCutoutStatus("legacy", "ready")).resolves.toMatchObject({ cutoutStatus: "ready", updatedAt: "2026-10-02" });
+      const reopened = new SqliteWardrobeRepository(path);
+      repositories.push(reopened);
+      await expect(reopened.getGarment("legacy")).resolves.toMatchObject({ cutoutStatus: "ready" });
+      const check = new DatabaseSync(path);
+      try {
+        const columns = check.prepare("PRAGMA table_info(garments)").all().map((column) => column.name);
+        expect(columns.filter((name) => name === "cutout_status")).toHaveLength(1);
+      } finally { check.close(); }
+    } finally {
+      repositories.splice(0).forEach((repository) => repository.close());
+      rmSync(directory, { recursive: true });
+    }
   });
 });

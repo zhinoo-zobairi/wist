@@ -7,7 +7,7 @@ import type { Garment } from "./wardrobe.js";
 
 const garment: Garment = { id: "b", name: "Navy shirt", category: "top", colors: ["navy"],
   formality: "smart_casual", warmth: "light", occasions: ["work"], notes: "private notes",
-  photoUrl: "/private-photo", source: "photo", catalogueItemId: null, tagStatus: "tagged", createdAt: "stamp", updatedAt: "stamp" };
+  photoUrl: "/private-photo", source: "photo", catalogueItemId: null, tagStatus: "tagged", cutoutStatus: "none", createdAt: "stamp", updatedAt: "stamp" };
 const input: SuggestionInput = {
   garments: [garment, { ...garment, id: "a", category: "bottom", name: "Cream trousers", colors: ["cream"] }],
   profile: { ...emptyStyleDetails(), occasions: ["work"], styles: ["minimal"], updatedAt: "private-timestamp" },

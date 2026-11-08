@@ -4,7 +4,7 @@ import { wardrobePromptText } from "./wardrobePromptText.js";
 
 const garment: Garment = { id: "b", name: "Navy shirt", category: "top", colors: ["navy"],
   formality: "smart_casual", warmth: "light", occasions: ["work"], notes: "private notes",
-  photoUrl: "/private-photo", source: "photo", catalogueItemId: "item-1", tagStatus: "tagged", createdAt: "stamp", updatedAt: "stamp" };
+  photoUrl: "/private-photo", source: "photo", catalogueItemId: "item-1", tagStatus: "tagged", cutoutStatus: "none", createdAt: "stamp", updatedAt: "stamp" };
 
 describe("wardrobe prompt text", () => {
   it("lists garments as ID-sorted JSON lines with only the fields Claude needs", () => {
