@@ -10,7 +10,7 @@ import {
 } from "../services/dropEngine";
 import {
   addGarmentFromItem as purchaseCatalogueItem, deleteGarment, loadWardrobe, loadWatches,
-  retagGarment, saveGarment, uploadGarmentPhoto, type AddGarmentFromItemResult, type Watches,
+  requestGarmentCutout, retagGarment, saveGarment, uploadGarmentPhoto, type AddGarmentFromItemResult, type Watches,
 } from "../services/catalogueClient";
 import {
   emptyStyleDetails,
@@ -31,6 +31,7 @@ type WistState = {
   updateGarment: (id: string, input: GarmentInput) => Promise<Garment>;
   removeGarment: (id: string) => Promise<void>;
   tagGarment: (id: string, force?: boolean) => Promise<Garment>;
+  cutoutGarment: (id: string) => Promise<Garment>;
   followedBrandIds: string[];
   starredItemIds: string[];
   priceRevision: number;
@@ -223,6 +224,12 @@ export const useWistStore = create<WistState>()(
       },
       tagGarment: async (id, force) => {
         const garment = await retagGarment(id, force);
+        wardrobeRevision += 1;
+        set((state) => ({ wardrobe: upsertGarment(state.wardrobe, garment) }));
+        return garment;
+      },
+      cutoutGarment: async (id) => {
+        const garment = await requestGarmentCutout(id);
         wardrobeRevision += 1;
         set((state) => ({ wardrobe: upsertGarment(state.wardrobe, garment) }));
         return garment;

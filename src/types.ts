@@ -316,6 +316,8 @@ export type Garment = GarmentInput & {
   /** Purchase: absolute public URL. Photo: relative, owner-protected API path. */
   photoUrl: string | null;
   tagStatus: "untagged" | "tagged" | "failed";
+  /** Photo garments only: whether the photo route serves a background-free copy. */
+  cutoutStatus: "none" | "ready" | "failed";
   createdAt: string;
   updatedAt: string;
 };

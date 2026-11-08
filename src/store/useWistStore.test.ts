@@ -11,19 +11,19 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { newOnboardingDraft, useWistStore } from "./useWistStore";
-import { addGarmentFromItem, deleteGarment, loadWardrobe, loadWatches, retagGarment, saveGarment, uploadGarmentPhoto,
+import { addGarmentFromItem, deleteGarment, loadWardrobe, loadWatches, requestGarmentCutout, retagGarment, saveGarment, uploadGarmentPhoto,
   type AddGarmentFromItemResult } from "../services/catalogueClient";
 import { emptyStyleDetails, type Garment } from "../types";
 
 vi.mock("../services/catalogueClient", () => ({
   addGarmentFromItem: vi.fn(), deleteGarment: vi.fn(), loadWardrobe: vi.fn(), loadWatches: vi.fn(), retagGarment: vi.fn(),
-  saveGarment: vi.fn(), uploadGarmentPhoto: vi.fn(),
+  saveGarment: vi.fn(), uploadGarmentPhoto: vi.fn(), requestGarmentCutout: vi.fn(),
 }));
 
 describe("Wist wardrobe store", () => {
   const garment: Garment = {
     id: "a", name: "Shirt", category: "top", colors: ["navy"], formality: "casual",
-    warmth: "light", occasions: [], notes: null, source: "photo", catalogueItemId: null, tagStatus: "tagged",
+    warmth: "light", occasions: [], notes: null, source: "photo", catalogueItemId: null, tagStatus: "tagged", cutoutStatus: "none",
     photoUrl: "/photo", createdAt: "2026-10-10T10:00:00Z", updatedAt: "2026-10-10T10:00:00Z",
   };
   beforeEach(() => {
@@ -55,6 +55,18 @@ describe("Wist wardrobe store", () => {
     await useWistStore.getState().tagGarment(garment.id, true);
     expect(retagGarment).toHaveBeenCalledWith(garment.id, true);
     expect(useWistStore.getState().wardrobe).toEqual([garment]);
+  });
+
+  it("replaces a garment with the server's cutout result and keeps it on failure", async () => {
+    useWistStore.setState({ wardrobe: [garment] });
+    const ready = { ...garment, cutoutStatus: "ready" as const };
+    vi.mocked(requestGarmentCutout).mockResolvedValueOnce(ready);
+    await expect(useWistStore.getState().cutoutGarment(garment.id)).resolves.toEqual(ready);
+    expect(requestGarmentCutout).toHaveBeenCalledWith(garment.id);
+    expect(useWistStore.getState().wardrobe).toEqual([ready]);
+    vi.mocked(requestGarmentCutout).mockRejectedValueOnce(new Error("offline"));
+    await expect(useWistStore.getState().cutoutGarment(garment.id)).rejects.toThrow("offline");
+    expect(useWistStore.getState().wardrobe).toEqual([ready]);
   });
 
   it("keeps records for every failed mutation and removes only after success", async () => {

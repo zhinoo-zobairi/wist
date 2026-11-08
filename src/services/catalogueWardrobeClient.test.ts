@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Garment } from "../types";
 import {
-  addGarmentFromItem, deleteGarment, garmentPhotoSource, loadWardrobe, retagGarment, saveGarment,
+  addGarmentFromItem, deleteGarment, garmentPhotoSource, loadWardrobe, requestGarmentCutout, retagGarment, saveGarment,
   UncertainWardrobeRequestError, uploadGarmentPhoto, WardrobeApiError,
 } from "./catalogueClient";
 
 const garment: Garment = {
   id: "01234567-1234-1234-1234-012345678901", name: "Navy shirt", category: "top",
   colors: ["navy"], formality: "smart_casual", warmth: "light", occasions: ["work"],
-  notes: null, source: "photo", catalogueItemId: null, tagStatus: "tagged",
+  notes: null, source: "photo", catalogueItemId: null, tagStatus: "tagged", cutoutStatus: "none",
   photoUrl: "/v1/wardrobe/01234567-1234-1234-1234-012345678901/photo",
   createdAt: "2026-10-10T10:00:00.000Z", updatedAt: "2026-10-10T10:00:00.000Z",
 };
@@ -200,6 +200,36 @@ describe("wardrobe client", () => {
     await vi.advanceTimersByTimeAsync(90_000);
     await assertion;
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("reads the cutout status and treats a missing one as none", async () => {
+    const fetchImpl = vi.fn<typeof fetch>();
+    for (const cutoutStatus of ["none", "ready", "failed"] as const) {
+      fetchImpl.mockResolvedValueOnce(json({ garments: [{ ...garment, cutoutStatus }] }));
+      expect(await loadWardrobe(fetchImpl, base, "owner")).toEqual([{ ...garment, cutoutStatus }]);
+    }
+    const { cutoutStatus: _absent, ...older } = garment;
+    fetchImpl.mockResolvedValueOnce(json({ garments: [older] }));
+    expect(await loadWardrobe(fetchImpl, base, "owner")).toEqual([{ ...garment, cutoutStatus: "none" }]);
+    fetchImpl.mockResolvedValueOnce(json({ garments: [{ ...garment, cutoutStatus: "pending" }] }));
+    await expect(loadWardrobe(fetchImpl, base, "owner")).rejects.toThrow("invalid garment");
+  });
+
+  it("requests a cutout without a body and clears its deadline on success or rejection", async () => {
+    vi.useFakeTimers();
+    const ready = { ...garment, cutoutStatus: "ready" as const };
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(json({ garment: ready }));
+    expect(await requestGarmentCutout(garment.id, fetchImpl, base, "owner")).toEqual(ready);
+    expect(fetchImpl.mock.calls[0]).toMatchObject([
+      `http://localhost:4000/v1/wardrobe/${garment.id}/cutout`, { method: "POST", headers: { authorization: "Bearer owner" } },
+    ]);
+    expect(fetchImpl.mock.calls[0]?.[1]).not.toHaveProperty("body");
+    expect(vi.getTimerCount()).toBe(0);
+    fetchImpl.mockResolvedValueOnce(json({ error: "cutout_failed" }, 502));
+    await expect(requestGarmentCutout(garment.id, fetchImpl, base, "owner")).rejects.toBeInstanceOf(WardrobeApiError);
+    fetchImpl.mockRejectedValueOnce(new TypeError("Network request failed"));
+    await expect(requestGarmentCutout(garment.id, fetchImpl, base, "owner")).rejects.toBeInstanceOf(UncertainWardrobeRequestError);
     expect(vi.getTimerCount()).toBe(0);
   });
 

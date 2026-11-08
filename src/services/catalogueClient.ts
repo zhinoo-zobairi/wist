@@ -371,6 +371,8 @@ function toGarment(value: unknown): Garment {
     (value.notes !== null && (typeof value.notes !== "string" || value.notes.length > 280)) ||
     (value.source !== "manual" && value.source !== "photo" && value.source !== "purchase") ||
     (value.tagStatus !== "tagged" && value.tagStatus !== "untagged" && value.tagStatus !== "failed") ||
+    // A backend from before cutouts sends none; any value it does send must be known.
+    (value.cutoutStatus !== undefined && value.cutoutStatus !== "none" && value.cutoutStatus !== "ready" && value.cutoutStatus !== "failed") ||
     (value.source === "purchase"
       ? typeof value.catalogueItemId !== "string" || !value.catalogueItemId.trim() || !isPublicGarmentPhotoUrl(value.photoUrl)
       : value.catalogueItemId !== null || (value.photoUrl !== null && value.photoUrl !== `/v1/wardrobe/${id}/photo`)) ||
@@ -382,7 +384,8 @@ function toGarment(value: unknown): Garment {
     colors: value.colors as string[], formality: value.formality as Garment["formality"],
     warmth: value.warmth as Garment["warmth"], occasions: value.occasions as Occasion[],
     notes: value.notes as string | null, catalogueItemId: value.catalogueItemId as string | null, source: value.source, photoUrl: value.photoUrl as string | null,
-    tagStatus: value.tagStatus, createdAt: value.createdAt, updatedAt: value.updatedAt,
+    tagStatus: value.tagStatus, cutoutStatus: (value.cutoutStatus ?? "none") as Garment["cutoutStatus"],
+    createdAt: value.createdAt, updatedAt: value.updatedAt,
   };
 }
 
@@ -482,6 +485,27 @@ export async function retagGarment(
   try {
     const body = await wardrobeJson(await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/wardrobe/${encodeURIComponent(id)}/tag`, {
       method: "POST", headers, body: JSON.stringify({ force }), signal: controller.signal,
+    }));
+    const garment = toGarment(body.garment);
+    if (garment.id !== id) throw new Error("Catalogue returned a different garment");
+    return garment;
+  } catch (error) {
+    if (!(error instanceof WardrobeApiError)) throw new UncertainWardrobeRequestError();
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Asks the backend to cut the garment out of its photo again (or for the first time). Local work, no model charge. */
+export async function requestGarmentCutout(
+  id: string, fetchImpl: Fetch = fetch, baseUrl = defaultBaseUrl, ownerToken = defaultOwnerToken,
+): Promise<Garment> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90_000);
+  try {
+    const body = await wardrobeJson(await fetchImpl(`${baseUrl.replace(/\/$/, "")}/v1/wardrobe/${encodeURIComponent(id)}/cutout`, {
+      method: "POST", headers: authorizationHeaders(ownerToken), signal: controller.signal,
     }));
     const garment = toGarment(body.garment);
     if (garment.id !== id) throw new Error("Catalogue returned a different garment");
