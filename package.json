@@ -30,6 +30,7 @@
     "@expo-google-fonts/jost": "^0.4.2",
     "@expo/metro-runtime": "~57.0.8",
     "@expo/vector-icons": "^15.0.0",
+    "@imgly/background-removal-node": "1.4.5",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.9",
     "expo-font": "~57.0.1",
@@ -46,6 +47,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4",
     "react-native-web": "~0.21.0",
+    "sharp": "^0.35.5",
     "zod": "^4.6.5",
     "zustand": "^5.0.8"
   },
@@ -54,5 +56,10 @@
     "@types/react": "~19.2.0",
     "typescript": "~6.0.3",
     "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "@imgly/background-removal-node": {
+      "sharp": "^0.35.5"
+    }
   }
 }
