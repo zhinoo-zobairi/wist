@@ -61,7 +61,7 @@ the same wardrobe that outfits are built from.
   The first cutout after a restart loads the model into memory once (tens of
   MB) and keeps it resident.
 - **D4. What a cutout is.** PNG with alpha. The subject is trimmed to its
-  bounding box, fitted inside 896 × 1,120 px without enlarging past the source,
+  bounding box, fitted inside 896 × 1,120 px (a small subject is enlarged, so every garment fills the frame alike),
   and centred on a transparent 1,024 × 1,280 px canvas: the same 4:5 as
   `GarmentPhoto`, with a 6% margin, so `cover` shows the whole garment.
 - **D5. Storage: `wardrobe-cutouts/<uuid>.png`** next to `wardrobe-photos/`,
