@@ -13,7 +13,7 @@ import { useWistStore } from "../store/useWistStore";
 import { colors, radii, spacing, typography } from "../theme";
 import type { Garment } from "../types";
 import { importGarmentPhotos, importSelectionLimit } from "../wardrobeImport";
-import { WardrobeNotice, captureErrorMessage, importSummaryMessage } from "../wardrobeMessages";
+import { WardrobeNotice, captureErrorMessage, importSummaryMessage, piecesOwnedText } from "../wardrobeMessages";
 
 export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
   onBack: () => void;
@@ -138,7 +138,7 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
           <BackLink label="Profile" onPress={onBack} />
           <ActionLink color={colors.moss} disabled={!!busy || status === "loading"} label="+ Add" onPress={() => setChooser(!chooser)} />
         </View>
-        <ScreenHeader subtitle={`${wardrobe.length} pieces you own.`} title="Your wardrobe" />
+        <ScreenHeader subtitle={`${piecesOwnedText(wardrobe.length)}.`} title="Your wardrobe" />
         <View style={styles.dressMe}>
           <Button color={colors.moss} disabled={!!busy} label="Dress me" onPress={onDressMe} />
         </View>

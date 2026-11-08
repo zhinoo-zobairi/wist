@@ -20,6 +20,10 @@ export function captureErrorMessage(caught: unknown): string {
   return "Could not add this photo. Please try again.";
 }
 
+export function piecesOwnedText(count: number): string {
+  return `${count} ${count === 1 ? "piece" : "pieces"} you own`;
+}
+
 /** What a round of "Add several from library" did; the per-photo reasons stay in the logs. */
 export function importSummaryMessage(added: number, total: number): string {
   const photos = (count: number) => `${count} ${count === 1 ? "photo" : "photos"}`;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CatalogueNotice, UncertainWardrobeRequestError, WardrobeApiError, importCatalogueWatch } from "./services/catalogueClient";
-import { WardrobeNotice, captureErrorMessage, garmentEditErrorMessage, importErrorMessage, purchaseRefreshErrorMessage, purchaseErrorMessage, purchaseRecoveryAfterError, catalogueWatchErrorMessage, importSummaryMessage } from "./wardrobeMessages";
+import { WardrobeNotice, captureErrorMessage, garmentEditErrorMessage, importErrorMessage, purchaseRefreshErrorMessage, purchaseErrorMessage, purchaseRecoveryAfterError, catalogueWatchErrorMessage, importSummaryMessage, piecesOwnedText } from "./wardrobeMessages";
 
 describe("captureErrorMessage", () => {
   it("explains a full wardrobe and an oversized photo", () => {
@@ -157,5 +157,13 @@ describe("importSummaryMessage", () => {
     expect(importSummaryMessage(11, 12)).toBe("Added 11 of 12. 1 photo could not be added.");
     expect(importSummaryMessage(9, 12)).toBe("Added 9 of 12. 3 photos could not be added.");
     expect(importSummaryMessage(0, 3)).toBe("None of the 3 photos could be added. Please try again.");
+  });
+});
+
+describe("piecesOwnedText", () => {
+  it("uses the singular for one garment", () => {
+    expect(piecesOwnedText(0)).toBe("0 pieces you own");
+    expect(piecesOwnedText(1)).toBe("1 piece you own");
+    expect(piecesOwnedText(12)).toBe("12 pieces you own");
   });
 });

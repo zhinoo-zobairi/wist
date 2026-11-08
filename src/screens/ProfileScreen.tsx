@@ -18,6 +18,7 @@ import { READING_MAX_WIDTH, pageStyle, useLayout } from "../layout";
 import { StepBody, type AnswerStepId } from "../onboarding/StepBody";
 import { ONBOARDING_STEPS } from "../onboarding/steps";
 import { eyeText, fitText, hasStyleBrief, labelOf, paletteText, sizesText, wardrobeText } from "../onboardingCopy";
+import { piecesOwnedText } from "../wardrobeMessages";
 import { saveStyleBrief } from "../services/catalogueClient";
 import { useWistStore } from "../store/useWistStore";
 import { colors, radii, spacing, typography } from "../theme";
@@ -148,7 +149,7 @@ export function ProfileScreen({
           >
             <View style={screenStyles.tasteCopy}>
               <Text style={screenStyles.tasteLabel}>WARDROBE</Text>
-              <Text style={screenStyles.tasteValue}>{wardrobeStatus === "loading" ? "Loading your pieces…" : wardrobeStatus === "error" ? "Open to reconnect" : `${wardrobe.length} pieces you own`}</Text>
+              <Text style={screenStyles.tasteValue}>{wardrobeStatus === "loading" ? "Loading your pieces…" : wardrobeStatus === "error" ? "Open to reconnect" : piecesOwnedText(wardrobe.length)}</Text>
             </View>
             <Text style={[screenStyles.rowAction, { color: colors.moss }]}>OPEN</Text>
           </Pressable>
