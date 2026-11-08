@@ -28,6 +28,8 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
   const [chooser, setChooser] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A finished round that added everything: informational, with no retry offered.
+  const [notice, setNotice] = useState<string | null>(null);
   const alive = useRef(true);
   const pending = useRef(false);
   const layout = useLayout();
@@ -51,6 +53,7 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
     pending.current = true;
     setChooser(false);
     setError(null);
+    setNotice(null);
     setBusy("Choosing a photo…");
     try {
       if (source === "camera") {
@@ -82,6 +85,7 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
     if (pending.current) return;
     setChooser(false);
     setError(null);
+    setNotice(null);
     const limit = importSelectionLimit(wardrobe.length);
     if (limit === 0) {
       setError("Your wardrobe is full (300 garments). Remove one before adding another.");
@@ -104,7 +108,8 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
       });
       if (!alive.current) return;
       const summary = importSummaryMessage(outcome.added, assets.length);
-      setError(outcome.stoppedBy ? `${summary} ${captureErrorMessage(outcome.stoppedBy)}` : summary);
+      if (outcome.failed === 0) setNotice(summary);
+      else setError(outcome.stoppedBy ? `${summary} ${captureErrorMessage(outcome.stoppedBy)}` : summary);
       // A photo whose answer never arrived may still have become a garment.
       if (outcome.failed > 0) void refresh().catch(() => undefined);
     } catch (caught) {
@@ -120,6 +125,7 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
     pending.current = true;
     setBusy("Reading your garment…");
     setError(null);
+    setNotice(null);
     try {
       const tagged = await tagGarment(garment.id);
       if (alive.current && tagged.tagStatus !== "tagged") setError("Could not read the photo. You can edit the garment yourself or retry later.");
@@ -149,6 +155,7 @@ export function WardrobeScreen({ onBack, onEdit, onDressMe }: {
           <ActionLink color={colors.ink} label="Cancel" onPress={() => setChooser(false)} />
         </View>}
         {busy && <View style={styles.notice}><ActivityIndicator color={colors.moss} /><Text style={styles.subtitle}>{busy}</Text></View>}
+        {notice && <View style={styles.notice}><Text style={styles.subtitle}>{notice}</Text></View>}
         {error && <View style={styles.notice}>
           <Text accessibilityRole="alert" style={styles.subtitle}>{error}</Text>
           <ActionLink color={colors.moss} disabled={!!busy || status === "loading"} label="Retry · Refresh wardrobe" onPress={() => void refreshList()} />
