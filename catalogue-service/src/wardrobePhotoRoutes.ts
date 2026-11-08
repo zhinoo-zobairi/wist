@@ -22,6 +22,8 @@ async function uploadPhoto(wardrobe: WardrobeRepository, options: RequestOptions
   // Clients may send parameters or other casing, e.g. "Image/JPEG; charset=binary".
   const contentType = options.contentType?.split(";")[0]?.trim().toLowerCase();
   if (!PHOTO_MEDIA_TYPES.includes(contentType as PhotoMediaType)) {
+    // The value, not the bytes: it tells which client sent what when a phone's fetch rewrites the header.
+    console.warn("Rejected photo upload media type", { contentType: contentType ?? null });
     return { status: 415, body: { error: "unsupported_media_type" } };
   }
   if (options.bodyTooLarge || (bodyBytes && bodyBytes.byteLength > MAX_PHOTO_BYTES)) {
