@@ -84,4 +84,20 @@ describe("backup", () => {
     restored.close();
     expect(readdirSync(join(dataDir, "wardrobe-photos"))).toEqual(["a.jpg"]);
   });
+
+  it("copies the cutouts folder when it exists and restores or clears it", () => {
+    const { db, databasePath, destination, dataDir } = setup();
+    runBackup({ databasePath, destination, now: at(1) });
+    expect(existsSync(join(destination, "2026-10-01-0430", "wardrobe-cutouts"))).toBe(false);
+    mkdirSync(join(dataDir, "wardrobe-cutouts"));
+    writeFileSync(join(dataDir, "wardrobe-cutouts", "a.png"), Buffer.from([4, 5]));
+    runBackup({ databasePath, destination, now: at(2) });
+    db.close();
+    expect([...readFileSync(join(destination, "2026-10-02-0430", "wardrobe-cutouts", "a.png"))]).toEqual([4, 5]);
+    // The older backup has no cutouts: restoring it clears the live folder so no cutout outlives its row.
+    restoreBackup({ backupFolder: join(destination, "2026-10-01-0430"), databasePath });
+    expect(existsSync(join(dataDir, "wardrobe-cutouts"))).toBe(false);
+    restoreBackup({ backupFolder: join(destination, "2026-10-02-0430"), databasePath });
+    expect(readdirSync(join(dataDir, "wardrobe-cutouts"))).toEqual(["a.png"]);
+  });
 });

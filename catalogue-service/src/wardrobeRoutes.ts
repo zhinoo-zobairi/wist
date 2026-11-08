@@ -73,7 +73,10 @@ export async function handleWardrobeRequest(
     if (!garment || !await wardrobe.deleteGarment(garment.id)) {
       return { status: 404, body: { error: "garment_not_found" } };
     }
-    if (garment.source === "photo") await removeGarmentPhoto(options.photoStore, garment.id);
+    if (garment.source === "photo") {
+      await removeGarmentPhoto(options.photoStore, garment.id);
+      await removeGarmentPhoto(options.cutoutStore, garment.id);
+    }
     return { status: 200, body: { id: garment.id, deleted: true } };
   }
   const garment = await wardrobe.getGarment(id);

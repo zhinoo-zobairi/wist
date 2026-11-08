@@ -10,7 +10,7 @@ export function backupName(now: Date): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
 }
 
-// Writes <destination>/<name>/{wist.sqlite, wardrobe-photos/}. The folder is built under a
+// Writes <destination>/<name>/{wist.sqlite, wardrobe-photos/, wardrobe-cutouts/ when it exists}. The folder is built under a
 // ".tmp-" name (which never matches BACKUP_NAME) and renamed only when complete, so a half-written
 // backup is never counted. VACUUM INTO reads a consistent snapshot while the service keeps running.
 export function runBackup(options: { databasePath: string; destination: string; now: Date }): string {
@@ -31,6 +31,8 @@ export function runBackup(options: { databasePath: string; destination: string; 
       database.close();
     }
     cpSync(photosFolder, join(tempFolder, "wardrobe-photos"), { recursive: true });
+    const cutoutsFolder = join(dirname(databasePath), "wardrobe-cutouts");
+    if (existsSync(cutoutsFolder)) cpSync(cutoutsFolder, join(tempFolder, "wardrobe-cutouts"), { recursive: true });
     renameSync(tempFolder, finalFolder);
   } catch (error) {
     rmSync(tempFolder, { recursive: true, force: true });
@@ -71,4 +73,9 @@ export function restoreBackup(options: { backupFolder: string; databasePath: str
   cpSync(backupDatabase, databasePath);
   rmSync(photosFolder, { recursive: true, force: true });
   cpSync(backupPhotos, photosFolder, { recursive: true });
+  // Cutouts are derived from photos and older backups have none: never keep one that outlives its row.
+  const cutoutsFolder = join(dirname(databasePath), "wardrobe-cutouts");
+  rmSync(cutoutsFolder, { recursive: true, force: true });
+  const backupCutouts = join(backupFolder, "wardrobe-cutouts");
+  if (existsSync(backupCutouts)) cpSync(backupCutouts, cutoutsFolder, { recursive: true });
 }

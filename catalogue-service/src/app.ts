@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { CatalogueItem } from "./model.js";
 import { ownerAuthError } from "./ownerAuth.js";
+import type { CutoutMaker } from "./cutoutMaker.js";
 import type { GarmentPhotoStore } from "./garmentPhotoStore.js";
 import type { GarmentTagger } from "./garmentTagger.js";
 import type { CatalogueRepository } from "./repository.js";
@@ -34,6 +35,8 @@ export type RequestOptions = {
   wardrobe?: WardrobeRepository;
   photoStore?: GarmentPhotoStore;
   tagger?: GarmentTagger;
+  cutoutStore?: GarmentPhotoStore;
+  cutoutMaker?: CutoutMaker;
   suggester?: OutfitSuggester;
   outfits?: OutfitRepository;
   bodyBytes?: Buffer;

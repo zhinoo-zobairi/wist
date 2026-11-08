@@ -1,6 +1,7 @@
 import type { ApiResponse, RequestOptions } from "./app.js";
 import { MAX_PHOTO_BYTES, PHOTO_MEDIA_TYPES, type GarmentPhotoStore, type PhotoMediaType } from "./garmentPhotoStore.js";
 import type { TagInput } from "./garmentTagger.js";
+import { cutAndSave } from "./garmentCutout.js";
 import { isPublicHttpsUrl, productTagInput, tagAndSave } from "./garmentTagging.js";
 import type { CatalogueRepository } from "./repository.js";
 import { MAX_GARMENTS } from "./wardrobe.js";
@@ -45,13 +46,35 @@ async function uploadPhoto(wardrobe: WardrobeRepository, options: RequestOptions
     console.error("Could not store garment photo", garment.id, error);
     return { status: 500, body: { error: "photo_store_failed" } };
   }
-  if (options.tagger) {
-    garment = (await tagAndSave(wardrobe, options.tagger, garment.id, {
-      kind: "photo", bytes: bodyBytes, mediaType: contentType as PhotoMediaType,
-    })).garment ?? await wardrobe.getGarment(garment.id);
-    if (!garment) return { status: 404, body: { error: "garment_not_found" } };
+  const mediaType = contentType as PhotoMediaType;
+  // Tagging (paid, remote) and the cutout (local CPU) read the same bytes and run side by side.
+  const { tagger, cutoutMaker, cutoutStore } = options;
+  if (tagger || (cutoutMaker && cutoutStore)) {
+    await Promise.all([
+      tagger ? tagAndSave(wardrobe, tagger, garment.id, { kind: "photo", bytes: bodyBytes, mediaType }) : undefined,
+      cutoutMaker && cutoutStore ? cutAndSave(wardrobe, cutoutStore, cutoutMaker, garment.id, bodyBytes, mediaType) : undefined,
+    ]);
+    const current = await wardrobe.getGarment(garment.id);
+    if (!current) return { status: 404, body: { error: "garment_not_found" } };
+    garment = current;
   }
   return { status: 201, body: { garment } };
+}
+
+async function redoCutout(id: string, wardrobe: WardrobeRepository, options: RequestOptions): Promise<ApiResponse> {
+  const { cutoutMaker, cutoutStore, photoStore } = options;
+  if (!cutoutMaker || !cutoutStore) return { status: 503, body: { error: "cutouts_not_configured" } };
+  if (!photoStore) return { status: 503, body: { error: "photo_store_not_configured" } };
+  const garment = await wardrobe.getGarment(id);
+  if (!garment) return { status: 404, body: { error: "garment_not_found" } };
+  // Manual and purchase garments store no photo of their own.
+  const mediaType = await wardrobe.getPhotoMediaType(garment.id);
+  if (!PHOTO_MEDIA_TYPES.includes(mediaType as PhotoMediaType)) return { status: 404, body: { error: "photo_not_found" } };
+  const bytes = await photoStore.read(garment.id, mediaType!);
+  if (!bytes) return { status: 404, body: { error: "photo_not_found" } };
+  const { ok, garment: current } = await cutAndSave(wardrobe, cutoutStore, cutoutMaker, garment.id, bytes, mediaType as PhotoMediaType);
+  if (!current) return { status: 404, body: { error: "garment_not_found" } };
+  return ok ? { status: 200, body: { garment: current } } : { status: 502, body: { error: "cutout_failed" } };
 }
 
 async function retagGarment(id: string, wardrobe: WardrobeRepository, catalogue: CatalogueRepository, options: RequestOptions): Promise<ApiResponse> {
@@ -118,6 +141,12 @@ export async function handleWardrobePhotoRequest(
       ? retagGarment(tagMatch[1], wardrobe, catalogue, options)
       : { status: 405, body: { error: "method_not_allowed" } };
   }
+  const cutoutMatch = pathname.match(/^\/v1\/wardrobe\/([^/]+)\/cutout$/);
+  if (cutoutMatch?.[1]) {
+    return method === "POST"
+      ? redoCutout(cutoutMatch[1], wardrobe, options)
+      : { status: 405, body: { error: "method_not_allowed" } };
+  }
   if (pathname === "/v1/wardrobe/photos") {
     return method === "POST"
       ? uploadPhoto(wardrobe, options)
@@ -130,6 +159,12 @@ export async function handleWardrobePhotoRequest(
   const garment = await wardrobe.getGarment(match[1]);
   const mediaType = garment ? await wardrobe.getPhotoMediaType(garment.id) : null;
   if (!garment || !mediaType) return { status: 404, body: { error: "photo_not_found" } };
+  // The best image for the frame: the background-free copy when there is one, else the photo as shot.
+  if (garment.cutoutStatus === "ready" && options.cutoutStore) {
+    const cutout = await options.cutoutStore.read(garment.id, "image/png");
+    if (cutout) return { status: 200, body: cutout, contentType: "image/png" };
+    console.warn("Garment cutout file is missing; serving the original", garment.id);
+  }
   const bytes = await options.photoStore.read(garment.id, mediaType);
   return bytes
     ? { status: 200, body: bytes, contentType: mediaType }

@@ -9,6 +9,7 @@ import { startOutfitScheduler } from "./outfitScheduler.js";
 import { ClaudeOutfitPicker } from "./claudeOutfitPicker.js";
 import { ClaudeOutfitSuggester } from "./claudeOutfitSuggester.js";
 import { DiskGarmentPhotoStore, MAX_PHOTO_BYTES } from "./garmentPhotoStore.js";
+import { ImglyCutoutMaker } from "./imglyCutoutMaker.js";
 import { MAX_JSON_BODY_BYTES, readRequestBody } from "./requestBody.js";
 import { createDefaultPoliteFetch } from "./politeFetch.js";
 import { importProduct } from "./productImport.js";
@@ -28,6 +29,9 @@ const repository = new SqliteCatalogueRepository(databasePath, {
 });
 const wardrobe = new SqliteWardrobeRepository(databasePath);
 const photoStore = new DiskGarmentPhotoStore(join(dirname(databasePath), "wardrobe-photos"));
+const cutoutStore = new DiskGarmentPhotoStore(join(dirname(databasePath), "wardrobe-cutouts"));
+// Local ONNX inference, no key needed. CATALOGUE_CUTOUTS=off keeps photos as shot; the redo route then answers 503.
+const cutoutMaker = process.env.CATALOGUE_CUTOUTS === "off" ? undefined : new ImglyCutoutMaker();
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
@@ -128,6 +132,8 @@ const server = createServer(async (request, response) => {
         wardrobe,
         photoStore,
         tagger,
+        cutoutStore,
+        cutoutMaker,
         suggester,
         outfits,
       },

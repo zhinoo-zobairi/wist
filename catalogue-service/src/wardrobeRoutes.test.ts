@@ -6,6 +6,7 @@ import type { Garment, GarmentInput } from "./wardrobe.js";
 import { WardrobeFullError } from "./wardrobeRepository.js";
 import { MAX_PHOTO_BYTES, type GarmentPhotoStore } from "./garmentPhotoStore.js";
 import type { GarmentTagger } from "./garmentTagger.js";
+import type { CutoutMaker } from "./cutoutMaker.js";
 
 const input: GarmentInput = {
   name: "Navy shirt", category: "top", colors: ["navy"],
@@ -372,5 +373,109 @@ describe("wardrobe API", () => {
     await expect(request("POST", "/v1/wardrobe/missing/tag", { tagger }))
       .resolves.toEqual({ status: 404, body: { error: "garment_not_found" } });
     expect(tagger.tag).not.toHaveBeenCalled();
+  });
+});
+
+describe("wardrobe API · cutouts", () => {
+  const repositories: SqliteWardrobeRepository[] = [];
+  afterEach(() => {
+    repositories.splice(0).forEach((repository) => repository.close());
+    vi.restoreAllMocks();
+  });
+  const cutoutPng = Buffer.from([137, 80, 78, 71, 1]);
+  function setup(cutoutMaker?: CutoutMaker) {
+    const wardrobe = new SqliteWardrobeRepository(":memory:");
+    repositories.push(wardrobe);
+    const photoStore = new MemoryPhotoStore();
+    const cutoutStore = new MemoryPhotoStore();
+    const request = (method: string, path: string, options: RequestOptions = {}) =>
+      handleRequest(method, path, catalogue, auth, { wardrobe, photoStore, cutoutStore, cutoutMaker, ...options });
+    return { wardrobe, photoStore, cutoutStore, request };
+  }
+
+  it("cuts an upload out alongside tagging and serves the cutout from the photo route", async () => {
+    const cut = vi.fn<CutoutMaker["cut"]>().mockResolvedValue({ ok: true, png: cutoutPng });
+    const tag = vi.fn<GarmentTagger["tag"]>().mockResolvedValue({ ok: true, tags: input });
+    const { request, cutoutStore, photoStore } = setup({ cut });
+    const result = await request("POST", "/v1/wardrobe/photos", { bodyBytes: photoBytes, contentType: "image/webp", tagger: { tag } });
+    expect(result).toMatchObject({ status: 201, body: { garment: { ...input, tagStatus: "tagged", cutoutStatus: "ready" } } });
+    const { garment } = result.body as { garment: Garment };
+    expect(cut).toHaveBeenCalledWith(photoBytes, "image/webp");
+    expect(cutoutStore.photos.get(garment.id)).toEqual(cutoutPng);
+    expect(photoStore.photos.get(garment.id)).toEqual(photoBytes);
+    await expect(request("GET", garment.photoUrl!)).resolves.toEqual({ status: 200, contentType: "image/png", body: cutoutPng });
+  });
+
+  it.each(["model_error", "empty"] as const)("keeps the original and marks the cutout failed on %s", async (reason) => {
+    const { request, cutoutStore } = setup({ cut: async () => ({ ok: false, reason }) });
+    const result = await request("POST", "/v1/wardrobe/photos", { bodyBytes: photoBytes, contentType: "image/jpeg" });
+    expect(result).toMatchObject({ status: 201, body: { garment: { cutoutStatus: "failed", tagStatus: "untagged" } } });
+    const { garment } = result.body as { garment: Garment };
+    expect(cutoutStore.photos.size).toBe(0);
+    await expect(request("GET", garment.photoUrl!)).resolves.toEqual({ status: 200, contentType: "image/jpeg", body: photoBytes });
+  });
+
+  it("marks the cutout failed when its file cannot be written", async () => {
+    const { request, cutoutStore } = setup({ cut: async () => ({ ok: true, png: cutoutPng }) });
+    vi.spyOn(cutoutStore, "write").mockRejectedValue(new Error("disk full"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await expect(request("POST", "/v1/wardrobe/photos", { bodyBytes: photoBytes, contentType: "image/jpeg" }))
+      .resolves.toMatchObject({ status: 201, body: { garment: { cutoutStatus: "failed" } } });
+  });
+
+  it("uploads without a cutout maker as before", async () => {
+    const { request } = setup();
+    await expect(request("POST", "/v1/wardrobe/photos", { bodyBytes: photoBytes, contentType: "image/jpeg" }))
+      .resolves.toMatchObject({ status: 201, body: { garment: { cutoutStatus: "none" } } });
+  });
+
+  it("falls back to the original when a ready cutout's file is missing", async () => {
+    const { request, wardrobe, photoStore } = setup();
+    const garment = await wardrobe.createPhotoGarment("image/jpeg");
+    await photoStore.write(garment.id, "image/jpeg", photoBytes);
+    await wardrobe.setCutoutStatus(garment.id, "ready");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    await expect(request("GET", garment.photoUrl!)).resolves.toEqual({ status: 200, contentType: "image/jpeg", body: photoBytes });
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("redoes a cutout on request and reports the outcome", async () => {
+    const cut = vi.fn<CutoutMaker["cut"]>().mockResolvedValue({ ok: false, reason: "model_error" });
+    const { request, wardrobe, photoStore, cutoutStore } = setup({ cut });
+    const garment = await wardrobe.createPhotoGarment("image/jpeg");
+    await photoStore.write(garment.id, "image/jpeg", photoBytes);
+    await expect(request("POST", `/v1/wardrobe/${garment.id}/cutout`))
+      .resolves.toEqual({ status: 502, body: { error: "cutout_failed" } });
+    await expect(wardrobe.getGarment(garment.id)).resolves.toMatchObject({ cutoutStatus: "failed" });
+    cut.mockResolvedValue({ ok: true, png: cutoutPng });
+    await expect(request("POST", `/v1/wardrobe/${garment.id}/cutout`))
+      .resolves.toMatchObject({ status: 200, body: { garment: { id: garment.id, cutoutStatus: "ready", tagStatus: "untagged" } } });
+    expect(cut).toHaveBeenLastCalledWith(photoBytes, "image/jpeg");
+    expect(cutoutStore.photos.get(garment.id)).toEqual(cutoutPng);
+  });
+
+  it("answers the cutout route's edge cases", async () => {
+    const { request, wardrobe } = setup({ cut: async () => ({ ok: true, png: cutoutPng }) });
+    const manual = await wardrobe.createGarment(input, "manual");
+    await expect(request("POST", `/v1/wardrobe/${manual.id}/cutout`)).resolves.toEqual({ status: 404, body: { error: "photo_not_found" } });
+    await expect(request("POST", "/v1/wardrobe/missing/cutout")).resolves.toEqual({ status: 404, body: { error: "garment_not_found" } });
+    await expect(request("GET", `/v1/wardrobe/${manual.id}/cutout`)).resolves.toEqual({ status: 405, body: { error: "method_not_allowed" } });
+    const photo = await wardrobe.createPhotoGarment("image/jpeg");
+    await expect(request("POST", `/v1/wardrobe/${photo.id}/cutout`)).resolves.toEqual({ status: 404, body: { error: "photo_not_found" } });
+    await expect(request("POST", `/v1/wardrobe/${photo.id}/cutout`, { cutoutMaker: undefined }))
+      .resolves.toEqual({ status: 503, body: { error: "cutouts_not_configured" } });
+    await expect(request("POST", `/v1/wardrobe/${photo.id}/cutout`, { cutoutStore: undefined }))
+      .resolves.toEqual({ status: 503, body: { error: "cutouts_not_configured" } });
+    await expect(handleRequest("POST", `/v1/wardrobe/${photo.id}/cutout`, catalogue, { ownerToken: auth.ownerToken }, { wardrobe }))
+      .resolves.toEqual({ status: 401, body: { error: "unauthorized" } });
+  });
+
+  it("deletes the cutout with the garment", async () => {
+    const { request, cutoutStore } = setup({ cut: async () => ({ ok: true, png: cutoutPng }) });
+    const result = await request("POST", "/v1/wardrobe/photos", { bodyBytes: photoBytes, contentType: "image/jpeg" });
+    const { garment } = result.body as { garment: Garment };
+    expect(cutoutStore.photos.size).toBe(1);
+    await expect(request("DELETE", `/v1/wardrobe/${garment.id}`)).resolves.toMatchObject({ status: 200 });
+    expect(cutoutStore.photos.size).toBe(0);
   });
 });
